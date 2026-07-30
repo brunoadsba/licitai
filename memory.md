@@ -33,12 +33,13 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **Groq API** (`groq_provider.py`) — *Default MVP Free Tier*: `llama-3.3-70b-versatile`.
   - **Google Gemini API** (`gemini_provider.py`) — *Secundário Free Tier*: `gemini-2.0-flash`.
   - **Ollama** (`ollama_provider.py`) — *Local*: `qwen3:32b`, `deepseek-r1:32b`, etc.
+  - **Mock** (`mock_provider.py`) — *Testes E2E*: retorna respostas determinísticas sem chamadas externas.
 - **Compatibilidade Windows**:
   - `python-magic-bin` instalado para validação de magic bytes sem dependências C externas no Windows.
   - `UPLOAD_DIR` configurado dinamicamente para `./uploads`.
 - **Segurança**:
   - Content Security Policy (CSP) restritivo, headers de segurança (X-Frame-Options DENY, X-Content-Type-Options nosniff).
-  - Rate limiting in-memory (60 req/min).
+  - Rate limiting in-memory (configurável via env `RATE_LIMIT_MAX`, padrão 600 req/min).
   - Validação rigorosa de uploads (allowlist de extensão + validação por magic bytes).
   - Nomes de arquivos armazenados renomeados para UUIDs (fora do web root).
 
@@ -53,6 +54,14 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `README.md`: Guia completo de instalação, segurança e arquitetura.
 - `memory.md`: Memória contínua do projeto.
 - `db/init.sql`: Script de criação das extensões, tabelas (`documents`, `document_items`, `analyses`, `corrections`), índices e triggers no PostgreSQL.
+- `e2e/`: Diretório de testes End-to-End com fixtures, scripts e testes.
+  - `fixtures/sample-tr.docx`: DOCX de exemplo gerado manualmente (estrutura OPC) para testes.
+  - `scripts/generate_fixture.py`: Gera o fixture DOCX (cria ZIP com estrutura OPC válida).
+  - `scripts/init_test_db.py`: Inicializa banco SQLite isolado para testes E2E com provider mock.
+  - `.env.test`: Configuração de ambiente para testes (mock provider, rate limit alto).
+  - `run_e2e.ps1`: Script automatizado para execução dos testes E2E.
+  - `tests/test_e2e_full_flow.py`: 17 testes E2E cobrindo health check, upload, CRUD, análise e relatório.
+  - `tests/conftest.py`: Fixtures Pytest (client HTTP, fixture DOCX, documento com análise).
 
 ### Backend (`/backend`)
 - `Dockerfile`: Imagem Python 3.12-slim com `tesseract-ocr`, `tesseract-ocr-por` e `libmagic1`.
@@ -126,6 +135,9 @@ A IA atua estritamente sob as seguintes diretrizes:
 - **Banco de Dados Nativo**: O banco SQLite (`licitacao.db`) está inicializado com todas as tabelas criadas (`documents`, `document_items`, `analyses`, `corrections`).
 - **Chave de API**: Variável `GROQ_API_KEY` configurada no `.env` e validada pelo provedor Groq.
 - Todos os **31 arquivos Python** e **9 arquivos TypeScript** foram verificados e compilados sem erros.
+- **Testes E2E**: 17 testes criados e passando (pytest + httpx) contra backend rodando com `LLM_PROVIDER=mock`.
+  - Testa fluxo completo: upload → parsing → análise → relatório.
+  - Inclui testes de borda: extensão inválida, documento não encontrado, empty filename.
 
 ---
 
@@ -148,9 +160,30 @@ A IA atua estritamente sob as seguintes diretrizes:
 docker compose up --build
 ```
 
+### Executar Testes E2E (Requer backend rodando):
+```powershell
+# 1. Iniciar backend com mock provider e rate limit ampliado
+$env:LLM_PROVIDER="mock"; $env:RATE_LIMIT_MAX="6000"
+backend\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
+
+# 2. Rodar testes
+$env:E2E_BASE_URL="http://127.0.0.1:8000"; $env:PYTHONPATH="backend"
+backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
+
+# Ou usar script automatizado:
+.\e2e\run_e2e.ps1
+```
+
 ---
 
-## 7. Próximos Passos (Roadmap para Próximos Agentes)
+## 7. Bugs e Correções Anteriores
+
+- **Background Task não commitava análise**: O endpoint `POST /analysis/{id}/start` usava `db.flush()` mas não commitava, então a background task (que abre sessão própria) não encontrava o registro da análise. Corrigido com `await db.commit()` antes de agendar a task.
+- **Fixture DOCX com magic bytes inválidos**: `python-docx` gerava arquivos detectados como `application/octet-stream` pelo `python-magic-bin` no Windows. A `generate_fixture.py` foi reescrita para construir o ZIP manualmente com estrutura OPC mínima, que é detectada corretamente.
+- **Rate limit inflexível**: Era hardcoded em 60 req/min. Adicionado campo `rate_limit_max` no `Settings` do Pydantic (lê de env var), usado pelo middleware.
+- **GitGuardian false positive**: O `.env.example` continha valores literais de senha (`CHANGE_ME_TO_A_STRONG_PASSWORD`) que o GitGuardian detectava como "Generic Password". Corrigido substituindo por valores vazios.
+
+## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
 - **v1.0**:
   - Implementar pipeline RAG (Retrieval-Augmented Generation) armazenando trechos da Lei 14.133, Lei 13.303, RILC e acórdãos do TCU na tabela `pgvector`.

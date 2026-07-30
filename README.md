@@ -18,7 +18,7 @@ Sistema especialista para análise automatizada de Termos de Referência (TR) de
   - 📄 **Copiar Item Inteiro**: Copia a cláusula inteira com as correções aplicadas
   - 📝 **Copiar Parecer & Justificativa**: Copia o fundamento legal para o despacho/parecer do SEI
 - **Relatório** com pontuação (0-10), nível de risco e parecer final
-- **3 provedores de IA**: Groq (free tier), Google Gemini (free tier), Ollama (local)
+- **4 provedores de IA**: Groq (free tier), Google Gemini (free tier), Ollama (local), Mock (testes)
 
 ## 🛠 Tecnologias
 
@@ -85,17 +85,23 @@ licitacao/
 │       ├── api/             # REST endpoints
 │       ├── services/
 │       │   ├── parser/      # PDF, DOCX, OCR, estruturador
-│       │   ├── llm/         # Groq, Gemini, Ollama providers
+│       │   ├── llm/         # Groq, Gemini, Ollama, Mock providers
 │       │   └── analyzer/    # Motor de análise + prompts
 │       └── utils/           # Segurança, validação de uploads
-└── frontend/
-    ├── Dockerfile
-    ├── package.json
-    └── src/
-        ├── app/             # Pages (Dashboard, Upload, Análise, Relatório)
-        ├── components/      # Layout (Sidebar, Header)
-        ├── lib/api.ts       # Cliente API
-        └── types/           # TypeScript types
+├── frontend/
+│   ├── Dockerfile
+│   ├── package.json
+│   └── src/
+│       ├── app/             # Pages (Dashboard, Upload, Análise, Relatório)
+│       ├── components/      # Layout (Sidebar, Header)
+│       ├── lib/api.ts       # Cliente API
+│       └── types/           # TypeScript types
+└── e2e/                     # Testes End-to-End
+    ├── .env.test            # Config para testes
+    ├── run_e2e.ps1          # Script automatizado
+    ├── fixtures/            # Documentos de exemplo
+    ├── scripts/             # Scripts auxiliares
+    └── tests/               # Testes pytest + httpx
 ```
 
 ## 🔒 Segurança
@@ -104,12 +110,28 @@ licitacao/
 - Renomeação de arquivos para UUID (nunca usa nome original)
 - Prevenção de path traversal
 - CSP strict + X-Frame-Options DENY
-- Rate limiting (60 req/min)
+- Rate limiting configurável via env `RATE_LIMIT_MAX` (padrão 600 req/min)
 - CORS com allowlist de origens
 - SQL via ORM (sem string concatenation)
 - Secrets via variáveis de ambiente (nunca hardcoded)
 - XXE prevention no parsing de DOCX
 - Portas bind em 127.0.0.1
+
+## 🧪 Testes E2E
+
+```powershell
+# 1. Iniciar backend com mock provider
+$env:LLM_PROVIDER="mock"; $env:RATE_LIMIT_MAX="6000"
+backend\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000
+
+# 2. Rodar testes (em outro terminal)
+$env:E2E_BASE_URL="http://127.0.0.1:8000"; $env:PYTHONPATH="backend"
+backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
+```
+
+- **17 testes** cobrindo health check, upload, CRUD, análise e relatório
+- Fluxo completo: upload → parsing → análise → relatório
+- Testes de borda: extensão inválida, documento não encontrado
 
 ## 📋 Roadmap
 
