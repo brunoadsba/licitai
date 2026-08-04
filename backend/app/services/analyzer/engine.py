@@ -77,7 +77,7 @@ async def run_analysis(
     analysis.status = "running"
     analysis.started_at = datetime.now(timezone.utc)
     analysis.total_items = len(document.items)
-    await db.flush()
+    await db.commit()
 
     # Obter provedor LLM
     try:
@@ -127,7 +127,7 @@ async def run_analysis(
 
             analyzed_count += 1
             analysis.analyzed_items = analyzed_count
-            await db.flush()
+            await db.commit()
 
             logger.info(
                 "Item %d/%d analisado: %s — %d correções",

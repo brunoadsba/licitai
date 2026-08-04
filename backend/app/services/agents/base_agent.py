@@ -61,8 +61,8 @@ class BaseSpecializedAgent(ABC):
 
         try:
             raw_response = await llm.generate(
-                prompt=user_prompt,
                 system_prompt=self.system_prompt,
+                user_prompt=user_prompt,
             )
             corrections = parse_json_response(raw_response)
 

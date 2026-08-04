@@ -60,7 +60,7 @@ export default function AnalysisPage() {
     loadData();
   }, [loadData]);
 
-  // Polling durante análise
+  // Polling em tempo real durante a análise (1 segundo)
   useEffect(() => {
     if (!analysis || !['pending', 'running'].includes(analysis.status)) return;
 
@@ -75,7 +75,7 @@ export default function AnalysisPage() {
       } catch {
         // silenciar erros de polling
       }
-    }, 3000);
+    }, 1000);
 
     return () => clearInterval(interval);
   }, [analysis?.id, analysis?.status]);
@@ -232,23 +232,52 @@ export default function AnalysisPage() {
         </div>
       </div>
 
-      {/* Barra de progresso da análise */}
+      {/* Barra de progresso da análise com estilo premium */}
       {analysis && ['pending', 'running'].includes(analysis.status) && (
-        <div className="glass-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4 text-primary-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              <span className="text-sm text-gray-300">Analisando com IA...</span>
+        <div className="glass-card p-5 border-primary-500/30 glow space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative flex items-center justify-center">
+                <div className="w-3 h-3 rounded-full bg-cyan-400 animate-ping absolute opacity-75" />
+                <div className="w-3 h-3 rounded-full bg-cyan-500" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <span>🤖 Orquestrador Multi-Agente em Execução...</span>
+                </h3>
+                <p className="text-xs text-gray-400">
+                  Avaliando conformidade do TR com 4 agentes especializados (Lei 14.133/21 & TCU)
+                </p>
+              </div>
             </div>
-            <span className="text-sm text-gray-500">
-              {analysis.analyzed_items} / {analysis.total_items} itens
-            </span>
+
+            <div className="text-right">
+              <span className="text-xl font-extrabold text-cyan-400 font-mono">
+                {Math.min(100, Math.round(((analysis.analyzed_items || 0) / (analysis.total_items || 1)) * 100))}%
+              </span>
+              <span className="text-xs text-gray-400 block font-mono">
+                {analysis.analyzed_items} de {analysis.total_items} itens processados
+              </span>
+            </div>
           </div>
+
+          {/* Barra de Progresso com Shimmer */}
           <div className="progress-bar">
-            <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
+            <div
+              className="progress-bar-fill"
+              style={{
+                width: `${Math.min(100, Math.max(4, Math.round(((analysis.analyzed_items || 0) / (analysis.total_items || 1)) * 100)))}%`,
+              }}
+            />
+          </div>
+
+          {/* Badges dos Agentes Ativos */}
+          <div className="flex items-center gap-2 pt-1 overflow-x-auto">
+            <span className="text-[11px] text-gray-400 font-semibold mr-1">Agentes Ativos:</span>
+            <span className="badge badge-juridica text-[10px] animate-pulse">⚖️ Jurídico</span>
+            <span className="badge badge-tecnica text-[10px] animate-pulse">🛠️ Técnico</span>
+            <span className="badge badge-redacao text-[10px] animate-pulse">✍️ Redação</span>
+            <span className="badge badge-estrutural text-[10px] animate-pulse">📐 Estrutural</span>
           </div>
         </div>
       )}

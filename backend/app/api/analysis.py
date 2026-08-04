@@ -70,7 +70,15 @@ async def start_analysis(
             Analysis.status.in_(["pending", "running"]),
         )
     )
-    if running.scalar_one_or_none():
+    existing_analysis = running.scalar_one_or_none()
+    if existing_analysis:
+        if existing_analysis.status == "pending":
+            logger.info("Re-enfileirando análise pendente %s (doc %s)", existing_analysis.id, document_id)
+            background_tasks.add_task(_run_analysis_background, existing_analysis.id, document_id)
+            return AnalysisStartResponse(
+                analysis_id=existing_analysis.id,
+                message="Análise pendente re-enfileirada. Acompanhe pelo status.",
+            )
         raise HTTPException(
             status_code=409,
             detail="Já existe uma análise em andamento para este documento.",
