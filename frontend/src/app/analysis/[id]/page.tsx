@@ -205,7 +205,7 @@ export default function AnalysisPage() {
             </Link>
           )}
 
-          {(!analysis || analysis.status === 'completed') && document.status !== 'error' && (
+          {(!analysis || ['completed', 'error'].includes(analysis.status)) && document.status !== 'error' && (
             <button
               onClick={handleStartAnalysis}
               disabled={analyzing}
@@ -224,7 +224,7 @@ export default function AnalysisPage() {
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
                   </svg>
-                  {analysis ? 'Reanalisar' : 'Iniciar Análise'}
+                  {analysis?.status === 'error' ? 'Tentar Novamente' : (analysis ? 'Reanalisar' : 'Iniciar Análise')}
                 </>
               )}
             </button>
@@ -282,7 +282,31 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      {/* Erro */}
+      {/* Banner de erro da análise */}
+      {analysis?.status === 'error' && (
+        <div className="glass-card border-red-500/30 p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-xl">⚠️</span>
+              <div>
+                <h4 className="text-sm font-bold text-red-300">A análise anterior foi interrompida</h4>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {analysis.error_message || 'Erro interno ou reinicialização do servidor.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleStartAnalysis}
+              disabled={analyzing}
+              className="btn-primary text-xs"
+            >
+              🔄 Tentar Novamente com IA
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Erro de Requisição */}
       {error && (
         <div className="glass-card border-red-500/20 p-4">
           <p className="text-red-400 text-sm">{error}</p>
