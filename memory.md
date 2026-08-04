@@ -230,6 +230,10 @@ A IA atua estritamente sob as seguintes diretrizes:
   - Extratores de âncoras para **CNPJ** (com validação), **Prazo Relativo** (ex: "30 dias") e **CEP** (`#####-###`).
   - Endpoint de duplicação de moldes `POST /moldes/{id}/duplicate` + botão em 1-clique.
   - Endpoint dry-run `POST /moldes/{id}/validate/{document_id}` + modal de teste em tempo real no frontend.
+- **Direcionamento Arquitetural & Próximas Etapas (Fase 7 - Pendente)**:
+  - **Uso Estritamente Single-User**: O sistema foi concebido para uso individual / de usuário único. Criação de perfis, login JWT e regras RBAC foram despriorizadas por não serem aplicáveis ao escopo do projeto.
+  - **Histórico e Versionamento de Edições (Single-User)**: Planejado o versionamento/linha do tempo de edições e rascunhos de cláusulas alteradas no TR.
+  - **Calibração do Agente Estrutural (`StructuralAgent`)**: Ajuste nos prompts e heurísticas para elevar o recall na identificação dos 10 elementos do Art. 6º, XXIII da Lei 14.133/21.
 - **Suíte de Testes**: **95 testes unitários passando** (100% no Pytest, incluindo `test_multi_agent.py` e `test_fase4_fase5.py`) + **17 testes E2E passando**.
 - `next build` compilado com 0 erros de compilação ou TypeScript (8 páginas geradas).
 

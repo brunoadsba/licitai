@@ -16,7 +16,11 @@ validação. Serve de guia para agentes executarem as frentes uma a uma.
 3. **Fase 3 — RF04 e-mail (M/L)** ✅ concluída → fecha o ciclo da auditoria.
 4. **Fase 4 — RAG v1.0 (XL)** ✅ concluída → busca semântica, jurisprudência TCU/RILC e diff de versões.
 5. **Fase 5 — Auditoria polimentos (M)** ✅ concluída → novas âncoras (cnpj, prazo_relativo, cep), duplicação e dry-run.
-6. **Fase 6 — v2.0 (XL)** → multi-agente (concluído) e multi-usuário.
+6. **Fase 6 — Múltiplos Agentes Inteligentes (XL)** ✅ concluída → 4 agentes especializados (Jurídico, Técnico, Redação, Estrutural) + orquestrador.
+7. **Fase 7 — Histórico de Edições & Sensibilidade do Agente Estrutural (M/L)** `[ ]` pendente:
+   - **7.1 Versionamento & Histórico de Edições Single-User (M)**: Registro de versões/rascunhos de alterações feitas no TR.
+   - **7.2 Calibração de Sensibilidade do Agente Estrutural (S/M)**: Ajuste dos prompts e heurísticas para elevação do recall na detecção do Art. 6º, XXIII.
+   - *(Nota: O projeto é estritamente Single-User por design. Criação de login/perfis de usuário/RBAC despriorizada por não ser necessária).*
 
 ---
 
@@ -186,13 +190,29 @@ validação. Serve de guia para agentes executarem as frentes uma a uma.
 
 ---
 
-## Fase 6 — v2.0 (multi-agente e multi-usuário)
+## Fase 6 — Múltiplos Agentes Inteligentes (Multi-Agent System) ✅ Concluída
 
-**Objetivo:** evolução arquitetural de longo prazo.
+**Objetivo:** Orquestração especializada e concorrente para auditoria multifacetada do TR.
 
-- **6.1 Agentes LangGraph** (Jurídico, Técnico, Redação, Revisor): refatorar `analyzer/engine.py` para orquestração multi-agente. **Esforço:** XL
-- **6.2 Autenticação/RBAC:** login (JWT) + controle de acesso por papel; proteger rotas. **Esforço:** XL
-- **6.3 Histórico de revisões por documento:** versionamento de documentos/edições. **Esforço:** L
+- **6.1 Agentes Especializados:** `LegalAgent` (⚖️), `TechnicalAgent` (🛠️), `WritingAgent` (✍️) e `StructuralAgent` (📐). ✅
+- **6.2 Orquestrador Concorrente:** `MultiAgentOrchestrator` rodando em paralelo (`asyncio.gather`), com deduplicação e rotulagem por `agent_origin`. ✅
+
+---
+
+## Fase 7 — Histórico de Edições & Calibração do Agente Estrutural `[ ]`
+
+**Objetivo:** Gerenciamento do histórico de edições para ambiente *single-user* e elevação da acurácia de detecção estrutural.
+
+> **Nota Arquitetural:** O sistema é estritamente **Single-User / Uso Individual** por diretriz. Não há necessidade de cadastro de perfis de usuários, autenticação JWT ou controle RBAC.
+
+- **7.1 Histórico & Versionamento de Edições (Single-User):**
+  - Permitir salvar snapshots / rascunhos de edições feitas nas cláusulas do TR no próprio sistema.
+  - Exibir a linha do tempo de modificações do documento ao longo dos ciclos de revisão.
+  - **Esforço:** M
+- **7.2 Calibração de Sensibilidade do Agente Estrutural (`StructuralAgent`):**
+  - Refinar o prompt do `StructuralAgent` e as regras do checklist (Art. 6º, XXIII da Lei 14.133/21).
+  - Elevar a sensibilidade para identificar omissões e ausências de seções obrigatórias (aumentando o recall de 0,375 para > 0,85).
+  - **Esforço:** S/M
 
 ---
 
