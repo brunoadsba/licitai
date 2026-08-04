@@ -237,6 +237,8 @@ A IA atua estritamente sob as seguintes diretrizes:
 - **Geração Assistida de TRs & Extensão de Navegador para SEI (Fase 8) implementados**:
   - **Geração Assistida de TR**: Endpoint `POST /api/v1/generator/tr`, engine `tr_builder.py` (gera as 10 seções do Art. 6º, XXIII com RAG do TCU/RILC) e formulário Wizard no frontend em `/gerar-tr`.
   - **Extensão de Navegador LicitAI para SEI (`extension/`)**: Manifest V3, content script `content.js` (detecta CKEditor/iFrame no SEI e injeta HTML do TR) e pop-up `popup.html`/`popup.js` (lista TRs recentes da API local).
+  - **Correção da Assinatura do LLM nos Agentes (`base_agent.py`)**: Corrigidos argumentos nomeados (`system_prompt` e `user_prompt`) no orquestrador multi-agente.
+  - **Progresso de Análise em Tempo Real (Real-Time Commit & Polling)**: Commit no banco a cada item analisado (`engine.py`), polling reduzido para 1s na tela de análise e nova UI do progresso com efeito shimmer, porcentagem e badges dos 4 agentes ativos (`⚖️ Jurídico`, `🛠️ Técnico`, `✍️ Redação`, `📐 Estrutural`).
 - **Suíte de Testes**: **99 testes unitários passando** (100% no Pytest, incluindo `test_fase8_generator.py`) + **17 testes E2E passando**.
 - `next build` compilado com 0 erros de compilação ou TypeScript (9 páginas geradas com sucesso, incluindo `/gerar-tr`).
 
