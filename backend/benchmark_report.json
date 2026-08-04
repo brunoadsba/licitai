@@ -1,0 +1,107 @@
+{
+  "trs": [
+    {
+      "nome": "Serviços de limpeza — omissões graves",
+      "items": [
+        {
+          "item_number": "1",
+          "generated": 1,
+          "kept": 1,
+          "rejected": 0,
+          "expected_hits": 1,
+          "expected_total": 4,
+          "recall": 0.25,
+          "categories_kept": {
+            "juridica": 0,
+            "tecnica": 0,
+            "redacao": 0,
+            "estrutural": 1
+          },
+          "erro": null
+        },
+        {
+          "item_number": "2",
+          "generated": 2,
+          "kept": 1,
+          "rejected": 1,
+          "expected_hits": 1,
+          "expected_total": 2,
+          "recall": 0.5,
+          "categories_kept": {
+            "juridica": 0,
+            "tecnica": 1,
+            "redacao": 0,
+            "estrutural": 0
+          },
+          "erro": null
+        }
+      ],
+      "recall": 0.375,
+      "precision": 0.6666666666666666,
+      "f1": 0.4800000000000001,
+      "generated": 3,
+      "kept": 2,
+      "erros": 0
+    },
+    {
+      "nome": "Câmeras de monitoramento — direcionamento",
+      "items": [
+        {
+          "item_number": "1",
+          "generated": 1,
+          "kept": 1,
+          "rejected": 0,
+          "expected_hits": 2,
+          "expected_total": 3,
+          "recall": 0.6666666666666666,
+          "categories_kept": {
+            "juridica": 1,
+            "tecnica": 0,
+            "redacao": 0,
+            "estrutural": 0
+          },
+          "erro": null
+        }
+      ],
+      "recall": 0.6666666666666666,
+      "precision": 1.0,
+      "f1": 0.8,
+      "generated": 1,
+      "kept": 1,
+      "erros": 0
+    },
+    {
+      "nome": "TR adequado — sem problemas relevantes",
+      "items": [
+        {
+          "item_number": "1",
+          "generated": 2,
+          "kept": 2,
+          "rejected": 0,
+          "expected_hits": 0,
+          "expected_total": 0,
+          "recall": 1.0,
+          "categories_kept": {
+            "juridica": 1,
+            "tecnica": 0,
+            "redacao": 0,
+            "estrutural": 1
+          },
+          "erro": null
+        }
+      ],
+      "recall": 1.0,
+      "precision": 1.0,
+      "f1": 1.0,
+      "generated": 2,
+      "kept": 2,
+      "erros": 0
+    }
+  ],
+  "resumo": {
+    "trs": 3,
+    "recall_media": 0.6805555555555555,
+    "precision_media": 0.8888888888888888,
+    "f1_media": 0.7708947885939036
+  }
+}

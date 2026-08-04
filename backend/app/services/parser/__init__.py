@@ -4,9 +4,10 @@ Pacote de parsing de documentos.
 
 from app.services.parser.pdf_parser import parse_pdf
 from app.services.parser.docx_parser import parse_docx
+from app.services.parser.odt_parser import parse_odt
 from app.services.parser.structurer import structure_items
 
-__all__ = ["parse_pdf", "parse_docx", "structure_items", "parse_document"]
+__all__ = ["parse_pdf", "parse_docx", "parse_odt", "structure_items", "parse_document"]
 
 
 async def parse_document(file_path, file_type: str) -> list[dict]:
@@ -19,6 +20,8 @@ async def parse_document(file_path, file_type: str) -> list[dict]:
         raw_text, pages = parse_pdf(file_path)
     elif file_type == "docx":
         raw_text, pages = parse_docx(file_path)
+    elif file_type == "odt":
+        raw_text, pages = parse_odt(file_path)
     else:
         raise ValueError(f"Tipo não suportado: {file_type}")
 

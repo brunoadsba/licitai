@@ -42,9 +42,30 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://ollama:11434"
     ollama_model: str = "qwen3:32b"
 
+    # --- Embeddings (RAG Fase 4) ---
+    # Provedor de embeddings para busca semântica: "gemini" (API) ou "ollama" (local).
+    embeddings_provider: Literal["gemini", "ollama"] = "gemini"
+    embeddings_model: str = "gemini-embedding-001"
+    # Dimensão dos vetores do modelo (gemini-embedding-001 = 3072; bge-m3 = 1024).
+    # Usada apenas para validação/report no script de ingestão.
+    embeddings_dim: int = 3072
+
     # --- Aplicação ---
     allowed_origins: str = "http://localhost:3000"
     max_upload_size_mb: int = 50
+
+    # --- Rate Limiting ---
+    rate_limit_max: int = 600
+
+    # --- LLM ---
+    llm_timeout_seconds: float = 120.0
+
+    # --- SMTP (RF04 — envio de pendências por fornecedor) ---
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
 
     # --- Segurança ---
     # TODO(security): Em produção, usar secret management (KMS, Vault, etc.)
@@ -69,10 +90,11 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.allowed_origins.split(",")]
 
     # Tipos de arquivo permitidos (allowlist)
-    ALLOWED_FILE_EXTENSIONS: set[str] = {".pdf", ".docx"}
+    ALLOWED_FILE_EXTENSIONS: set[str] = {".pdf", ".docx", ".odt"}
     ALLOWED_MIME_TYPES: set[str] = {
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.oasis.opendocument.text",
     }
 
 

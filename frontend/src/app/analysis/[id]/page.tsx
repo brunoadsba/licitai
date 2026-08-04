@@ -12,6 +12,13 @@ import type {
 } from '@/types';
 import { CATEGORY_LABELS, SEVERITY_LABELS } from '@/types';
 
+const AGENT_ORIGIN_CONFIG: Record<string, { label: string; icon: string; badgeClass: string }> = {
+  juridico: { label: 'Agente Jurídico', icon: '⚖️', badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/40' },
+  tecnico: { label: 'Agente Técnico', icon: '🛠️', badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/40' },
+  redacao: { label: 'Agente de Redação', icon: '✍️', badgeClass: 'bg-blue-500/15 text-blue-300 border-blue-500/40' },
+  estrutural: { label: 'Agente Estrutural', icon: '📐', badgeClass: 'bg-teal-500/15 text-teal-300 border-teal-500/40' },
+};
+
 export default function AnalysisPage() {
   const params = useParams();
   const router = useRouter();
@@ -368,7 +375,13 @@ export default function AnalysisPage() {
                       <div key={correction.id} className="glass-card p-5 animate-slide-up" style={{ animationDelay: `${idx * 80}ms` }}>
                         {/* Header da correção */}
                         <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {correction.agent_origin && AGENT_ORIGIN_CONFIG[correction.agent_origin] && (
+                              <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border flex items-center gap-1 ${AGENT_ORIGIN_CONFIG[correction.agent_origin].badgeClass}`}>
+                                <span>{AGENT_ORIGIN_CONFIG[correction.agent_origin].icon}</span>
+                                {AGENT_ORIGIN_CONFIG[correction.agent_origin].label}
+                              </span>
+                            )}
                             <span className={`badge ${getCategoryBadge(correction.category)}`}>
                               {CATEGORY_LABELS[correction.category] || correction.category}
                             </span>

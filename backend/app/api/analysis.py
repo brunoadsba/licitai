@@ -17,6 +17,7 @@ from app.database import get_db, async_session_factory
 from app.models.document import Document
 from app.models.analysis import Analysis, Correction
 from app.schemas.analysis import (
+    AnalysisStartRequest,
     AnalysisStartResponse,
     AnalysisDetailResponse,
     CorrectionResponse,
@@ -41,9 +42,11 @@ router = APIRouter(prefix="/analysis", tags=["Análise"])
 async def start_analysis(
     document_id: uuid.UUID,
     background_tasks: BackgroundTasks,
+    payload: AnalysisStartRequest | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Inicia análise em background."""
+    mode = payload.mode if payload and payload.mode else "multi_agent"
 
     # Verificar se documento existe e está parseado
     result = await db.execute(
@@ -79,6 +82,7 @@ async def start_analysis(
         status="pending",
         llm_provider=settings.llm_provider,
         llm_model=_get_current_model(),
+        analysis_mode=mode,
         total_items=document.total_items,
     )
     db.add(analysis)
@@ -86,8 +90,13 @@ async def start_analysis(
 
     analysis_id = analysis.id
 
+    # Commit para que a análise fique visível para a background task
+    await db.commit()
+
     # Executar análise em background
+    logger.info("Agendando background task para análise %s (doc %s)", analysis_id, document_id)
     background_tasks.add_task(_run_analysis_background, analysis_id, document_id)
+    logger.info("Background task agendada")
 
     return AnalysisStartResponse(
         analysis_id=analysis_id,
@@ -99,6 +108,7 @@ async def _run_analysis_background(
     analysis_id: uuid.UUID, document_id: uuid.UUID
 ) -> None:
     """Executa a análise em background com sessão própria do banco."""
+    logger.info("Background task iniciada para análise %s", analysis_id)
     async with async_session_factory() as db:
         try:
             await run_analysis(db, analysis_id, document_id)

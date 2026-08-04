@@ -7,6 +7,8 @@ const BREADCRUMB_MAP: Record<string, string> = {
   '/upload': 'Enviar Documento',
   '/analysis': 'Análise',
   '/report': 'Relatório',
+  '/comparacao': 'Comparações',
+  '/moldes': 'Moldes de Regras',
 };
 
 export default function Header() {

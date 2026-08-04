@@ -1,9 +1,12 @@
 """
 Interface abstrata para provedores de LLM.
 
-Factory pattern que instancia o provider correto baseado na configuração.
+Factory pattern com failover automático entre provedores reais:
+- Provider primário configurado via LLM_PROVIDER
+- Fallback automático para os demais provedores configurados
 """
 
+import asyncio
 import logging
 from abc import ABC, abstractmethod
 
@@ -18,79 +21,139 @@ class LLMProvider(ABC):
 
     @abstractmethod
     async def generate(self, system_prompt: str, user_prompt: str) -> str:
-        """
-        Envia prompt ao LLM e retorna a resposta.
-
-        Args:
-            system_prompt: Instruções do sistema (persona do especialista).
-            user_prompt: Prompt do usuário com o item a analisar.
-
-        Returns:
-            Resposta do LLM como string.
-        """
         ...
 
     @abstractmethod
     async def health_check(self) -> bool:
-        """Verifica se o provedor está acessível."""
         ...
 
     @property
     @abstractmethod
     def provider_name(self) -> str:
-        """Nome do provedor para logging."""
         ...
 
     @property
     @abstractmethod
     def model_name(self) -> str:
-        """Nome do modelo em uso."""
         ...
+
+
+class FailoverProvider(LLMProvider):
+    """
+    Wrapper que tenta múltiplos provedores em ordem, com fallback automático.
+
+    Se o primeiro falhar (timeout, erro de API, etc.), tenta o próximo,
+    e assim por diante. Se todos falharem, levanta a exceção do último.
+    """
+
+    def __init__(self, providers: list[LLMProvider]):
+        if not providers:
+            raise ValueError("Pelo menos um provider é obrigatório.")
+        self._providers = providers
+        self._last_successful: LLMProvider | None = None
+
+    async def generate(self, system_prompt: str, user_prompt: str) -> str:
+        last_error: Exception | None = None
+        for i, provider in enumerate(self._providers):
+            try:
+                response = await asyncio.wait_for(
+                    provider.generate(system_prompt, user_prompt),
+                    timeout=settings.llm_timeout_seconds,
+                )
+                self._last_successful = provider
+                if i > 0:
+                    logger.info(
+                        "Failover: %s/%s assumiu após falha do primário",
+                        provider.provider_name, provider.model_name,
+                    )
+                return response
+            except Exception as e:
+                last_error = e
+                logger.warning(
+                    "Provider %s/%s falhou: %s. %s",
+                    provider.provider_name, provider.model_name,
+                    e,
+                    "Tentando próximo..." if i < len(self._providers) - 1 else "Nenhum fallback restante.",
+                )
+        raise RuntimeError(
+            f"Todos os provedores LLM falharam. Último erro: {last_error}"
+        ) from last_error
+
+    async def health_check(self) -> bool:
+        for provider in self._providers:
+            if await provider.health_check():
+                self._last_successful = provider
+                return True
+        return False
+
+    @property
+    def provider_name(self) -> str:
+        if self._last_successful:
+            return self._last_successful.provider_name
+        return self._providers[0].provider_name
+
+    @property
+    def model_name(self) -> str:
+        if self._last_successful:
+            return self._last_successful.model_name
+        return self._providers[0].model_name
+
+
+def _build_providers() -> list[LLMProvider]:
+    """Constrói lista de provedores reais disponíveis na ordem de prioridade."""
+    providers: list[LLMProvider] = []
+    primary = settings.llm_provider
+
+    if primary == "gemini" and settings.gemini_api_key:
+        from app.services.llm.gemini_provider import GeminiProvider
+        providers.append(GeminiProvider(
+            api_key=settings.gemini_api_key,
+            model=settings.gemini_model,
+        ))
+
+    if settings.groq_api_key:
+        from app.services.llm.groq_provider import GroqProvider
+        providers.append(GroqProvider(
+            api_key=settings.groq_api_key,
+            model=settings.groq_model,
+        ))
+
+    if primary == "ollama":
+        from app.services.llm.ollama_provider import OllamaProvider
+        providers.append(OllamaProvider(
+            base_url=settings.ollama_base_url,
+            model=settings.ollama_model,
+        ))
+
+    return providers
 
 
 def get_llm_provider() -> LLMProvider:
     """
-    Factory — retorna o provedor LLM configurado.
+    Factory — retorna o melhor provedor LLM disponível com failover.
 
-    Raises:
-        ValueError: Se o provedor configurado não é válido ou
-                    as credenciais necessárias não estão disponíveis.
+    A ordem de prioridade é definida pelo LLM_PROVIDER no .env:
+    - gemini → Gemini → Groq
+    - groq → Groq → Gemini (se chave presente)
+    - ollama → Ollama
+
+    Levanta RuntimeError se nenhum provedor real estiver configurado
+    (chave de API ausente para o provedor primário e seus fallbacks).
     """
-    provider = settings.llm_provider
+    providers = _build_providers()
 
-    if provider == "groq":
-        if not settings.groq_api_key:
-            raise ValueError(
-                "GROQ_API_KEY não configurada. "
-                "Defina no arquivo .env para usar o Groq."
-            )
-        from app.services.llm.groq_provider import GroqProvider
-        return GroqProvider(
-            api_key=settings.groq_api_key,
-            model=settings.groq_model,
+    if not providers:
+        raise RuntimeError(
+            "Nenhum provedor LLM configurado. Verifique LLM_PROVIDER e "
+            "as chaves de API (GEMINI_API_KEY/GROQ_API_KEY) no .env."
         )
 
-    elif provider == "gemini":
-        if not settings.gemini_api_key:
-            raise ValueError(
-                "GEMINI_API_KEY não configurada. "
-                "Defina no arquivo .env para usar o Google Gemini."
-            )
-        from app.services.llm.gemini_provider import GeminiProvider
-        return GeminiProvider(
-            api_key=settings.gemini_api_key,
-            model=settings.gemini_model,
-        )
+    if len(providers) == 1:
+        return providers[0]
 
-    elif provider == "ollama":
-        from app.services.llm.ollama_provider import OllamaProvider
-        return OllamaProvider(
-            base_url=settings.ollama_base_url,
-            model=settings.ollama_model,
-        )
-
-    else:
-        raise ValueError(
-            f"Provedor LLM não suportado: '{provider}'. "
-            f"Use: groq, gemini ou ollama."
-        )
+    logger.info(
+        "Failover ativo: %s → %s",
+        providers[0].provider_name,
+        " → ".join(p.provider_name for p in providers[1:]),
+    )
+    return FailoverProvider(providers)

@@ -3,9 +3,19 @@ Schemas Pydantic para análises e relatórios.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, BeforeValidator
+
+
+def _ensure_tz(v: datetime) -> datetime:
+    if isinstance(v, datetime) and v.tzinfo is None:
+        return v.replace(tzinfo=timezone.utc)
+    return v
+
+
+AwareDatetime = Annotated[datetime, BeforeValidator(_ensure_tz)]
 
 
 class CorrectionResponse(BaseModel):
@@ -24,6 +34,15 @@ class CorrectionResponse(BaseModel):
     justification: str
     legal_basis: str | None = None
     importance: str
+    agent_origin: str | None = None
+    review_status: str = "pendente"
+    review_note: str | None = None
+    reviewed_at: AwareDatetime | None = None
+
+
+class AnalysisStartRequest(BaseModel):
+    """Payload para iniciar uma análise."""
+    mode: str = "multi_agent"
 
 
 class AnalysisStartResponse(BaseModel):
@@ -41,12 +60,13 @@ class AnalysisResponse(BaseModel):
     status: str
     llm_provider: str
     llm_model: str
+    analysis_mode: str = "multi_agent"
     total_items: int
     analyzed_items: int
     score_overall: float | None = None
     risk_level: str | None = None
-    created_at: datetime
-    completed_at: datetime | None = None
+    created_at: AwareDatetime
+    completed_at: AwareDatetime | None = None
 
 
 class AnalysisDetailResponse(BaseModel):
@@ -58,6 +78,7 @@ class AnalysisDetailResponse(BaseModel):
     status: str
     llm_provider: str
     llm_model: str
+    analysis_mode: str = "multi_agent"
     total_items: int
     analyzed_items: int
     score_overall: float | None = None
@@ -68,9 +89,9 @@ class AnalysisDetailResponse(BaseModel):
     risk_level: str | None = None
     final_opinion: str | None = None
     error_message: str | None = None
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
-    created_at: datetime
+    started_at: AwareDatetime | None = None
+    completed_at: AwareDatetime | None = None
+    created_at: AwareDatetime
     corrections: list[CorrectionResponse] = []
 
 
@@ -94,4 +115,4 @@ class ReportResponse(BaseModel):
     corrections_by_severity: dict[str, int] = {}
     corrections: list[CorrectionResponse] = []
     final_opinion: str | None = None
-    analyzed_at: datetime | None = None
+    analyzed_at: AwareDatetime | None = None

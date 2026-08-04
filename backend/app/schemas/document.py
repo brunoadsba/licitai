@@ -3,9 +3,19 @@ Schemas Pydantic para documentos — validação de entrada e saída.
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, BeforeValidator
+
+
+def _ensure_tz(v: datetime) -> datetime:
+    if isinstance(v, datetime) and v.tzinfo is None:
+        return v.replace(tzinfo=timezone.utc)
+    return v
+
+
+AwareDatetime = Annotated[datetime, BeforeValidator(_ensure_tz)]
 
 
 class DocumentCreate(BaseModel):
@@ -38,10 +48,12 @@ class DocumentResponse(BaseModel):
     filename_original: str
     file_type: str
     file_size_bytes: int
+    document_type: str = "tr"
+    fornecedor_id: uuid.UUID | None = None
     total_items: int
     status: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
 
 
 class DocumentListResponse(BaseModel):
@@ -58,9 +70,35 @@ class DocumentDetailResponse(BaseModel):
     filename_original: str
     file_type: str
     file_size_bytes: int
+    document_type: str = "tr"
+    fornecedor_id: uuid.UUID | None = None
     total_items: int
     status: str
     error_message: str | None = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: AwareDatetime
+    updated_at: AwareDatetime
     items: list[DocumentItemResponse] = []
+
+
+class DiffRequest(BaseModel):
+    """Solicitação de diff entre duas versões de TR."""
+    documento_antigo_id: uuid.UUID
+    documento_novo_id: uuid.UUID
+
+
+class DiffItemResponse(BaseModel):
+    """Item do diff entre versões do TR."""
+    status: str
+    item_number: str
+    titulo: str = ""
+    conteudo_antes: str | None = None
+    conteudo_depois: str | None = None
+
+
+class DiffResponse(BaseModel):
+    """Resultado do diff entre versões do TR."""
+    documento_antigo_id: uuid.UUID
+    documento_novo_id: uuid.UUID
+    total: int
+    resumo: dict[str, int]
+    itens: list[DiffItemResponse]

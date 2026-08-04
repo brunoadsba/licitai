@@ -75,6 +75,7 @@ def validate_file_content(file_bytes: bytes, expected_extension: str) -> str:
     extension_mime_map = {
         "pdf": "application/pdf",
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "odt": "application/vnd.oasis.opendocument.text",
     }
 
     expected_mime = extension_mime_map.get(expected_extension)

@@ -90,6 +90,12 @@ def _extract_with_pymupdf(file_path: Path) -> list[dict]:
         for page_num in range(doc.page_count):
             page = doc[page_num]
             text = page.get_text("text")
+
+            # Marcar tabelas para que o estruturador não as confunda com itens
+            table_text = _extract_tables(page)
+            if table_text:
+                text += "\n\n" + table_text
+
             pages.append({
                 "page": page_num + 1,
                 "text": text.strip(),
@@ -98,6 +104,25 @@ def _extract_with_pymupdf(file_path: Path) -> list[dict]:
         doc.close()
 
     return pages
+
+
+def _extract_tables(page) -> str:
+    """Extrai tabelas da página e as marca com [TABELA]...[/TABELA]."""
+    tables = page.find_tables()
+    if not tables.tables:
+        return ""
+
+    parts = []
+    for table in tables.tables:
+        rows = table.extract()
+        if not rows:
+            continue
+        parts.append("[TABELA]")
+        for row in rows:
+            cleaned = [str(cell).strip() if cell else "" for cell in row]
+            parts.append(" | ".join(cleaned))
+        parts.append("[/TABELA]")
+    return "\n".join(parts)
 
 
 def _extract_with_pdfplumber(file_path: Path) -> list[dict]:

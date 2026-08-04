@@ -9,9 +9,7 @@ Orquestra a análise item a item usando LLM:
 5. Gera pontuação consolidada via LLM
 """
 
-import json
 import logging
-import re
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -21,11 +19,22 @@ from sqlalchemy.orm import selectinload
 from app.models.document import Document, DocumentItem
 from app.models.analysis import Analysis, Correction
 from app.services.llm import get_llm_provider
+from app.services.rag.retriever import retrieve
 from app.services.analyzer.prompts import (
     SYSTEM_PROMPT,
     ITEM_ANALYSIS_PROMPT,
     SCORING_PROMPT,
 )
+from app.services.analyzer.json_utils import (
+    parse_json_response,
+    validate_correction,
+    sanitize_correction,
+)
+from app.services.analyzer.review import (
+    review_item_corrections,
+    apply_review_decisions,
+)
+from app.services.agents.orchestrator import MultiAgentOrchestrator
 
 
 logger = logging.getLogger(__name__)
@@ -80,12 +89,20 @@ async def run_analysis(
         return
 
     all_corrections = []
+    analyzed_count = 0
+    pending_reviews = []
+    orchestrator = MultiAgentOrchestrator() if getattr(analysis, "analysis_mode", "multi_agent") == "multi_agent" else None
 
     # Analisar cada item
     for idx, item in enumerate(document.items):
         try:
-            corrections = await _analyze_item(llm, item)
+            legal_context = await _retrieve_legal_context(db, item)
+            if orchestrator:
+                corrections = await orchestrator.analyze_item_multi(llm, item, legal_context)
+            else:
+                corrections = await _analyze_item(db, llm, item, legal_context)
 
+            correction_objs = []
             for correction_data in corrections:
                 correction = Correction(
                     analysis_id=analysis.id,
@@ -100,11 +117,16 @@ async def run_analysis(
                     justification=correction_data.get("justification", ""),
                     legal_basis=correction_data.get("legal_basis"),
                     importance=correction_data.get("importance", "media"),
+                    agent_origin=correction_data.get("agent_origin"),
                 )
                 db.add(correction)
+                correction_objs.append(correction)
                 all_corrections.append(correction_data)
 
-            analysis.analyzed_items = idx + 1
+            pending_reviews.append((item, legal_context, correction_objs))
+
+            analyzed_count += 1
+            analysis.analyzed_items = analyzed_count
             await db.flush()
 
             logger.info(
@@ -122,6 +144,26 @@ async def run_analysis(
                 document_id,
             )
             # Continuar com os próximos itens
+
+    # Se nenhum item foi analisado, os provedores LLM estão indisponíveis:
+    # marcar como erro em vez de reportar sucesso falso.
+    if analyzed_count == 0:
+        analysis.status = "error"
+        analysis.completed_at = datetime.now(timezone.utc)
+        analysis.error_message = (
+            "Nenhum item pôde ser analisado: todos os provedores LLM "
+            "falharam (verifique quota/limites das chaves Gemini e Groq)."
+        )
+        await db.flush()
+        logger.error(
+            "Análise %s marcada como erro: nenhum item analisado "
+            "(provedores LLM indisponíveis)",
+            analysis_id,
+        )
+        return
+
+    # Fase 2.2: revisão cruzada das correções (após análise completa)
+    all_corrections = await _run_cross_review(db, llm, pending_reviews)
 
     # Gerar pontuação consolidada
     try:
@@ -161,27 +203,113 @@ async def run_analysis(
     )
 
 
-async def _analyze_item(llm, item: DocumentItem) -> list[dict]:
-    """Analisa um item individual usando o LLM."""
+async def _analyze_item(
+    db: AsyncSession, llm, item: DocumentItem, legal_context: str | None = None
+) -> list[dict]:
+    """Analisa um item individual usando o LLM, com contexto jurídico."""
+    if legal_context is None:
+        legal_context = await _retrieve_legal_context(db, item)
+    return await analyze_item_llm(llm, item, legal_context)
+
+
+async def analyze_item_llm(llm, item, legal_context: str) -> list[dict]:
+    """Analisa um item via LLM usando contexto jurídico fornecido (sem DB).
+
+    Usada pelo engine (com contexto do RAG) e pelo benchmark (com contexto fixo).
+    """
     user_prompt = ITEM_ANALYSIS_PROMPT.format(
         item_number=item.item_number,
         item_title=item.title or "(sem título)",
         page_number=item.page_number or "N/A",
         item_content=item.content[:8000],  # Limitar tamanho do conteúdo
+        legal_context=legal_context,
     )
 
     response = await llm.generate(SYSTEM_PROMPT, user_prompt)
 
     # Parsear resposta JSON
-    corrections = _parse_json_response(response)
+    corrections = parse_json_response(response)
 
     # Validar e limpar cada correção
     valid_corrections = []
     for c in corrections:
-        if _validate_correction(c):
-            valid_corrections.append(_sanitize_correction(c))
+        if isinstance(c, dict) and validate_correction(c):
+            valid_corrections.append(sanitize_correction(c))
 
     return valid_corrections
+
+
+async def _run_cross_review(
+    db: AsyncSession,
+    llm,
+    pending_reviews: list[tuple[DocumentItem, str, list[Correction]]],
+) -> list[dict]:
+    """Revisa as correções de cada item e devolve o conjunto final válido."""
+    kept: list[dict] = []
+
+    for item, legal_context, correction_objs in pending_reviews:
+        if not correction_objs:
+            continue
+
+        try:
+            corrections_dict = [
+                _correction_to_dict(obj) for obj in correction_objs
+            ]
+            decisions = await review_item_corrections(
+                llm, item, corrections_dict, legal_context
+            )
+            kept.extend(apply_review_decisions(correction_objs, decisions))
+        except Exception:
+            logger.exception(
+                "Falha na revisão cruzada do item %s", item.item_number
+            )
+            # Sem revisão: mantém as correções como estão
+            for obj in correction_objs:
+                obj.review_status = "pendente"
+            kept.extend(_correction_to_dict(obj) for obj in correction_objs)
+
+    await db.flush()
+    logger.info("Revisão cruzada concluída: %d correções válidas", len(kept))
+    return kept
+
+
+def _correction_to_dict(obj: Correction) -> dict:
+    """Converte um objeto Correction em dict (para pontuação)."""
+    return {
+        "category": obj.category,
+        "severity": obj.severity,
+        "situation": obj.situation,
+        "problem": obj.problem,
+        "risk": obj.risk,
+        "original_text": obj.original_text,
+        "suggested_text": obj.suggested_text,
+        "justification": obj.justification,
+        "legal_basis": obj.legal_basis,
+        "importance": obj.importance,
+    }
+
+
+async def _retrieve_legal_context(db: AsyncSession, item: DocumentItem) -> str:
+    """Busca artigos relevantes no corpus jurídico e formata para o prompt."""
+    try:
+        chunks = await retrieve(
+            db,
+            query=f"{item.title or ''} {item.content}",
+            top_k=4,
+        )
+    except Exception:
+        logger.exception("Falha ao recuperar contexto jurídico")
+        return ""
+
+    if not chunks:
+        return ""
+
+    parts = []
+    for c in chunks:
+        parts.append(
+            f"### {c.law_number} — {c.article}\n{c.text[:2500]}"
+        )
+    return "\n\n".join(parts)
 
 
 async def _generate_scores(
@@ -205,7 +333,7 @@ async def _generate_scores(
     )
 
     response = await llm.generate(SYSTEM_PROMPT, user_prompt)
-    scores = _parse_json_response(response)
+    scores = parse_json_response(response)
 
     # Se retornou lista, pegar primeiro item
     if isinstance(scores, list) and scores:
@@ -215,76 +343,3 @@ async def _generate_scores(
         raise ValueError("Resposta de pontuação não é um JSON válido.")
 
     return scores
-
-
-def _parse_json_response(response: str) -> list[dict] | dict:
-    """
-    Extrai e parseia JSON da resposta do LLM.
-    Lida com respostas que podem conter texto extra.
-    """
-    # Tentar parsear diretamente
-    try:
-        parsed = json.loads(response)
-        return parsed
-    except json.JSONDecodeError:
-        pass
-
-    # Tentar extrair JSON de blocos de código
-    json_match = re.search(r"```(?:json)?\s*\n?([\s\S]*?)\n?```", response)
-    if json_match:
-        try:
-            return json.loads(json_match.group(1))
-        except json.JSONDecodeError:
-            pass
-
-    # Tentar encontrar array ou object JSON no texto
-    for pattern in [r"\[[\s\S]*\]", r"\{[\s\S]*\}"]:
-        match = re.search(pattern, response)
-        if match:
-            try:
-                return json.loads(match.group(0))
-            except json.JSONDecodeError:
-                continue
-
-    logger.warning("Não foi possível parsear JSON da resposta do LLM")
-    return []
-
-
-# Valores válidos para campos de correção
-VALID_CATEGORIES = {"juridica", "tecnica", "redacao", "estrutural"}
-VALID_SEVERITIES = {"info", "baixo", "medio", "alto", "critico"}
-VALID_IMPORTANCES = {"baixa", "media", "alta", "critica"}
-
-
-def _validate_correction(correction: dict) -> bool:
-    """Valida se uma correção tem os campos obrigatórios."""
-    required = ["category", "problem", "original_text", "suggested_text"]
-    return all(correction.get(field) for field in required)
-
-
-def _sanitize_correction(correction: dict) -> dict:
-    """Limpa e normaliza valores de uma correção."""
-    category = correction.get("category", "tecnica").lower()
-    if category not in VALID_CATEGORIES:
-        category = "tecnica"
-
-    severity = correction.get("severity", "medio").lower()
-    if severity not in VALID_SEVERITIES:
-        severity = "medio"
-
-    importance = correction.get("importance", "media").lower()
-    if importance not in VALID_IMPORTANCES:
-        importance = "media"
-
-    return {
-        "category": category,
-        "severity": severity,
-        "situation": str(correction.get("situation", ""))[:2000],
-        "problem": str(correction.get("problem", ""))[:2000],
-        "risk": str(correction.get("risk", ""))[:2000],
-        "original_text": str(correction.get("original_text", ""))[:5000],
-        "suggested_text": str(correction.get("suggested_text", ""))[:5000],
-        "justification": str(correction.get("justification", ""))[:2000],
-        "legal_basis": str(correction.get("legal_basis", ""))[:500] or None,
-        "importance": importance,
-    }

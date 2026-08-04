@@ -31,4 +31,19 @@ docker-compose.override.yml
 
 # Database & Uploads
 *.db
+*.db-shm
+*.db-wal
 uploads/
+e2e-uploads/
+e2e-test.db
+playwright-report/
+test-results/
+e2e/fixtures/sample-tr.docx
+
+# Logs
+*.log
+frontend/npm-dev.log
+frontend/dev-server.log
+
+# Documentos reais (CODEBA)
+tr_modelo.pdf

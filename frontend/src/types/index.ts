@@ -8,6 +8,8 @@ export interface DocumentResponse {
   filename_original: string;
   file_type: string;
   file_size_bytes: number;
+  document_type: 'tr' | 'proposta';
+  fornecedor_id: string | null;
   total_items: number;
   status: DocumentStatus;
   created_at: string;
@@ -35,6 +37,8 @@ export interface DocumentListResponse {
   total: number;
 }
 
+export type AgentOrigin = 'juridico' | 'tecnico' | 'redacao' | 'estrutural';
+
 export interface CorrectionResponse {
   id: string;
   document_item_id: string;
@@ -48,6 +52,10 @@ export interface CorrectionResponse {
   justification: string;
   legal_basis: string | null;
   importance: Importance;
+  agent_origin?: AgentOrigin | null;
+  review_status?: 'pendente' | 'aprovada' | 'rejeitada' | 'ajustada';
+  review_note?: string | null;
+  reviewed_at?: string | null;
 }
 
 export interface AnalysisStartResponse {
@@ -61,6 +69,7 @@ export interface AnalysisDetailResponse {
   status: AnalysisStatus;
   llm_provider: string;
   llm_model: string;
+  analysis_mode?: 'single' | 'multi_agent';
   total_items: number;
   analyzed_items: number;
   score_overall: number | null;
@@ -98,13 +107,115 @@ export interface ReportResponse {
   analyzed_at: string | null;
 }
 
+// ---- Auditoria TR × Propostas ----
+
+export interface Fornecedor {
+  id: string;
+  nome: string;
+  cnpj: string | null;
+  email: string | null;
+  created_at: string;
+}
+
+export interface FornecedorListResponse {
+  fornecedores: Fornecedor[];
+  total: number;
+}
+
+export interface Molde {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  config_json: string;
+  created_at: string;
+}
+
+export interface RegraConfig {
+  id: string;
+  rotulo: string;
+  tipo: AnchorTipo;
+  ancora?: string | null;
+  unidade?: string | null;
+  expectativa?: number | string | null;
+  palavras_chave?: string[] | null;
+  regex?: string | null;
+}
+
+export interface MoldeConfig {
+  versao: number;
+  regras: RegraConfig[];
+}
+
+export interface MoldeListResponse {
+  moldes: Molde[];
+  total: number;
+}
+
+export interface ComparacaoStartResponse {
+  comparacao_id: string;
+  message: string;
+}
+
+export interface ComparacaoResponse {
+  id: string;
+  tr_document_id: string;
+  molde_id: string;
+  status: ComparacaoStatus;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+  total_resultados: number;
+  fornecedores: Fornecedor[];
+}
+
+export interface ComparacaoListResponse {
+  comparacoes: ComparacaoResponse[];
+  total: number;
+}
+
+export interface MatrizCelula {
+  fornecedor_id: string;
+  status: ConformidadeStatus;
+  motivo: string | null;
+  valor_tr: string | null;
+  valor_proposta: string | null;
+}
+
+export interface MatrizLinha {
+  regra_id: string;
+  rotulo: string;
+  celulas: MatrizCelula[];
+}
+
+export interface MatrizResponse {
+  comparacao_id: string;
+  tr_document_id: string;
+  status: string;
+  regras: string[];
+  fornecedores: Fornecedor[];
+  linhas: MatrizLinha[];
+}
+
 // Enums
 export type DocumentStatus = 'uploaded' | 'parsing' | 'parsed' | 'analyzing' | 'completed' | 'error';
 export type AnalysisStatus = 'pending' | 'running' | 'completed' | 'error';
+export type ComparacaoStatus = 'pending' | 'running' | 'completed' | 'error';
+export type ConformidadeStatus = 'ok' | 'falha' | 'atencao';
 export type CorrectionCategory = 'juridica' | 'tecnica' | 'redacao' | 'estrutural';
 export type Severity = 'info' | 'baixo' | 'medio' | 'alto' | 'critico';
 export type RiskLevel = 'baixo' | 'medio' | 'alto' | 'critico';
 export type Importance = 'baixa' | 'media' | 'alta' | 'critica';
+export type AnchorTipo =
+  | 'numero_inteiro'
+  | 'numero_extenso'
+  | 'booleano'
+  | 'legal'
+  | 'data'
+  | 'percentual'
+  | 'monetario'
+  | 'cnpj'
+  | 'prazo_relativo'
+  | 'cep';
 
 // Labels em Português
 export const CATEGORY_LABELS: Record<CorrectionCategory, string> = {
@@ -136,4 +247,30 @@ export const STATUS_LABELS: Record<DocumentStatus, string> = {
   analyzing: 'Analisando...',
   completed: 'Concluído',
   error: 'Erro',
+};
+
+export const COMPARACAO_STATUS_LABELS: Record<ComparacaoStatus, string> = {
+  pending: 'Pendente',
+  running: 'Comparando...',
+  completed: 'Concluído',
+  error: 'Erro',
+};
+
+export const CONFORMIDADE_LABELS: Record<ConformidadeStatus, string> = {
+  ok: 'OK',
+  falha: 'FALHA',
+  atencao: 'ATENÇÃO',
+};
+
+export const ANCHOR_TIPO_LABELS: Record<AnchorTipo, string> = {
+  numero_inteiro: 'Número inteiro',
+  numero_extenso: 'Número por extenso',
+  booleano: 'Booleano (presença)',
+  legal: 'Referência legal (regex)',
+  data: 'Data',
+  percentual: 'Percentual',
+  monetario: 'Valor monetário (R$)',
+  cnpj: 'CNPJ',
+  prazo_relativo: 'Prazo relativo (ex: 30 dias)',
+  cep: 'CEP',
 };

@@ -15,15 +15,14 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.database import engine, Base
 from app.api.router import router
 from app.utils.security import SecurityHeadersMiddleware, RateLimitMiddleware
+from app.utils.logging_config import setup_logging
 
 
-# Configurar logging — sem dados sensíveis
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s | %(name)s | %(levelname)s | %(message)s",
-)
+# Configurar logging estruturado (JSON) — sem dados sensíveis
+setup_logging()
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -39,8 +38,8 @@ app = FastAPI(
 
 # --- Middleware (ordem importa: último adicionado = primeiro executado) ---
 
-# Rate limiting (60 req/min para MVP single-user)
-app.add_middleware(RateLimitMiddleware, max_requests=60, window_seconds=60)
+# Rate limiting (configurável via env, padrão 600 req/min)
+app.add_middleware(RateLimitMiddleware, max_requests=settings.rate_limit_max, window_seconds=60)
 
 # Security headers (CSP, X-Frame-Options, etc.)
 app.add_middleware(SecurityHeadersMiddleware)
@@ -50,7 +49,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "DELETE"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["Content-Type", "Accept"],
     expose_headers=["Content-Disposition"],
 )
@@ -76,8 +75,20 @@ async def health_check():
 
 @app.on_event("startup")
 async def startup_event():
+    async with engine.begin() as conn:
+        from app.models.document import Document, DocumentItem  # noqa: F401
+        from app.models.analysis import Analysis, Correction  # noqa: F401
+        from app.models.legal import LegalDocument, LegalChunk  # noqa: F401
+        from app.models.comparison import (  # noqa: F401
+            Fornecedor,
+            Molde,
+            Comparacao,
+            ComparacaoResultado,
+        )
+        await conn.run_sync(Base.metadata.create_all)
     logger.info("Sistema de Análise de TR iniciado")
     logger.info("Provedor LLM: %s", settings.llm_provider)
+    logger.info("Banco de dados: %s", "SQLite" if "sqlite" in settings.database_url else "PostgreSQL")
 
 
 @app.on_event("shutdown")

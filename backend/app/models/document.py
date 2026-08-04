@@ -40,6 +40,17 @@ class Document(Base):
     file_size_bytes: Mapped[int] = mapped_column(
         BigInteger, CheckConstraint("file_size_bytes > 0"), nullable=False
     )
+    document_type: Mapped[str] = mapped_column(
+        String(10),
+        CheckConstraint("document_type IN ('tr', 'proposta')"),
+        default="tr",
+        nullable=False,
+    )
+    fornecedor_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("fornecedores.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     total_items: Mapped[int] = mapped_column(Integer, default=0)
     status: Mapped[str] = mapped_column(
         String(20),
@@ -66,6 +77,9 @@ class Document(Base):
     )
     analyses: Mapped[list["Analysis"]] = relationship(
         "Analysis", back_populates="document", cascade="all, delete-orphan"
+    )
+    fornecedor: Mapped["Fornecedor | None"] = relationship(
+        "Fornecedor", back_populates="documentos"
     )
 
 

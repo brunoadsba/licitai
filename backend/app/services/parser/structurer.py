@@ -15,6 +15,27 @@ import re
 
 logger = logging.getLogger(__name__)
 
+# Unidades de medida que indicam dados de tabela (não são títulos de itens)
+UNIDADES_MEDIDA = {
+    "btu", "kw", "kg", "m", "m²", "m³", "cm", "mm", "un", "unid", "und",
+    "dia", "dias", "h", "hr", "hora", "horas", "l", "ml", "r$", "pct", "%",
+    "ton", "t", "m³/h", "l/min", "v", "w",
+}
+
+
+def _is_table_data_title(title: str) -> bool:
+    """Verifica se o título parece dado de tabela (unidade de medida ou valor)."""
+    clean = title.strip().lower()
+    if not clean:
+        return True
+    # Apenas unidade de medida (ex.: "BTU", "R$")
+    if clean in UNIDADES_MEDIDA:
+        return True
+    # Unidade composta: "dias úteis", "R$ 1.234,56"
+    if clean.startswith("dias úteis") or clean.startswith("r$"):
+        return True
+    return False
+
 # Padrões de numeração comuns em TRs
 PATTERNS = {
     # 1. ou 1 - (seção principal)
@@ -43,6 +64,9 @@ PATTERNS = {
 
     # ANEXO
     "annex": re.compile(r"^(ANEXO\s+[IVXLCDM\d]+)\s*[.\-–]?\s*(.*)", re.MULTILINE | re.IGNORECASE),
+
+    # Número em linha isolada (padrão SEI): "1." seguido do título na linha seguinte
+    "number_alone": re.compile(r"^\d{1,2}(\.\d{1,3})*\.$"),
 
     # Tabela marcada
     "table_start": re.compile(r"^\[TABELA\]", re.MULTILINE),
@@ -75,17 +99,20 @@ def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
     in_table = False
     table_content = []
 
-    for line_idx, line in enumerate(lines):
-        stripped = line.strip()
+    line_idx = 0
+    while line_idx < len(lines):
+        stripped = lines[line_idx].strip()
         if not stripped:
             if current_content_lines:
                 current_content_lines.append("")
+            line_idx += 1
             continue
 
         # Verificar se estamos dentro de uma tabela
         if PATTERNS["table_start"].match(stripped):
             in_table = True
             table_content = []
+            line_idx += 1
             continue
         if PATTERNS["table_end"].match(stripped):
             in_table = False
@@ -101,11 +128,19 @@ def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
                 })
                 current_item = None
                 current_content_lines = []
+            line_idx += 1
             continue
 
         if in_table:
             table_content.append(stripped)
+            line_idx += 1
             continue
+
+        # Número em linha isolada (padrão SEI): "1." + "O OBJETO" em linhas separadas
+        combined = _combine_isolated_number(lines, line_idx)
+        if combined is not None:
+            # Combinar e pular a linha do título já consumida
+            stripped, line_idx = combined
 
         # Tentar identificar tipo de item
         detected = _detect_item_type(stripped)
@@ -126,6 +161,8 @@ def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
             # Continuar acumulando conteúdo no item atual
             current_content_lines.append(stripped)
 
+        line_idx += 1
+
     # Salvar último item
     _save_current_item(items, current_item, current_content_lines)
 
@@ -139,8 +176,71 @@ def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
             "item_type": "section",
         })
 
-    logger.info("Documento estruturado: %d itens identificados", len(items))
-    return items
+    # Validar itens duplicados e conteúdo vazio
+    seen_numbers: set[str] = set()
+    validated = []
+    for item in items:
+        num = item.get("item_number", "")
+        if not num or not item.get("content", "").strip():
+            logger.warning("Item ignorado: número ou conteúdo vazio (%s)", num)
+            continue
+        if num in seen_numbers:
+            suffix = 1
+            while f"{num}-{suffix}" in seen_numbers:
+                suffix += 1
+            item["item_number"] = f"{num}-{suffix}"
+            logger.warning("Item duplicado renomeado: %s -> %s", num, item["item_number"])
+        seen_numbers.add(item["item_number"])
+        validated.append(item)
+
+    logger.info("Documento estruturado: %d itens identificados", len(validated))
+    return validated
+
+
+def _combine_isolated_number(lines: list[str], line_idx: int) -> tuple[str, int] | None:
+    """
+    Combina número em linha isolada com o título da linha seguinte (padrão SEI).
+
+    Ex.: linha "1." seguida de "O OBJETO" vira "1. O OBJETO".
+
+    Returns:
+        Tuple (linha_combinada, índice_da_linha_combinada) ou None se não aplicar.
+    """
+    current = lines[line_idx].strip()
+    if not PATTERNS["number_alone"].match(current):
+        return None
+
+    # Procurar a próxima linha não vazia
+    next_idx = line_idx + 1
+    while next_idx < len(lines) and not lines[next_idx].strip():
+        next_idx += 1
+
+    # Linha seguinte também é um número isolado → não combinar
+    if next_idx >= len(lines) or PATTERNS["number_alone"].match(lines[next_idx].strip()):
+        return None
+
+    # Linha seguinte parece rodapé/cabeçalho de documento SEI → não combinar
+    if _is_footer_like(lines[next_idx].strip()):
+        return None
+
+    return f"{current} {lines[next_idx].strip()}", next_idx
+
+
+def _is_footer_like(line: str) -> bool:
+    """Detecta linhas de rodapé/cabeçalho típicas de documentos SEI."""
+    footer_markers = (
+        "referência: processo",
+        "sei nº",
+        "sei n.",
+        "termo de referência / projeto básico",
+        "telefone:",
+        "www.",
+        "pg.",
+        "processo nº",
+        "cep",
+    )
+    lowered = line.lower()
+    return any(marker in lowered for marker in footer_markers)
 
 
 def _detect_item_type(line: str) -> dict | None:
@@ -196,18 +296,24 @@ def _detect_item_type(line: str) -> dict | None:
     # Item (1.1)
     m = PATTERNS["item"].match(line)
     if m:
+        title = m.group(2).strip()
+        if _is_table_data_title(title):
+            return None
         return {
             "number": m.group(1).strip(),
-            "title": m.group(2).strip()[:200],
+            "title": title[:200],
             "type": "item",
         }
 
     # Seção (1.)
     m = PATTERNS["section"].match(line)
     if m:
+        title = m.group(2).strip()
+        if _is_table_data_title(title):
+            return None
         return {
             "number": m.group(1).strip(),
-            "title": m.group(2).strip()[:200],
+            "title": title[:200],
             "type": "section",
         }
 

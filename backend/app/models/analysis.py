@@ -39,6 +39,11 @@ class Analysis(Base):
     )
     llm_provider: Mapped[str] = mapped_column(String(20), nullable=False)
     llm_model: Mapped[str] = mapped_column(String(100), nullable=False)
+    analysis_mode: Mapped[str] = mapped_column(
+        String(20),
+        default="multi_agent",
+        nullable=False,
+    )
     total_items: Mapped[int] = mapped_column(Integer, default=0)
     analyzed_items: Mapped[int] = mapped_column(Integer, default=0)
 
@@ -130,6 +135,22 @@ class Correction(Base):
         String(10),
         CheckConstraint("importance IN ('baixa', 'media', 'alta', 'critica')"),
         nullable=False,
+    )
+    agent_origin: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+    review_status: Mapped[str] = mapped_column(
+        String(20),
+        CheckConstraint(
+            "review_status IN ('pendente', 'aprovada', 'rejeitada', 'ajustada')"
+        ),
+        default="pendente",
+        nullable=False,
+    )
+    review_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

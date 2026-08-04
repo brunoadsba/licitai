@@ -13,7 +13,7 @@ import logging
 import uuid
 
 import aiofiles
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -25,7 +25,11 @@ from app.schemas.document import (
     DocumentListResponse,
     DocumentDetailResponse,
     DocumentItemResponse,
+    DiffRequest,
+    DiffResponse,
+    DiffItemResponse,
 )
+from app.services.comparator.diff import diff_terms, resumir_diffs
 from app.utils.file_validation import (
     validate_file_extension,
     validate_file_content,
@@ -41,6 +45,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documents", tags=["Documentos"])
 
+TIPOS_DOCUMENTO = {"tr", "proposta"}
+
 
 @router.post(
     "/upload",
@@ -51,12 +57,22 @@ router = APIRouter(prefix="/documents", tags=["Documentos"])
 )
 async def upload_document(
     file: UploadFile = File(..., description="Arquivo PDF ou DOCX"),
+    document_type: str = Form(default="tr", description="Tipo: 'tr' ou 'proposta'"),
+    fornecedor_id: uuid.UUID | None = Form(
+        default=None, description="Fornecedor vinculado (obrigatório p/ proposta)"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload seguro de documento com validação completa."""
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="Nome do arquivo é obrigatório.")
+
+    if document_type not in TIPOS_DOCUMENTO:
+        raise HTTPException(
+            status_code=400,
+            detail=f"document_type inválido. Use um de: {sorted(TIPOS_DOCUMENTO)}",
+        )
 
     # 1. Validar extensão (allowlist)
     try:
@@ -95,43 +111,55 @@ async def upload_document(
             detail="Erro interno ao salvar o arquivo.",
         )
 
+    # 6.1 Validar fornecedor para propostas
+    if document_type == "proposta" and fornecedor_id is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Propostas precisam de fornecedor_id.",
+        )
+
+    if document_type == "tr":
+        fornecedor_id = None
+
     # 7. Criar registro no banco
     document = Document(
         filename_original=file.filename,
         filename_stored=safe_filename,
         file_type=file_ext,
         file_size_bytes=len(file_bytes),
+        document_type=document_type,
+        fornecedor_id=fornecedor_id,
         status="uploaded",
     )
     db.add(document)
     await db.flush()
 
     # 8. Parsear documento automaticamente
+    document.status = "parsing"
+
     try:
-        document.status = "parsing"
-        await db.flush()
-
         items = await parse_document(file_path, file_ext)
-
-        for order, item_data in enumerate(items):
-            db_item = DocumentItem(
-                document_id=document.id,
-                item_number=item_data["item_number"],
-                title=item_data.get("title"),
-                content=item_data["content"],
-                page_number=item_data.get("page_number"),
-                item_order=order,
-                item_type=item_data.get("item_type", "item"),
-            )
-            db.add(db_item)
-
-        document.total_items = len(items)
-        document.status = "parsed"
-
     except Exception:
         logger.exception("Erro ao parsear documento %s", document.id)
         document.status = "error"
         document.error_message = "Erro ao processar o documento. Verifique o formato."
+        await db.flush()
+        return DocumentResponse.model_validate(document)
+
+    for order, item_data in enumerate(items):
+        db_item = DocumentItem(
+            document_id=document.id,
+            item_number=item_data["item_number"],
+            title=item_data.get("title"),
+            content=item_data["content"],
+            page_number=item_data.get("page_number"),
+            item_order=order,
+            item_type=item_data.get("item_type", "item"),
+        )
+        db.add(db_item)
+
+    document.total_items = len(items)
+    document.status = "parsed"
 
     await db.flush()
 
@@ -157,6 +185,63 @@ async def list_documents(
         documents=[DocumentResponse.model_validate(d) for d in documents],
         total=len(documents),
     )
+
+
+@router.post(
+    "/diff",
+    response_model=DiffResponse,
+    summary="Comparar versões do TR",
+    description=(
+        "Compara dois documentos TR (antigo e novo) item a item, retornando "
+        "itens inalterados, alterados, adicionados e removidos."
+    ),
+)
+async def diff_documents(
+    data: DiffRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """Gera o diff entre duas versões de um Termo de Referência."""
+    antigo = await _carregar_tr_items(db, data.documento_antigo_id)
+    novo = await _carregar_tr_items(db, data.documento_novo_id)
+
+    diffs = diff_terms(antigo, novo)
+
+    return DiffResponse(
+        documento_antigo_id=data.documento_antigo_id,
+        documento_novo_id=data.documento_novo_id,
+        total=len(diffs),
+        resumo=resumir_diffs(diffs),
+        itens=[
+            DiffItemResponse.model_validate(d, from_attributes=True)
+            for d in diffs
+        ],
+    )
+
+
+async def _carregar_tr_items(
+    db: AsyncSession, document_id: uuid.UUID
+) -> list[dict]:
+    """Carrega os itens de um documento TR, validando tipo e status."""
+    result = await db.execute(
+        select(Document)
+        .options(selectinload(Document.items))
+        .where(Document.id == document_id)
+    )
+    document = result.scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
+    if document.document_type != "tr":
+        raise HTTPException(
+            status_code=400, detail="O documento informado não é um TR."
+        )
+    return [
+        {
+            "item_number": item.item_number,
+            "title": item.title or "",
+            "content": item.content or "",
+        }
+        for item in document.items
+    ]
 
 
 @router.get(
@@ -222,3 +307,5 @@ async def delete_document(
 
     # Remover do banco (cascade remove itens e análises)
     await db.delete(document)
+    # Commit explícito: o commit do get_db ocorre após o envio da resposta
+    await db.commit()

@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS documents (
     filename_stored VARCHAR(255) NOT NULL UNIQUE,
     file_type VARCHAR(10) NOT NULL CHECK (file_type IN ('pdf', 'docx', 'odt')),
     file_size_bytes BIGINT NOT NULL CHECK (file_size_bytes > 0),
+    document_type VARCHAR(10) NOT NULL DEFAULT 'tr'
+        CHECK (document_type IN ('tr', 'proposta')),
+    fornecedor_id UUID REFERENCES fornecedores(id) ON DELETE SET NULL,
     total_items INTEGER DEFAULT 0,
     status VARCHAR(20) NOT NULL DEFAULT 'uploaded'
         CHECK (status IN ('uploaded', 'parsing', 'parsed', 'analyzing', 'completed', 'error')),
@@ -92,6 +95,96 @@ CREATE TABLE IF NOT EXISTS corrections (
     legal_basis TEXT,
     importance VARCHAR(10) NOT NULL
         CHECK (importance IN ('baixa', 'media', 'alta', 'critica')),
+    review_status VARCHAR(20) NOT NULL DEFAULT 'pendente'
+        CHECK (review_status IN ('pendente', 'aprovada', 'rejeitada', 'ajustada')),
+    review_note TEXT,
+    reviewed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------
+-- Tabela: legal_documents
+-- Corpus jurídico (leis, decretos) para o RAG
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS legal_documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    law_number VARCHAR(50) NOT NULL UNIQUE,
+    law_title VARCHAR(500) NOT NULL,
+    source_url VARCHAR(500),
+    version VARCHAR(50),
+    total_chunks INTEGER DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------
+-- Tabela: legal_chunks
+-- Trechos (artigos) das leis com embedding para busca semântica
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS legal_chunks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    legal_document_id UUID NOT NULL REFERENCES legal_documents(id) ON DELETE CASCADE,
+    chunk_index INTEGER NOT NULL,
+    article VARCHAR(100),
+    section VARCHAR(200),
+    chunk_text TEXT NOT NULL,
+    embedding vector(768),
+    metadata JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------
+-- Tabela: fornecedores
+-- Fornecedores que participam da licitação (módulo de auditoria)
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS fornecedores (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nome VARCHAR(500) NOT NULL,
+    cnpj VARCHAR(18),
+    email VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------
+-- Tabela: moldes
+-- Moldes de regras de conformidade (config_json validado)
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS moldes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nome VARCHAR(200) NOT NULL,
+    descricao TEXT,
+    config_json TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------
+-- Tabela: comparacoes
+-- Execução de uma comparação TR × propostas
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS comparacoes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    tr_document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    molde_id UUID NOT NULL REFERENCES moldes(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'running', 'completed', 'error')),
+    error_message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
+-- -----------------------------------------------------------
+-- Tabela: comparacao_resultados
+-- Resultado de uma regra para um fornecedor (matriz de conformidade)
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS comparacao_resultados (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    comparacao_id UUID NOT NULL REFERENCES comparacoes(id) ON DELETE CASCADE,
+    fornecedor_id UUID NOT NULL REFERENCES fornecedores(id) ON DELETE CASCADE,
+    regra_id VARCHAR(100) NOT NULL,
+    status VARCHAR(10) NOT NULL
+        CHECK (status IN ('ok', 'falha', 'atencao')),
+    motivo TEXT,
+    valor_tr VARCHAR(255),
+    valor_proposta VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -106,6 +199,18 @@ CREATE INDEX IF NOT EXISTS idx_corrections_analysis_id ON corrections(analysis_i
 CREATE INDEX IF NOT EXISTS idx_corrections_item_id ON corrections(document_item_id);
 CREATE INDEX IF NOT EXISTS idx_corrections_category ON corrections(category);
 CREATE INDEX IF NOT EXISTS idx_corrections_severity ON corrections(severity);
+CREATE INDEX IF NOT EXISTS idx_legal_chunks_document_id ON legal_chunks(legal_document_id);
+CREATE INDEX IF NOT EXISTS idx_legal_chunks_article ON legal_chunks(article);
+CREATE INDEX IF NOT EXISTS idx_documents_fornecedor_id ON documents(fornecedor_id);
+CREATE INDEX IF NOT EXISTS idx_documents_document_type ON documents(document_type);
+CREATE INDEX IF NOT EXISTS idx_comparacoes_tr_document_id ON comparacoes(tr_document_id);
+CREATE INDEX IF NOT EXISTS idx_comparacoes_status ON comparacoes(status);
+CREATE INDEX IF NOT EXISTS idx_comparacao_resultados_comparacao_id ON comparacao_resultados(comparacao_id);
+CREATE INDEX IF NOT EXISTS idx_comparacao_resultados_fornecedor_id ON comparacao_resultados(fornecedor_id);
+
+-- Índice vetorial para busca semântica no RAG
+CREATE INDEX IF NOT EXISTS idx_legal_chunks_embedding
+    ON legal_chunks USING ivfflat (embedding vector_cosine_ops);
 
 -- -----------------------------------------------------------
 -- Trigger: atualizar updated_at automaticamente

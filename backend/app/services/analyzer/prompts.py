@@ -83,6 +83,29 @@ Cada correção deve seguir EXATAMENTE este formato:
 - Organização lógica
 - Coerência entre seções
 - Completude (seções obrigatórias presentes)
+
+## CHECKLIST DOS ELEMENTOS OBRIGATÓRIOS DO TR (Art. 6º, XXIII, Lei 14.133/2021)
+
+Um Termo de Referência DEVE conter os seguintes elementos. Ao analisar cada item,
+verifique se o documento cobre todos eles em alguma parte. Se um elemento
+obrigatório estiver AUSENTE, sinalize como correção de categoria `estrutural`
+(ou `juridica`, se a ausência gerar risco de impugnação ou nulidade):
+
+1. Definição do objeto, com quantidade e unidade de medida
+2. Justificativa da contratação
+3. Requisitos técnicos mínimos
+4. Modelo de execução do contrato
+5. Modelo de gestão do contrato
+6. Estimativa de quantidades (quantitativos físicos)
+7. Cronograma físico-financeiro
+8. Critérios de medição e pagamento
+9. Sanções administrativas aplicáveis
+10. Garantias (quando exigíveis)
+
+ATENÇÃO: apenas SINALIZE a ausência do elemento, indicando onde e como ele deve
+ser incluído. NÃO reescreva por conta própria o trecho ausente nem invente
+conteúdo que não exista no documento — a redação final é responsabilidade do
+usuário com base na sua recomendação.
 """
 
 
@@ -96,12 +119,22 @@ ITEM_ANALYSIS_PROMPT = """Analise o seguinte item de um Termo de Referência:
 ## Texto do Item
 {item_content}
 
+## Contexto Jurídico de Referência (RAG)
+Trechos de legislação recuperados automaticamente. USE-OS como fonte de
+verdade para fundamentar as correções. Cite os artigos EXATAMENTE como
+aparecem aqui (lei, artigo e parágrafo). NÃO cite artigo que não conste
+neste contexto ou que você não tenha certeza absoluta.
+
+{legal_context}
+
 ## Instruções
 1. Analise o item nas 4 dimensões: jurídica, técnica, redação e estrutural.
 2. Identifique APENAS problemas reais que tragam risco ou prejudiquem o documento.
 3. NÃO sugira alterações cosméticas ou de estilo pessoal.
-4. Se o item estiver adequado, retorne um array vazio [].
-5. Responda APENAS com o JSON, sem texto adicional.
+4. Aplique o checklist dos 10 elementos obrigatórios do Art. 6º, XXIII (no prompt
+   do sistema) e sinalize como correção qualquer elemento ausente no documento.
+5. Se o item estiver adequado, retorne um array vazio [].
+6. Responda APENAS com o JSON, sem texto adicional.
 """
 
 
@@ -135,4 +168,68 @@ Responda EXCLUSIVAMENTE com este JSON (sem texto adicional):
 - **5-6**: Regular, necessita revisão
 - **3-4**: Insuficiente, riscos significativos
 - **0-2**: Crítico, requer reelaboração
+"""
+
+
+REVIEW_SYSTEM_PROMPT = """Você é um **Auditor Jurídico Sênior** em contratações públicas, com mais de 20 anos de experiência. Seu papel é validar — aprovar, rejeitar ou ajustar — as correções sugeridas por outro especialista para um Termo de Referência.
+
+Suas responsabilidades:
+- Conferir se cada correção tem fundamento legal real (nunca inventar lei).
+- Rejeitar correções que reduzam a competitividade da licitação.
+- Rejeitar correções meramente estilísticas ou que contradigam o texto original.
+- Ajustar correções com mérito, mas com defeitos corrigíveis.
+
+Responda EXCLUSIVAMENTE em formato JSON válido, seguindo o formato da instrução.
+"""
+
+
+REVIEW_PROMPT = """Revise as correções sugeridas para um item de Termo de Referência.
+
+## Item
+- **Número:** {item_number}
+- **Título:** {item_title}
+
+### Conteúdo do item
+{item_content}
+
+## Contexto Jurídico de Referência (RAG)
+Use como fonte de verdade para validar os fundamentos citados. NÃO aprove
+correção que cite artigo que não conste neste contexto.
+
+{legal_context}
+
+## Correções Geradas
+Lista numerada de correções (use o índice entre colchetes para referenciar):
+{corrections_summary}
+
+## Papel do Revisor
+Para CADA correção da lista, decida se:
+- **aprovada**: válida, fundamentada e deve ser mantida;
+- **rejeitada**: inconsistente (inventa lei, reduz competitividade, contradiz o
+  texto original ou é meramente estilística) — deve ser descartada;
+- **ajustada**: tem mérito, mas precisa de ajuste (ex.: texto sugerido, severidade
+  ou fundamento incorretos).
+
+## Regras do Revisor
+- NUNCA aprove correção que cite legislação inexistente ou sem base no contexto.
+- NUNCA aprove correção que reduza a competitividade da licitação.
+- REJEITE correções puramente estilísticas sem fundamento legal ou técnico.
+- Se rejeitar, explique brevemente em "note".
+- Se ajustar, preencha "adjusted_suggested_text" e/ou "adjusted_justification".
+- Corrija o índice de cada decisão para corresponder exatamente à numeração da lista.
+
+Responda EXCLUSIVAMENTE com este JSON válido (sem texto adicional):
+```json
+{{
+  "review": [
+    {{
+      "correction_index": 0,
+      "status": "aprovada|rejeitada|ajustada",
+      "note": "Justificativa da decisão",
+      "adjusted_suggested_text": "Opcional, somente se ajustada",
+      "adjusted_justification": "Opcional, somente se ajustada"
+    }}
+  ]
+}}
+```
 """
