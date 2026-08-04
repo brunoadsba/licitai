@@ -42,34 +42,52 @@ Sistema especialista para análise automatizada de Termos de Referência (TR) de
 | IA | Groq API, Google Gemini API, Ollama |
 | Deploy | Docker Compose ou Execução Nativa Windows (sem Docker) |
 
-## 🚀 Início Rápido
+## 🚀 Como Executar o Projeto (Passo a Passo)
 
-### Modo Nativo Windows (Sem necessidade de Docker ou BIOS)
+### 1️⃣ Terminal 1: Iniciar o Backend (FastAPI + Python)
+
+O backend executa na porta `8000` usando o ambiente virtual Python `.venv`.
 
 ```powershell
-# 1. Backend (FastAPI) — utiliza venv e SQLite automático
+# 1. No terminal, navegue para a raiz do projeto:
+cd c:\Users\bruno.santos\Downloads\Bruno\Codeba\projetos-tech\licitacao
+
+# 2. Inicie o servidor FastAPI via Uvicorn:
 backend\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --app-dir backend --host 127.0.0.1 --port 8000
+```
+> 📍 **URL do Backend**: `http://127.0.0.1:8000`  
+> 📑 **Documentação da API (Swagger)**: `http://127.0.0.1:8000/docs`
 
-# 2. Frontend (Next.js) — em outro terminal
-cd frontend
+---
+
+### 2️⃣ Terminal 2: Iniciar o Frontend (Next.js + React)
+
+O frontend executa na porta `3000` usando Node.js.
+
+```powershell
+# 1. Abra um NOVO terminal e entre na pasta do frontend:
+cd c:\Users\bruno.santos\Downloads\Bruno\Codeba\projetos-tech\licitacao\frontend
+
+# 2. Inicie o servidor de desenvolvimento do Next.js:
 npm run dev
-
-# 3. Acessar no navegador:
-# Frontend: http://localhost:3000
-# API docs: http://127.0.0.1:8000/api/docs
 ```
+> 🌐 **URL da Aplicação Web**: `http://localhost:3000`
 
-### Com Docker (Containers)
+---
 
-```bash
-# 1. Configurar variáveis de ambiente (.env)
-cp .env.example .env
+### 3️⃣ Extensão de Navegador para o SEI (Opcional)
 
-# 2. Subir todos os serviços
-docker compose up --build
-```
+Para conectar o LicitAI diretamente ao editor de textos do **SEI**:
 
-### Chaves de API (gratuitas)
+1. Acesse no Chrome/Edge: `chrome://extensions` ou `edge://extensions`.
+2. Ative o **Modo do Desenvolvedor** no canto superior direito.
+3. Clique em **"Carregar sem compactação"** (Load unpacked).
+4. Selecione a pasta `extension/` do projeto (`licitacao/extension`).
+5. O ícone do **LicitAI** 🪄 aparecerá na barra do navegador para injeção automática de TRs.
+
+---
+
+### 🔑 Configuração de Chaves de IA (`.env`)
 
 | Provedor | Onde obter | Free Tier |
 |----------|-----------|-----------|
