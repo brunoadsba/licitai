@@ -177,13 +177,19 @@ async def run_analysis(
         analysis.risk_level = scores.get("risk_level", "medio")
         analysis.final_opinion = scores.get("final_opinion", "")
 
+        if not analysis.score_overall:
+            raise ValueError("Score zerado ou ausente")
+
     except Exception:
-        logger.exception("Erro ao gerar pontuação para análise %s", analysis_id)
-        # Análise concluída mesmo sem pontuação
-        analysis.final_opinion = (
-            f"Análise concluída com {len(all_corrections)} correções identificadas. "
-            "Pontuação automática não disponível."
-        )
+        logger.exception("Erro ao gerar pontuação via LLM para análise %s; aplicando cálculo determinístico de fallback", analysis_id)
+        scores = _calculate_fallback_scores(all_corrections, len(document.items))
+        analysis.score_overall = scores["score_overall"]
+        analysis.score_juridical = scores["score_juridical"]
+        analysis.score_technical = scores["score_technical"]
+        analysis.score_writing = scores["score_writing"]
+        analysis.score_structural = scores["score_structural"]
+        analysis.risk_level = scores["risk_level"]
+        analysis.final_opinion = scores["final_opinion"]
 
     # Finalizar
     analysis.status = "completed"
@@ -343,3 +349,56 @@ async def _generate_scores(
         raise ValueError("Resposta de pontuação não é um JSON válido.")
 
     return scores
+
+
+def _calculate_fallback_scores(corrections: list[dict], total_items: int) -> dict:
+    """Calcula pontuação e parecer de forma determinística caso a LLM falhe na sumarização final."""
+    cat_penalties = {"juridica": 0.0, "tecnica": 0.0, "redacao": 0.0, "estrutural": 0.0}
+    has_critical = False
+    has_high = False
+
+    sev_weights = {"critico": 2.5, "alto": 1.5, "medio": 0.7, "baixo": 0.2}
+
+    for c in corrections:
+        cat = c.get("category", "tecnica")
+        sev = c.get("severity", "medio")
+        weight = sev_weights.get(sev, 0.7)
+        if cat in cat_penalties:
+            cat_penalties[cat] += weight
+        if sev == "critico":
+            has_critical = True
+        elif sev == "alto":
+            has_high = True
+
+    score_juridical = round(max(0.0, min(10.0, 10.0 - cat_penalties["juridica"])), 1)
+    score_technical = round(max(0.0, min(10.0, 10.0 - cat_penalties["tecnica"])), 1)
+    score_writing = round(max(0.0, min(10.0, 10.0 - cat_penalties["redacao"])), 1)
+    score_structural = round(max(0.0, min(10.0, 10.0 - cat_penalties["estrutural"])), 1)
+
+    score_overall = round(
+        (score_juridical * 0.35 + score_technical * 0.30 + score_structural * 0.20 + score_writing * 0.15), 1
+    )
+
+    if has_critical or score_overall < 5.0:
+        risk_level = "critico"
+    elif has_high or score_overall < 7.0:
+        risk_level = "alto"
+    elif score_overall < 8.5:
+        risk_level = "medio"
+    else:
+        risk_level = "baixo"
+
+    final_opinion = (
+        f"Análise concluída com {len(corrections)} apontamento(s) de atenção formulados pelos 4 agentes especialistas. "
+        f"Pontuação consolidada do Termo de Referência: {score_overall}/10. Nível de Risco Global: {risk_level.upper()}."
+    )
+
+    return {
+        "score_overall": score_overall,
+        "score_juridical": score_juridical,
+        "score_technical": score_technical,
+        "score_writing": score_writing,
+        "score_structural": score_structural,
+        "risk_level": risk_level,
+        "final_opinion": final_opinion,
+    }
