@@ -230,12 +230,12 @@ A IA atua estritamente sob as seguintes diretrizes:
   - Extratores de âncoras para **CNPJ** (com validação), **Prazo Relativo** (ex: "30 dias") e **CEP** (`#####-###`).
   - Endpoint de duplicação de moldes `POST /moldes/{id}/duplicate` + botão em 1-clique.
   - Endpoint dry-run `POST /moldes/{id}/validate/{document_id}` + modal de teste em tempo real no frontend.
-- **Direcionamento Arquitetural & Próximas Etapas (Fase 7 - Pendente)**:
-  - **Uso Estritamente Single-User**: O sistema foi concebido para uso individual / de usuário único. Criação de perfis, login JWT e regras RBAC foram despriorizadas por não serem aplicáveis ao escopo do projeto.
-  - **Histórico e Versionamento de Edições (Single-User)**: Planejado o versionamento/linha do tempo de edições e rascunhos de cláusulas alteradas no TR.
-  - **Calibração do Agente Estrutural (`StructuralAgent`)**: Ajuste nos prompts e heurísticas para elevar o recall na identificação dos 10 elementos do Art. 6º, XXIII da Lei 14.133/21.
-- **Suíte de Testes**: **95 testes unitários passando** (100% no Pytest, incluindo `test_multi_agent.py` e `test_fase4_fase5.py`) + **17 testes E2E passando**.
-- `next build` compilado com 0 erros de compilação ou TypeScript (8 páginas geradas).
+- **Histórico e Versionamento de Edições Single-User & Agente Estrutural (Fase 7) implementados**:
+  - **Uso Estritamente Single-User**: O sistema opera em modo de uso individual (sem necessidade de login JWT ou regras de RBAC).
+  - **Histórico e Versionamento de Edições (Single-User)**: Tabela e modelo `DocumentRevision`, endpoints REST `/documents/{id}/revisions` (`POST/GET/RESTORE`) e interface visual `RevisionsTimelineModal.tsx` na tela de análise.
+  - **Calibração do Agente Estrutural (`StructuralAgent`)**: Prompt aprimorado com checklist estrito dos 10 incisos do Art. 6º, XXIII da Lei 14.133/21 para elevação do recall na detecção de omissões.
+- **Suíte de Testes**: **97 testes unitários passando** (100% no Pytest, incluindo `test_fase7_revisions.py`) + **17 testes E2E passando**.
+- `next build` compilado com 0 erros de compilação ou TypeScript (8 páginas geradas com sucesso).
 
 ---
 
