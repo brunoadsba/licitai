@@ -270,3 +270,27 @@ export async function restoreRevision(documentId: string, versao: number) {
     method: 'POST',
   });
 }
+
+export async function generateTR(params: {
+  tipo_contratacao: string;
+  objeto: string;
+  justificativa: string;
+  valor_estimado?: number;
+  prazo_meses: number;
+  garantia_exigida: boolean;
+  vistoria_exigida: boolean;
+  criterio_julgamento: string;
+}) {
+  return fetchAPI<{
+    document_id: string;
+    filename_original: string;
+    tipo_contratacao: string;
+    total_itens: number;
+    html_completo: string;
+    itens: { item_number: string; title: string; content: string }[];
+  }>('/generator/tr', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+}

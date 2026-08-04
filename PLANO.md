@@ -18,6 +18,7 @@ validação. Serve de guia para agentes executarem as frentes uma a uma.
 5. **Fase 5 — Auditoria polimentos (M)** ✅ concluída → novas âncoras (cnpj, prazo_relativo, cep), duplicação e dry-run.
 6. **Fase 6 — Múltiplos Agentes Inteligentes (XL)** ✅ concluída → 4 agentes especializados (Jurídico, Técnico, Redação, Estrutural) + orquestrador.
 7. **Fase 7 — Histórico de Edições & Sensibilidade do Agente Estrutural (M/L)** ✅ concluída → modelo/API/UI de rascunhos single-user e prompt calibrado no Agente Estrutural.
+8. **Fase 8 — Geração Assistida de TRs & Extensão para SEI (XL)** ✅ concluída → formulário Wizard `/gerar-tr`, endpoint `POST /generator/tr` (10 seções do Art. 6º, XXIII) e Extensão de Navegador (`extension/`).
 
 ---
 

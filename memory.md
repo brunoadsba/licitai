@@ -234,8 +234,11 @@ A IA atua estritamente sob as seguintes diretrizes:
   - **Uso Estritamente Single-User**: O sistema opera em modo de uso individual (sem necessidade de login JWT ou regras de RBAC).
   - **Histórico e Versionamento de Edições (Single-User)**: Tabela e modelo `DocumentRevision`, endpoints REST `/documents/{id}/revisions` (`POST/GET/RESTORE`) e interface visual `RevisionsTimelineModal.tsx` na tela de análise.
   - **Calibração do Agente Estrutural (`StructuralAgent`)**: Prompt aprimorado com checklist estrito dos 10 incisos do Art. 6º, XXIII da Lei 14.133/21 para elevação do recall na detecção de omissões.
-- **Suíte de Testes**: **97 testes unitários passando** (100% no Pytest, incluindo `test_fase7_revisions.py`) + **17 testes E2E passando**.
-- `next build` compilado com 0 erros de compilação ou TypeScript (8 páginas geradas com sucesso).
+- **Geração Assistida de TRs & Extensão de Navegador para SEI (Fase 8) implementados**:
+  - **Geração Assistida de TR**: Endpoint `POST /api/v1/generator/tr`, engine `tr_builder.py` (gera as 10 seções do Art. 6º, XXIII com RAG do TCU/RILC) e formulário Wizard no frontend em `/gerar-tr`.
+  - **Extensão de Navegador LicitAI para SEI (`extension/`)**: Manifest V3, content script `content.js` (detecta CKEditor/iFrame no SEI e injeta HTML do TR) e pop-up `popup.html`/`popup.js` (lista TRs recentes da API local).
+- **Suíte de Testes**: **99 testes unitários passando** (100% no Pytest, incluindo `test_fase8_generator.py`) + **17 testes E2E passando**.
+- `next build` compilado com 0 erros de compilação ou TypeScript (9 páginas geradas com sucesso, incluindo `/gerar-tr`).
 
 ---
 

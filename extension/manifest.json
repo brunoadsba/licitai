@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "LicitAI — Assistente de TR para o SEI",
+  "version": "1.0.0",
+  "description": "Integração do LicitAI diretamente com o editor do Sistema Eletrônico de Informações (SEI).",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*",
+    "*://*.sei.gov.br/*",
+    "*://sei.*/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "LicitAI para SEI"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.sei.gov.br/*",
+        "*://sei.*/*",
+        "http://localhost/*",
+        "http://127.0.0.1/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

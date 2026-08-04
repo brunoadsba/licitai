@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>LicitAI para SEI</title>
+  <style>
+    body {
+      width: 340px;
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+    }
+    h2 {
+      font-size: 14px;
+      margin: 0 0 4px 0;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    p {
+      font-size: 11px;
+      color: #94a3b8;
+      margin: 0 0 12px 0;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .card:hover {
+      border-color: #38bdf8;
+      background: #0f172a;
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: bold;
+      color: #e2e8f0;
+      margin-bottom: 4px;
+    }
+    .card-meta {
+      font-size: 10px;
+      color: #64748b;
+    }
+    button.btn {
+      width: 100%;
+      background: #0284c7;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    button.btn:hover {
+      background: #0369a1;
+    }
+    #status {
+      font-size: 11px;
+      margin-top: 8px;
+      color: #f59e0b;
+    }
+  </style>
+</head>
+<body>
+  <h2><span>🪄</span> LicitAI — Injeção no SEI</h2>
+  <p>Selecione um Termo de Referência recente do LicitAI local para injetar no editor do SEI:</p>
+
+  <div id="documents-list">
+    <div style="font-size:11px; color:#64748b; text-align:center; padding:12px;">Carregando documentos...</div>
+  </div>
+
+  <div id="status"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
