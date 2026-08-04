@@ -45,8 +45,21 @@ CREATE TABLE IF NOT EXISTS document_items (
     item_order INTEGER NOT NULL DEFAULT 0,
     item_type VARCHAR(20) NOT NULL DEFAULT 'item'
         CHECK (item_type IN ('section', 'item', 'subitem', 'table', 'annex')),
+-- -----------------------------------------------------------
+-- Tabela: document_revisions
+-- Histórico e versionamento de edições do documento (Single-User)
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS document_revisions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+    versao INTEGER NOT NULL,
+    rotulo VARCHAR(150) NOT NULL,
+    descricao VARCHAR(500),
+    items_snapshot JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_document_revisions_doc_id ON document_revisions(document_id);
 
 -- -----------------------------------------------------------
 -- Tabela: analyses

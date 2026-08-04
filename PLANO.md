@@ -17,10 +17,7 @@ validação. Serve de guia para agentes executarem as frentes uma a uma.
 4. **Fase 4 — RAG v1.0 (XL)** ✅ concluída → busca semântica, jurisprudência TCU/RILC e diff de versões.
 5. **Fase 5 — Auditoria polimentos (M)** ✅ concluída → novas âncoras (cnpj, prazo_relativo, cep), duplicação e dry-run.
 6. **Fase 6 — Múltiplos Agentes Inteligentes (XL)** ✅ concluída → 4 agentes especializados (Jurídico, Técnico, Redação, Estrutural) + orquestrador.
-7. **Fase 7 — Histórico de Edições & Sensibilidade do Agente Estrutural (M/L)** `[ ]` pendente:
-   - **7.1 Versionamento & Histórico de Edições Single-User (M)**: Registro de versões/rascunhos de alterações feitas no TR.
-   - **7.2 Calibração de Sensibilidade do Agente Estrutural (S/M)**: Ajuste dos prompts e heurísticas para elevação do recall na detecção do Art. 6º, XXIII.
-   - *(Nota: O projeto é estritamente Single-User por design. Criação de login/perfis de usuário/RBAC despriorizada por não ser necessária).*
+7. **Fase 7 — Histórico de Edições & Sensibilidade do Agente Estrutural (M/L)** ✅ concluída → modelo/API/UI de rascunhos single-user e prompt calibrado no Agente Estrutural.
 
 ---
 

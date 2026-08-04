@@ -246,3 +246,27 @@ export async function diffDocuments(docAntigoId: string, docNovoId: string) {
     }),
   });
 }
+
+export async function listRevisions(documentId: string) {
+  return fetchAPI<{ revisions: any[]; total: number }>(
+    `/documents/${encodeURIComponent(documentId)}/revisions`
+  );
+}
+
+export async function createRevision(documentId: string, rotulo: string, descricao?: string) {
+  return fetchAPI<any>(`/documents/${encodeURIComponent(documentId)}/revisions`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rotulo, descricao }),
+  });
+}
+
+export async function getRevision(documentId: string, versao: number) {
+  return fetchAPI<any>(`/documents/${encodeURIComponent(documentId)}/revisions/${versao}`);
+}
+
+export async function restoreRevision(documentId: string, versao: number) {
+  return fetchAPI<any>(`/documents/${encodeURIComponent(documentId)}/revisions/${versao}/restore`, {
+    method: 'POST',
+  });
+}

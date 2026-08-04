@@ -1,6 +1,7 @@
 """Pacote de modelos SQLAlchemy."""
 
 from app.models.document import Document, DocumentItem
+from app.models.document_revision import DocumentRevision
 from app.models.analysis import Analysis, Correction
 from app.models.legal import LegalDocument, LegalChunk
 from app.models.comparison import (
@@ -13,6 +14,7 @@ from app.models.comparison import (
 __all__ = [
     "Document",
     "DocumentItem",
+    "DocumentRevision",
     "Analysis",
     "Correction",
     "LegalDocument",

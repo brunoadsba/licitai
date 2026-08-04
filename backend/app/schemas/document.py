@@ -62,22 +62,35 @@ class DocumentListResponse(BaseModel):
     total: int
 
 
-class DocumentDetailResponse(BaseModel):
-    """Detalhes completos de um documento com seus itens."""
+class DocumentDetailResponse(DocumentResponse):
+    """Schema detalhado de documento incluindo itens extraídos."""
+    error_message: str | None = None
+    items: list[DocumentItemResponse] = []
+
+
+class DocumentRevisionCreate(BaseModel):
+    """Schema para salvar um novo snapshot de revisão de documento."""
+    rotulo: str = Field(..., max_length=150, min_length=2)
+    descricao: str | None = Field(None, max_length=500)
+
+
+class DocumentRevisionResponse(BaseModel):
+    """Schema de resposta para uma revisão do documento."""
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    filename_original: str
-    file_type: str
-    file_size_bytes: int
-    document_type: str = "tr"
-    fornecedor_id: uuid.UUID | None = None
-    total_items: int
-    status: str
-    error_message: str | None = None
+    document_id: uuid.UUID
+    versao: int
+    rotulo: str
+    descricao: str | None = None
+    items_snapshot: list[dict]
     created_at: AwareDatetime
-    updated_at: AwareDatetime
-    items: list[DocumentItemResponse] = []
+
+
+class DocumentRevisionListResponse(BaseModel):
+    """Lista de revisões salvas de um documento."""
+    revisions: list[DocumentRevisionResponse]
+    total: int
 
 
 class DiffRequest(BaseModel):

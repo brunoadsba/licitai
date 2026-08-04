@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getDocument, startAnalysis, getDocumentAnalyses, getAnalysis } from '@/lib/api';
+import RevisionsTimelineModal from '@/components/RevisionsTimelineModal';
 import type {
   DocumentDetailResponse,
   DocumentItemResponse,
@@ -31,6 +32,7 @@ export default function AnalysisPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [revisionsModalOpen, setRevisionsModalOpen] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -180,6 +182,17 @@ export default function AnalysisPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setRevisionsModalOpen(true)}
+            className="btn-secondary"
+            title="Ver e salvar histórico de edições/snapshots"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Histórico de Edições
+          </button>
+
           {analysis?.status === 'completed' && (
             <Link
               href={`/report/${analysis.id}`}
@@ -481,6 +494,14 @@ export default function AnalysisPage() {
           )}
         </div>
       </div>
+
+      {/* Modal de Histórico e Versionamento de Edições (Single-User) */}
+      <RevisionsTimelineModal
+        documentId={documentId}
+        isOpen={revisionsModalOpen}
+        onClose={() => setRevisionsModalOpen(false)}
+        onRestored={() => loadData()}
+      />
     </div>
   );
 }
