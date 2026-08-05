@@ -49,11 +49,11 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - **Módulo de Auditoria TR × Propostas & Polimentos**:
   - **Novos Extratores**: CNPJ (dígitos verificadores), Prazo Relativo (ex: "30 dias"), CEP (`#####-###`).
   - **Duplicação & Dry-Run**: Endpoints `POST /moldes/{id}/duplicate` e `POST /moldes/{id}/validate/{document_id}` com modal no frontend.
-- **Provedores de LLM (Factory Pattern)**:
-  - **Google Gemini API** (`gemini_provider.py`) — *Provedor ativo*: `gemini-2.0-flash`.
-  - **Groq API** (`groq_provider.py`) — *Failover*: `llama-3.3-70b-versatile`.
+- **Provedores de LLM (Factory Pattern com Failover Simétrico)**:
+  - **Google Gemini API** (`gemini_provider.py`) — *Provedor*: `gemini-2.0-flash`.
+  - **Groq API** (`groq_provider.py`) — *Provedor ativo*: `llama-3.1-8b-instant` (otimizado para inferência rápida e cota de 500.000 tokens/dia no free tier).
   - **Ollama** (`ollama_provider.py`) — *Local*: `qwen3:32b`, `deepseek-r1:32b`, etc.
-  - Failover automático entre provedores reais (sem mock; exige chave de API válida).
+  - **Failover Simétrico (`provider.py`)**: Tenta o provedor primário configurado (`LLM_PROVIDER`) e realiza fallback automático para os demais provedores com chaves válidas.
 - **Compatibilidade Windows**:
   - `python-magic-bin` instalado para validação de magic bytes sem dependências C externas no Windows.
   - `UPLOAD_DIR` configurado dinamicamente para `./uploads`.
@@ -310,6 +310,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 - **Gemini free tier esgota cota diária (05/08)**: `generate_content_free_tier_requests` com `limit: 0` (429) durante o dia após uso intenso (benchmark + E2E). Groq TPD também 99.7k/100k. Impacto: 4 testes E2E de análise falharam por **timeout** (a análise completava, mas além da janela de 60s do fixture). Corrigido aumentando o loop do fixture para 120 iterações × 2s (240s) em `e2e/tests/conftest.py`. Não são regressões de código.
 - **Falha de query SQLite envenenava a transação do chat (06/08)**: no Copiloto, `_legal_sources` consulta `legal_chunks_fts` (FTS5). Em banco vazio/in-memory a tabela não existe → `OperationalError`. A exceção era capturada, mas o `commit()` da conversa passava a falhar silenciosamente (mensagens não persistiam). Corrigido executando cada recuperação de fonte dentro de um **savepoint** (`async with db.begin_nested()`) em `_seguro()` — o erro reverte só o savepoint e a transação principal sobrevive.
 - **Override de `get_db` em testes precisa commitar (06/08)**: `test_chat_api.py` sobrescreve `get_db` com `async with Session() as s: yield s`, mas o `get_db` real faz `commit()` após o yield. Sem o commit, mensagens persistidas via `flush()` eram perdidas ao fechar a sessão — o teste de persistência falhava. Corrigido replicando o try/commit/rollback do `get_db` real no override.
+- **Groq 429 Rate Limit (05/08/2026)**: o modelo `llama-3.3-70b-versatile` no free tier do Groq possui limite de 100k tokens/dia (TPD), que estourou durante o uso do Copiloto. Solução: alterado modelo padrão no `config.py` para `llama-3.1-8b-instant` (cota de 500k tokens/dia no free tier e latência < 1s), tornado o `_build_providers()` simétrico para failover bidirecional (Groq ↔ Gemini) e reiniciado o processo do backend. Teste ao vivo da API confirmou retorno HTTP 200 com resposta válida do Llama.
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
