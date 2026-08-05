@@ -17,6 +17,7 @@ a âncora pode restringir a busca a um item específico no formato "n" (ex.: "4.
 
 import logging
 import re
+from datetime import date
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -34,11 +35,15 @@ NUMEROS_EXTENSO = {
     "novecentos": 900,
 }
 
-NUMERO_INTEIRO_RE = re.compile(r"\b(\d{1,4}(?:\.\d{3})*)\b")
+NUMERO_INTEIRO_RE = re.compile(
+    r"(?<![\d.,])(\d{1,3}(?:\.\d{3})+|\d{1,9})(?!\d)(?![.,]\d)"
+)
 LEGAL_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3})*$")
 DATA_RE = re.compile(r"\b(\d{1,2})/(\d{1,2})/(\d{4})\b")
 PERCENTUAL_RE = re.compile(r"\b(\d+(?:[.,]\d+)?)\s*%")
-MONETARIO_RE = re.compile(r"\bR\$\s*(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2})?)\b")
+MONETARIO_RE = re.compile(
+    r"\bR\$\s*(\d{1,3}(?:\.\d{3})+,\d{2}|\d{1,3}(?:\.\d{3})+|\d+,\d{2}|\d+)(?!\d)(?![.,]\d)"
+)
 
 
 def extrair_valor(regra: dict, itens: list[dict]) -> Any | None:
@@ -62,9 +67,15 @@ def extrair_valor(regra: dict, itens: list[dict]) -> Any | None:
     if tipo == "numero_extenso":
         return _extrair_numero_extenso(texto)
     if tipo == "booleano":
-        return _extrair_booleano(regra.get("palavras_chave"), texto)
+        return _extrair_booleano(
+            regra.get("palavras_chave"),
+            _texto_por_ancora(regra.get("ancora"), itens, texto_inteiro=True),
+        )
     if tipo == "legal":
-        return _extrair_legal(regra.get("regex"), texto)
+        return _extrair_legal(
+            regra.get("regex"),
+            _texto_por_ancora(regra.get("ancora"), itens, texto_inteiro=True),
+        )
     if tipo == "data":
         return _extrair_data(texto)
     if tipo == "percentual":
@@ -80,7 +91,11 @@ def extrair_valor(regra: dict, itens: list[dict]) -> Any | None:
     return None
 
 
-def _texto_por_ancora(ancora: str | None, itens: list[dict]) -> str:
+def _texto_por_ancora(
+    ancora: str | None,
+    itens: list[dict],
+    texto_inteiro: bool = False,
+) -> str:
     """Concatena o texto dos itens relevantes à âncora."""
     if not itens:
         return ""
@@ -96,13 +111,13 @@ def _texto_por_ancora(ancora: str | None, itens: list[dict]) -> str:
                 return _conteudo_item(item)
         return ""
 
-    # Âncora textual: busca o trecho do texto que a contém (primeira ocorrência).
-    alvo = ancora.lower()
+    # Âncora textual: a partir da primeira ocorrência (ou item inteiro se texto_inteiro).
+    alvo = ancora.strip().lower()
     for item in itens:
         conteudo = _conteudo_item(item)
         idx = conteudo.lower().find(alvo)
         if idx != -1:
-            return conteudo
+            return conteudo if texto_inteiro else conteudo[idx:]
     return ""
 
 
@@ -124,11 +139,22 @@ def _extrair_numero(texto: str) -> int | None:
 
 
 def _extrair_numero_extenso(texto: str) -> int | None:
-    """Extrai o primeiro número por extenso do texto."""
-    palavras = re.findall(r"[a-záàâãéêíóôõúçü]+", texto.lower())
-    for palavra in palavras:
-        if palavra in NUMEROS_EXTENSO:
-            return NUMEROS_EXTENSO[palavra]
+    """Extrai o primeiro número por extenso, incluindo dezenas compostas."""
+    trecho = re.sub(r"\s+e\s+", " ", texto.lower())
+    palavras = re.findall(r"[a-záàâãéêíóôõúçü]+", trecho)
+
+    for i, palavra in enumerate(palavras):
+        if palavra not in NUMEROS_EXTENSO:
+            continue
+        valor = NUMEROS_EXTENSO[palavra]
+        if (
+            20 <= valor <= 90
+            and i + 1 < len(palavras)
+            and palavras[i + 1] in NUMEROS_EXTENSO
+            and NUMEROS_EXTENSO[palavras[i + 1]] < 10
+        ):
+            return valor + NUMEROS_EXTENSO[palavras[i + 1]]
+        return valor
     return None
 
 
@@ -153,14 +179,14 @@ def _extrair_legal(regex: str | None, texto: str) -> bool | None:
 
 
 def _extrair_data(texto: str) -> str | None:
-    """Extrai a primeira data no formato dd/mm/aaaa e retorna ISO aaaa-mm-dd."""
+    """Extrai a primeira data válida dd/mm/aaaa e retorna ISO aaaa-mm-dd."""
     for match in DATA_RE.finditer(texto):
-        dia, mes, ano = match.groups()
+        dia, mes, ano = (int(g) for g in match.groups())
         try:
-            if 1 <= int(mes) <= 12 and 1 <= int(dia) <= 31:
-                return f"{ano}-{int(mes):02d}-{int(dia):02d}"
+            date(ano, mes, dia)  # lança ValueError para datas inexistentes
         except ValueError:
             continue
+        return f"{ano:04d}-{mes:02d}-{dia:02d}"
     return None
 
 
@@ -190,8 +216,13 @@ def _extrair_percentual(texto: str) -> float | None:
 def _extrair_monetario(texto: str) -> float | None:
     """Extrai o primeiro valor em reais (R$ 1.500,00) do texto."""
     for match in MONETARIO_RE.finditer(texto):
+        raw = match.group(1)
+        if "," in raw:
+            raw = raw.replace(".", "").replace(",", ".")
+        else:
+            raw = raw.replace(".", "")
         try:
-            return _para_decimal(match.group(1))
+            return float(raw)
         except ValueError:
             continue
     return None
@@ -205,11 +236,30 @@ PRAZO_RELATIVO_RE = re.compile(
 CEP_RE = re.compile(r"\b(\d{5}-\d{3}|\d{8})\b")
 
 
+def _cnpj_valido(cnpj: str) -> bool:
+    """Valida dígitos verificadores de CNPJ (apenas dígitos, módulo 11)."""
+    if len(cnpj) != 14 or not cnpj.isdigit() or cnpj == cnpj[0] * 14:
+        return False
+
+    def _dv(seq: str, pesos: list[int]) -> int:
+        soma = sum(int(d) * p for d, p in zip(seq, pesos))
+        resto = soma % 11
+        return 0 if resto < 2 else 11 - resto
+
+    p1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    primeiro_dv = _dv(cnpj[:12], p1)
+    if primeiro_dv != int(cnpj[12]):
+        return False
+
+    p2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
+    return _dv(cnpj[:12] + str(primeiro_dv), p2) == int(cnpj[13])
+
+
 def _extrair_cnpj(texto: str) -> str | None:
     """Extrai o primeiro CNPJ válido do texto."""
     for match in CNPJ_RE.finditer(texto):
         raw = match.group(1).replace(".", "").replace("/", "").replace("-", "")
-        if len(raw) == 14:
+        if _cnpj_valido(raw):
             return f"{raw[:2]}.{raw[2:5]}.{raw[5:8]}/{raw[8:12]}-{raw[12:]}"
     return None
 

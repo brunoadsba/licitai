@@ -33,3 +33,6 @@ weasyprint==65.0
 
 # --- Utilidades ---
 aiofiles==24.1.0
+
+# --- Validação do schema Postgres (test_init_sql) ---
+pglast==8.4

@@ -10,8 +10,10 @@ Recebe texto bruto e identifica a estrutura hierárquica do documento:
 - Anexos
 """
 
+import hashlib
 import logging
 import re
+import unicodedata
 
 logger = logging.getLogger(__name__)
 
@@ -269,9 +271,34 @@ def _detect_item_type(line: str) -> dict | None:
     # Título marcado pelo parser
     m = PATTERNS["title_marker"].match(line)
     if m:
+        _raw_title = unicodedata.normalize("NFC", m.group(1).strip())
+        _digest = hashlib.sha256(_raw_title.encode("utf-8")).hexdigest()
+        _number = f"T-{int(_digest[:12], 16) % 100000}"
         return {
-            "number": f"T-{hash(m.group(1)) % 1000}",
+            "number": _number,
             "title": m.group(1).strip(),
+            "type": "section",
+        }
+
+    m = PATTERNS["letter"].match(line)
+    if m:
+        title = m.group(2).strip()
+        if _is_table_data_title(title):
+            return None
+        return {
+            "number": m.group(1).strip().lower(),
+            "title": title[:200],
+            "type": "subitem",
+        }
+
+    m = PATTERNS["roman"].match(line)
+    if m:
+        title = m.group(2).strip()
+        if _is_table_data_title(title):
+            return None
+        return {
+            "number": m.group(1).strip().upper(),
+            "title": title[:200],
             "type": "section",
         }
 

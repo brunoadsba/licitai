@@ -106,6 +106,8 @@ async def run_jurisprudencia_ingestion():
         logger.info("Reconstruindo índice de busca FTS...")
         await build_fts_index(db)
 
+        await db.commit()
+
     logger.info("Ingestão de Jurisprudência concluída com sucesso!")
 
 

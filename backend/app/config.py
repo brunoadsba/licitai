@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # --- Groq ---
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "llama-3.1-8b-instant"
 
     # --- Google Gemini ---
     gemini_api_key: str = ""
@@ -59,6 +59,14 @@ class Settings(BaseSettings):
 
     # --- LLM ---
     llm_timeout_seconds: float = 120.0
+
+    # --- Copiloto (Chat Consultivo) ---
+    chat_enabled: bool = True
+    chat_require_grounding: bool = True
+    chat_top_k_sources: int = 5
+    chat_max_message_length: int = 2000
+    chat_max_sources_stored: int = 8
+    chat_force_fake_provider: bool = False
 
     # --- SMTP (RF04 — envio de pendências por fornecedor) ---
     smtp_host: str = ""

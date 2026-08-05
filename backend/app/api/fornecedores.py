@@ -5,8 +5,8 @@ Endpoints CRUD para fornecedores.
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -54,18 +54,26 @@ async def create_fornecedor(
     description="Retorna todos os fornecedores cadastrados.",
 )
 async def list_fornecedores(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ):
     """Lista todos os fornecedores."""
+    total = (
+        await db.execute(select(func.count()).select_from(Fornecedor))
+    ).scalar_one()
     result = await db.execute(
-        select(Fornecedor).order_by(Fornecedor.nome)
+        select(Fornecedor)
+        .order_by(Fornecedor.nome)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
     )
     fornecedores = result.scalars().all()
     return FornecedorListResponse(
         fornecedores=[
             FornecedorResponse.model_validate(f) for f in fornecedores
         ],
-        total=len(fornecedores),
+        total=total,
     )
 
 

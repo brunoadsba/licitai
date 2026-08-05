@@ -47,7 +47,7 @@ def analyzed_document(api_client, uploaded_document):
     analysis_id = response.json()["analysis_id"]
 
     import time
-    for _ in range(30):
+    for _ in range(120):
         resp = api_client.get(f"/api/v1/analysis/{analysis_id}")
         assert resp.status_code == 200
         status = resp.json()["status"]

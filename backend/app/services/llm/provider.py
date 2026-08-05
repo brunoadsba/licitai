@@ -104,26 +104,40 @@ def _build_providers() -> list[LLMProvider]:
     providers: list[LLMProvider] = []
     primary = settings.llm_provider
 
-    if primary == "gemini" and settings.gemini_api_key:
-        from app.services.llm.gemini_provider import GeminiProvider
-        providers.append(GeminiProvider(
-            api_key=settings.gemini_api_key,
-            model=settings.gemini_model,
-        ))
+    def _add_gemini():
+        if settings.gemini_api_key and not any(p.provider_name == "gemini" for p in providers):
+            from app.services.llm.gemini_provider import GeminiProvider
+            providers.append(GeminiProvider(
+                api_key=settings.gemini_api_key,
+                model=settings.gemini_model,
+            ))
 
-    if settings.groq_api_key:
-        from app.services.llm.groq_provider import GroqProvider
-        providers.append(GroqProvider(
-            api_key=settings.groq_api_key,
-            model=settings.groq_model,
-        ))
+    def _add_groq():
+        if settings.groq_api_key and not any(p.provider_name == "groq" for p in providers):
+            from app.services.llm.groq_provider import GroqProvider
+            providers.append(GroqProvider(
+                api_key=settings.groq_api_key,
+                model=settings.groq_model,
+            ))
 
-    if primary == "ollama":
-        from app.services.llm.ollama_provider import OllamaProvider
-        providers.append(OllamaProvider(
-            base_url=settings.ollama_base_url,
-            model=settings.ollama_model,
-        ))
+    def _add_ollama():
+        if not any(p.provider_name == "ollama" for p in providers):
+            from app.services.llm.ollama_provider import OllamaProvider
+            providers.append(OllamaProvider(
+                base_url=settings.ollama_base_url,
+                model=settings.ollama_model,
+            ))
+
+    if primary == "gemini":
+        _add_gemini()
+        _add_groq()
+    elif primary == "groq":
+        _add_groq()
+        _add_gemini()
+    elif primary == "ollama":
+        _add_ollama()
+        _add_groq()
+        _add_gemini()
 
     return providers
 

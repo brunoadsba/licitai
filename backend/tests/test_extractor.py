@@ -155,3 +155,78 @@ def test_monetario():
     ]
     regra = {"id": "valor", "rotulo": "Valor", "tipo": "monetario", "ancora": "valor"}
     assert extrair_valor(regra, itens) == 1500.0
+
+
+def test_numero_inteiro_ignora_prefixo_item():
+    itens = [{"item_number": "4.3", "title": "Da Vigência",
+              "content": "4.3.8 Vigência: 90 dias, com garantia."}]
+    regra = {"id": "vigencia", "rotulo": "Vigência",
+             "tipo": "numero_inteiro", "ancora": "vigência"}
+    assert extrair_valor(regra, itens) == 90
+
+
+def test_numero_inteiro_grande_sem_separador():
+    itens = [{"item_number": "1", "title": "",
+              "content": "O quantitativo é de 10000 unidades."}]
+    regra = {"id": "qtd", "rotulo": "Qtd", "tipo": "numero_inteiro"}
+    assert extrair_valor(regra, itens) == 10000
+
+
+def test_numero_inteiro_fim_de_frase():
+    itens = [{"item_number": "1", "title": "",
+              "content": "A quantidade total é de 10000."}]
+    regra = {"id": "qtd", "rotulo": "Qtd", "tipo": "numero_inteiro"}
+    assert extrair_valor(regra, itens) == 10000
+
+
+def test_numero_inteiro_rejeita_item_e_milhar_monetario():
+    itens = [{"item_number": "1", "title": "",
+              "content": "Item 4.3 e R$ 1.500,00."}]
+    regra = {"id": "qtd", "rotulo": "Qtd", "tipo": "numero_inteiro"}
+    assert extrair_valor(regra, itens) is None
+
+
+def test_monetario_sem_separador_milhar():
+    itens = [{"item_number": "1", "title": "",
+              "content": "O valor estimado é de R$ 1500,00."}]
+    regra = {"id": "valor", "rotulo": "Valor",
+             "tipo": "monetario", "ancora": "valor"}
+    assert extrair_valor(regra, itens) == 1500.0
+
+
+def test_monetario_milhar_sem_centavos():
+    itens = [{"item_number": "1", "title": "",
+              "content": "O valor estimado é de R$ 1.500."}]
+    regra = {"id": "valor", "rotulo": "Valor",
+             "tipo": "monetario", "ancora": "valor"}
+    assert extrair_valor(regra, itens) == 1500.0
+
+
+def test_data_invalida_retorna_none():
+    itens = [{"item_number": "1", "title": "",
+              "content": "Entrega até 31/02/2026."}]
+    regra = {"id": "entrega", "rotulo": "Entrega",
+             "tipo": "data", "ancora": "entrega"}
+    assert extrair_valor(regra, itens) is None
+
+
+def test_cnpj_digitos_verificadores():
+    itens = [{"item_number": "1", "title": "",
+              "content": "Fornecedor CNPJ 11.222.333/0001-81."}]
+    regra = {"id": "cnpj", "rotulo": "CNPJ", "tipo": "cnpj"}
+    assert extrair_valor(regra, itens) == "11.222.333/0001-81"
+
+
+def test_cnpj_invalido_retorna_none():
+    itens = [{"item_number": "1", "title": "",
+              "content": "Fornecedor CNPJ 11.222.333/0001-00."}]
+    regra = {"id": "cnpj", "rotulo": "CNPJ", "tipo": "cnpj"}
+    assert extrair_valor(regra, itens) is None
+
+
+def test_numero_extenso_composto():
+    itens = [{"item_number": "6.1", "title": "Base Legal",
+              "content": "O prazo será vinte e um dias."}]
+    regra = {"id": "prazo", "rotulo": "Prazo",
+             "tipo": "numero_extenso", "ancora": "prazo"}
+    assert extrair_valor(regra, itens) == 21

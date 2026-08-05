@@ -65,6 +65,15 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - **Hardening (Fase 1)**:
   - Timeout por chamada LLM configurável via `LLM_TIMEOUT_SECONDS` (padrão 120s) aplicado com `asyncio.wait_for` no `FailoverProvider.generate` — estouro aciona o fallback.
   - Logging estruturado JSON via `app/utils/logging_config.py` aplicado no `main.py` (sem secrets).
+- **Copiloto LicitAI (chat consultivo, 06/08/2026)**:
+  - Módulo isolado `backend/app/services/chat/` (`llm_adapter.py`, `sources.py`, `prompts.py`, `validator.py`, `service.py`) + `backend/app/api/chat.py` + `models/chat.py` + `schemas/chat.py`.
+  - API `/api/v1/chat`: `GET /health`, `POST /conversations` (201), `GET /conversations` (paginado por `updated_at` desc), `GET /conversations/{id}/messages`, `POST /conversations/{id}/messages`, `POST /messages/{id}/feedback` (400 em role=user, 404 inexistente, 422 rating inválido).
+  - **Grounding obrigatório** (`CHAT_REQUIRE_GROUNDING`): resposta factual exige citação válida ou recusa explícita; `suggested_actions` do LLM são **descartadas** no MVP (zero escrita em entidades de negócio).
+  - Fake provider determinístico para testes/demo (`CHAT_FORCE_FAKE_PROVIDER`); testes usam `app.dependency_overrides[get_chat_llm]` — nunca LLM real.
+  - Recuperação de fontes com **savepoints** (`begin_nested`): falha de consulta (ex: tabela FTS ausente) não envenena a transação da conversa.
+  - Frontend: `hooks/useChat.ts`, `components/chat/{ChatPanel,ChatMessage,ChatInput,CitationList}.tsx`, integrado em `analysis/[id]/page.tsx` (contexto `page:analysis`, `document_id`, `analysis_id`, `item_number`).
+  - Settings em `config.py`: `chat_enabled`, `chat_require_grounding`, `chat_top_k_sources`, `chat_max_message_length`, `chat_max_sources_stored`, `chat_force_fake_provider`.
+  - Tabelas `chat_conversations`/`chat_messages` em `db/init.sql` + migração `db/migrations/20260806_add_chat.sql`; contrato validado no `test_init_sql.py` (+4 testes).
 - **Qualidade da análise (Fase 2)**:
   - Checklist dos 10 elementos obrigatórios do Art. 6º, XXIII embutido no `SYSTEM_PROMPT`; o `ITEM_ANALYSIS_PROMPT` instrui a sinalizar ausência como correção `juridica`/`estrutural` sem reescrever por conta própria.
   - Revisão cruzada das correções pelo LLM (`services/analyzer/review.py`): segunda passagem aprova/rejeita/ajusta; rejeitadas saem do conjunto de pontuação; ajustadas recebem texto/fundamento novos; falha de revisão mantém correções como `pendente`. Status persistido em `corrections` (`review_status`/`review_note`/`reviewed_at`) e exposto na API.
@@ -104,7 +113,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `scripts/download_laws.py` e `scripts/ingest_laws.py`: Corpus jurídico (Lei 14.133 + 13.303).
 - `scripts/migrate_review_columns.py`: Migração idempotente (SQLite/PostgreSQL) das colunas `review_status`/`review_note`/`reviewed_at` na tabela `corrections`.
 - `scripts/benchmark.py` + `scripts/benchmark_fixtures.py`: Benchmark de qualidade da análise (recall/precisão/F1) com TRs fixture e LLM real; grava `benchmark_report.json`.
-- `tests/`: Testes unitários (loader, extractor, comparator, matrix, llm_timeout, `test_analyzer.py` — checklist Art. 6º + revisão cruzada com providers fake; `test_feedback.py` — agregação de pendências, formatação e guarda SMTP; `test_feedback_api.py` — integração do endpoint com banco SQLite em memória + `enviar_email` mockado).
+- `tests/`: Testes unitários (loader, extractor, comparator, matrix, llm_timeout, `test_analyzer.py` — checklist Art. 6º + revisão cruzada com providers fake; `test_feedback.py` — agregação de pendências, formatação e guarda SMTP; `test_feedback_api.py` — integração do endpoint com banco SQLite em memória + `enviar_email` mockado; `test_chat_validator.py` — grounding/recusa/JSON do Copiloto; `test_chat_api.py` — integração `/api/v1/chat` com fake LLM).
 - `app/main.py`: Aplicação FastAPI, middlewares de segurança (CSP, CORS allowlist, Rate Limit) e health check.
 - `app/config.py`: Validação de variáveis de ambiente com Pydantic Settings (`extra="ignore"` habilitado). Inclui campos SMTP (`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_FROM`) da RF04.
 - `app/database.py`: Conexão assíncrona SQLAlchemy (suporta `postgresql+asyncpg` e `sqlite+aiosqlite`).
@@ -112,10 +121,12 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `document.py`: Modelos ORM `Document` e `DocumentItem` (com `document_type` e `fornecedor_id`).
   - `analysis.py`: Modelos ORM `Analysis` e `Correction` (com colunas de revisão `review_status`/`review_note`/`reviewed_at`).
   - `comparison.py`: Modelos ORM `Fornecedor`, `Molde`, `Comparacao` e `ComparacaoResultado`.
+  - `chat.py`: Modelos ORM `ChatConversation` e `ChatMessage` (PK `int` autoincrement, `sources`/`context_json` JSON, `grounded`/`confidence`/`provider`/`latency_ms`, `feedback_rating`/`feedback_comment`).
 - `app/schemas/`:
   - `document.py`: Schemas Pydantic de requisição e resposta de documentos.
   - `analysis.py`: Schemas Pydantic de análises, correções e relatórios (`CorrectionResponse` expõe `review_status`/`review_note`/`reviewed_at`).
   - `comparison.py`: Schemas de fornecedores, moldes, comparação e matriz de conformidade.
+  - `chat.py`: Schemas do Copiloto (`ChatConversationCreate`, `ChatMessageCreate` com limite de tamanho via settings, `ChatFeedbackCreate`, `ChatCitation`, `ChatConversationResponse`, `ChatMessageResponse`, `ChatHealthResponse`).
 - `app/api/`:
   - `router.py`: Router `/api/v1`.
   - `documents.py`: Endpoints `/documents/upload`, `/documents/`, `/documents/{id}` e DELETE (upload aceita `document_type` + `fornecedor_id`).
@@ -123,6 +134,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `rules.py`: CRUD de moldes (`/moldes` POST/GET/PUT/DELETE) com validação do `config_json` e delete protegido por integridade (409 se houver comparações).
   - `fornecedores.py`: CRUD de fornecedores (`/fornecedores`) com delete protegido (409 se houver propostas).
   - `comparison.py`: `/comparison/start` (Background Task), `/comparison` (lista), `/comparison/{id}`, `/comparison/{id}/matrix`.
+  - `chat.py`: Endpoints `/chat/health`, `/chat/conversations`, `/chat/conversations/{id}/messages`, `/chat/messages/{id}/feedback`.
 - `app/services/parser/`:
   - `pdf_parser.py`: PyMuPDF primário -> pdfplumber fallback (tabelas) -> Tesseract OCR.
   - `docx_parser.py`: Extração via `python-docx` com detecção de estilos e tabelas.
@@ -145,6 +157,12 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `feedback.py`: `montar_pendencias()` agrega `falha`/`atencao` por fornecedor (ignora `ok`); `formatar_email_pendencias()` monta texto PT-BR.
 - `app/services/email/` (RF04):
   - `sender.py`: `smtp_configurado()`, `enviar_email()` (smtplib em `asyncio.to_thread`, texto simples), `EmailConfigError`.
+- `app/services/chat/` (Copiloto):
+  - `llm_adapter.py`: protocolo `ChatLLMProvider`; `ExistingChatLLM` (usa `get_llm_provider()` com failover) e `FakeChatLLM` (determinístico); factory `get_chat_llm()` respeitando `chat_force_fake_provider`.
+  - `sources.py`: `build_sources()` monta citações `legal` (RAG `retrieve`), `analysis`, `correction`, `document_item` — cada recuperação em savepoint (`_seguro`) para não envenenar a transação; dedupe + limite `chat_max_sources_stored`.
+  - `prompts.py`: `SYSTEM_PROMPT` exigindo JSON estrito; `build_messages(message, context, fontes)`.
+  - `validator.py`: `validate_llm_answer(raw, require_grounding)` → `ValidatedAnswer`; `_extract_json` tolerante a fences; `REFUSAL_MESSAGE`; descarta `suggested_actions`.
+  - `service.py`: `send_message()` — fontes → prompt → LLM → validar → persistir user+assistant com `sources/grounded/confidence/provider/model/latency_ms/warning`; erro de LLM → resposta segura com warning (nunca 500).
 - `app/utils/`:
   - `file_validation.py`: Validação de extensão, magic bytes, tamanho e caminho seguro (`UPLOAD_DIR`).
   - `security.py`: Middlewares `SecurityHeadersMiddleware` e `RateLimitMiddleware`.
@@ -168,6 +186,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `comparacao/page.tsx`: Listagem de comparações + criação (seleção de TR, molde e propostas) + cadastro de fornecedor + upload de proposta vinculado.
   - `comparacao/[id]/page.tsx`: Matriz de conformidade regras × fornecedores com polling a cada 3s durante execução.
   - `moldes/page.tsx`: Editor visual de moldes de regras (cria/edita regras com campos dinâmicos por tipo de âncora, preview do JSON, delete protegido).
+  - `src/hooks/useChat.ts`: Hook do Copiloto (cria conversa, carrega histórico, envia mensagens, feedback up/down).
+  - `src/components/chat/`: `ChatPanel.tsx` (painel com header, lista e input), `ChatMessage.tsx` (bolha com badges grounded/confiança/provider/latência e feedback), `ChatInput.tsx` (textarea + Enter), `CitationList.tsx` (acordeão de fontes citadas).
 
 ---
 
@@ -189,58 +209,38 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Backend FastAPI Rodando Ativamente**: O servidor FastAPI está em execução em **http://127.0.0.1:8000** (Health Check `/health` respondendo `{"status": "ok", "provider": "gemini"}`). Logging em JSON estruturado. Reiniciado em **03/08** após queda dos processos (ver lição na seção 7).
-- **Frontend Next.js Rodando Ativamente**: O servidor Next.js está em execução em **http://localhost:3000** (proxy API redirecionando perfeitamente para `http://127.0.0.1:8000/api/*`). Reiniciado em **03/08** (mesma causa).
-- **Banco de Dados Nativo**: O banco SQLite (`licitacao.db`) está inicializado com todas as tabelas criadas, incluindo as do módulo de auditoria (`fornecedores`, `moldes`, `comparacoes`, `comparacao_resultados`).
+- **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
+  - **Fase A (Parsing)**: títulos de seção determinísticos via sha256+NFC (`T-{digest%100000}` — sem `hash()`); alíneas (`a)`, `b)`) detectadas como subitem e itens romanos (`I.`, `II.`) como seção. **+3 testes**.
+  - **Fase B (Extração por regras)**: `_texto_por_ancora` usa a partir da 1ª ocorrência; regex de inteiro ignora número de item e milhar monetário; monetário sem `_para_decimal`; datas inválidas rejeitadas (`datetime.date`); CNPJ valida dígitos verificadores (módulo 11); números por extenso compostos ("vinte e um"→21). **+10 testes**; fixture `test_fase4_fase5` corrigida para CNPJ com DV válido (`-95`).
+  - **Fase C (RAG)**: FTS5 com `remove_diacritics 2` (busca sem acento); retrieval híbrido RRF (semântico + textual com try/except); warn de dimensão de embedding; cache LRU 256 de query-embeddings. **+2 testes**.
+  - **Fase D (Banco)**: `db/init.sql` sincronizado com os models (corrigido `);` faltante em `document_items`, `items_snapshot JSON`, `analysis_mode`, `agent_origin`, `embedding TEXT`, removido ivfflat); constraint `uq_comparacao_fornecedor_regra`; script `dedupe_comparacao_resultados.py`; paginação `page`/`page_size` em documents/fornecedores/comparison (backward-compatible; `analysis.py` sem paginação — frontend espera lista crua).
+  - **Fase E (Validação)**: corpus reingerido no banco real (**7 documentos, 315 chunks, 100% com embedding**); benchmark sem regressão; `db/init.sql` validado via parser oficial do PostgreSQL (**12 testes `test_init_sql.py`**).
+- **Suíte de Testes**: **156 testes unitários passando** (0 falhas) + **17 E2E** (13 passed; 4 erros de timeout do fixture de análise aguardando LLM real sob cota diária esgotada — ambientais, janela ajustada 60s→240s).
+- **Copiloto LicitAI (chat consultivo) implementado (06/08/2026)**: módulo backend isolado + API `/api/v1/chat` + frontend integrado na tela de análise; **26 novos testes** (11 validator + 16 API incl. guards) + **4 testes de schema** (`test_init_sql.py` chat contract). Smoke test real validado com `chat_force_fake_provider=True` (health, conversa, mensagem com fonte, feedback, 404/400).
+- **Backend FastAPI**: modo nativo Windows (SQLite), provedor ativo **gemini** (`gemini-2.0-flash`), failover Groq. Chaves reais no `.env` da raiz — `config.py` lê `.env` relativo ao CWD (rodar de `backend\` não vê o `.env` da raiz).
+- **Frontend Next.js Rodando Ativamente**: `http://localhost:3000`.
+- **Banco de Dados Nativo**: `licitacao.db` (raiz) com corpus jurídico completo reingerido.
+- **Benchmark (05/08/2026)**: recall médio **0,81**, precisão média **0,86**, F1 médio **0,83** (baseline 03/08: 0,68/0,89/0,77) — sem regressão.
 - **Módulo de Auditoria TR × Propostas (RF02/RF03) implementado**:
   - CRUD de fornecedores e moldes (config_json validado por Pydantic)
   - Upload com `document_type=tr|proposta` + `fornecedor_id`
   - Extração determinística por âncoras (inclui data/percentual/monetário) + fallback LLM real (sem mock)
   - Comparação em BackgroundTasks + matriz de conformidade
-  - 40 testes unitários passando (loader, extractor, comparator, matrix) + 17 E2E
   - Frontend: `/comparacao` (listagem/criação), `/comparacao/[id]` (matriz com polling) e `/moldes` (editor visual)
   - Seed de moldes padrão executado (3 moldes) + 1 legado "Molde Padrao TR" = **4 moldes no banco**
   - Delete protegido por integridade (409) validado via API (molde com comparação vinculada → 409)
-  - Fluxo E2E dos novos tipos validado (criação via API aceitou data/percentual/monetario; comparação completou com matriz; dados de teste removidos depois)
-  - `db/init.sql` atualizado; migração SQLite aplicada (`document_type`/`fornecedor_id` em `documents`)
-- **Hardening (Fase 1) implementado**: timeout LLM configurável (`LLM_TIMEOUT_SECONDS`, teste de timeout no FailoverProvider) + logging JSON estruturado — 43 testes unitários passando (loader, extractor, comparator, matrix, llm_timeout) + 17 E2E.
-- **Qualidade da análise (Fase 2) implementada**:
-  - Checklist dos 10 elementos do Art. 6º, XXIII no prompt (sinaliza ausência sem reescrever)
-  - Revisão cruzada das correções pelo LLM integrada ao `engine.py` (`_run_cross_review` pós-análise); status de revisão persistido nas colunas novas de `corrections` (migração SQLite aplicada e idempotente)
-  - **52 testes unitários passando** (acrescentados `test_analyzer.py` com providers fake + checklist; +9)
-  - **Benchmark executado com LLM real** (Gemini/Groq): recall médio **0,68**, precisão média **0,89**, F1 médio **0,77** — relatório em `backend/benchmark_report.json`
-- **RF04 feedback/e-mail (Fase 3) implementada**:
-  - `services/comparator/feedback.py` + `services/email/sender.py` (smtplib em `asyncio.to_thread`), config SMTP por env, endpoint `POST /comparison/{id}/feedback` (guards 404/400, resposta parcial com `falhas`)
-  - Frontend: formulário de fornecedor com CNPJ/e-mail + edição/exclusão; botão **Enviar Pendências** nas comparações concluídas
-  - **67 testes unitários passando** (acrescentados `test_feedback.py`, +7, `test_feedback_api.py` — integração do endpoint com banco em memória e `enviar_email` mockado, +5, e testes de regressão do comparador, +3); `next build` passou com typecheck; backend e frontend rodando (smoke test OK)
-  - SMTP de produção **não configurado** (por design): endpoint retorna 400 com mensagem clara até que `SMTP_HOST`/`SMTP_FROM` sejam definidos
-- **Ajustes finos pós-Fase 3 (auditoria sênior)**:
-  - `comparator.py: _normalizar_numero` corrigido (antes mutilava floats: `str(4.5)`→`"45"`; funcionava só porque ambos os lados eram mutilados igualmente). Agora trata `int/float` direto e strings BR; testes de regressão int×float, colisão decimal e string pt-BR.
-  - `comparison.py` refatorado: extraídos `_carregar_fornecedores`, `_fornecedores_ordenados` e `_resultados_para_dict` — removida a duplicação 3x do carregamento de fornecedores e 2x da conversão de resultados.
-- **Arquitetura de Múltiplos Agentes Inteligentes (Multi-Agent System) implementada**:
-  - `BaseSpecializedAgent` + 4 agentes especializados: `LegalAgent` (⚖️ Jurídico), `TechnicalAgent` (🛠️ Técnico), `WritingAgent` (✍️ Redação) e `StructuralAgent` (📐 Estrutural).
-  - `MultiAgentOrchestrator`: executa análises paralelas via `asyncio.gather`, deduplica achados e insere a tag `agent_origin`.
-  - Migração SQL executada idempotente (`agent_origin` em `corrections` e `analysis_mode` em `analyses`).
-  - Frontend: `types/index.ts`, `api.ts` (suporte ao campo `mode`), `upload/page.tsx` (seletor de modo) e `analysis/[id]/page.tsx` (badges coloridos por agente responsável).
-- **RAG v1.0 & Busca Semântica por Embeddings (Fase 4) implementado**:
-  - Generator de embeddings (`scripts/ingest_embeddings.py`) usando Gemini/Ollama (`bge-m3`).
-  - Ingestão de jurisprudência do TCU (Súmulas 247, 272, Acórdão 1214/2013) e RILC CODEBA (`scripts/ingest_juris_tcu.py`) com 315 chunks no índice FTS5/Semântico.
-  - Diff de versões de TR (`services/comparator/diff.py`), endpoint `POST /documents/diff` e interface visual `/comparacao/versoes`.
-- **Polimentos no Módulo de Auditoria (Fase 5) implementados**:
-  - Extratores de âncoras para **CNPJ** (com validação), **Prazo Relativo** (ex: "30 dias") e **CEP** (`#####-###`).
-  - Endpoint de duplicação de moldes `POST /moldes/{id}/duplicate` + botão em 1-clique.
-  - Endpoint dry-run `POST /moldes/{id}/validate/{document_id}` + modal de teste em tempo real no frontend.
-- **Histórico e Versionamento de Edições Single-User & Agente Estrutural (Fase 7) implementados**:
-  - **Uso Estritamente Single-User**: O sistema opera em modo de uso individual (sem necessidade de login JWT ou regras de RBAC).
-  - **Histórico e Versionamento de Edições (Single-User)**: Tabela e modelo `DocumentRevision`, endpoints REST `/documents/{id}/revisions` (`POST/GET/RESTORE`) e interface visual `RevisionsTimelineModal.tsx` na tela de análise.
-  - **Calibração do Agente Estrutural (`StructuralAgent`)**: Prompt aprimorado com checklist estrito dos 10 incisos do Art. 6º, XXIII da Lei 14.133/21 para elevação do recall na detecção de omissões.
-- **Geração Assistida de TRs & Extensão de Navegador para SEI (Fase 8) implementados**:
-  - **Geração Assistida de TR**: Endpoint `POST /api/v1/generator/tr`, engine `tr_builder.py` (gera as 10 seções do Art. 6º, XXIII com RAG do TCU/RILC) e formulário Wizard no frontend em `/gerar-tr`.
-  - **Extensão de Navegador LicitAI para SEI (`extension/`)**: Manifest V3, content script `content.js` (detecta CKEditor/iFrame no SEI e injeta HTML do TR) e pop-up `popup.html`/`popup.js` (lista TRs recentes da API local).
-  - **Correção da Assinatura do LLM nos Agentes (`base_agent.py`)**: Corrigidos argumentos nomeados (`system_prompt` e `user_prompt`) no orquestrador multi-agente.
-  - **Progresso de Análise em Tempo Real (Real-Time Commit & Polling)**: Commit no banco a cada item analisado (`engine.py`), polling reduzido para 1s na tela de análise e nova UI do progresso com efeito shimmer, porcentagem e badges dos 4 agentes ativos (`⚖️ Jurídico`, `🛠️ Técnico`, `✍️ Redação`, `📐 Estrutural`).
-- **Suíte de Testes**: **99 testes unitários passando** (100% no Pytest, incluindo `test_fase8_generator.py`) + **17 testes E2E passando**.
-- `next build` compilado com 0 erros de compilação ou TypeScript (9 páginas geradas com sucesso, incluindo `/gerar-tr`).
+- **Hardening (Fase 1) implementado**: timeout LLM configurável (`LLM_TIMEOUT_SECONDS`) + logging JSON estruturado.
+- **Qualidade da análise (Fase 2) implementada**: checklist Art. 6º XXIII no prompt + revisão cruzada das correções pelo LLM (status `review_status`/`review_note`/`reviewed_at` persistidos).
+- **RF04 feedback/e-mail (Fase 3) implementada**: `feedback.py` + `sender.py` (smtplib em `asyncio.to_thread`); SMTP de produção **não configurado** (por design).
+- **Ajustes finos pós-Fase 3**: `_normalizar_numero` do comparador corrigido (mutilava floats); `comparison.py` refatorado (removeu duplicação de carregamento/conversão).
+- **Multi-Agent System implementado**: 4 agentes especializados + orquestrador (`asyncio.gather`), tag `agent_origin`, migração idempotente.
+- **RAG v1.0 & Busca Semântica (Fase 4) implementado**: `ingest_embeddings.py` (Gemini/Ollama), jurisprudência TCU + RILC, diff de versões `/comparacao/versoes`.
+- **Polimentos (Fase 5)**: extratores CNPJ (com validação), Prazo Relativo e CEP; duplicação de molde e dry-run.
+- **Fase 7 (Histórico/Versionamento + Agente Estrutural)** e **Fase 8 (Gerador de TR + Extensão SEI + progresso real-time)** implementadas.
+- **Correções pré-existentes descobertas na Fase E (05/08/2026)**:
+  - `ingest_juris_tcu.py` não chamava `db.commit()` — dados eram descartados ao fechar a sessão (FTS via 315 transientemente, rollback para 310). Corrigido com `await db.commit()`.
+  - `ingest_embeddings.py` importava `get_embeddings_provider` de `app.services.embeddings` (inexistente) em vez de `app.services.embeddings.base`. Corrigido.
+- `next build` compilado com 0 erros de compilação ou TypeScript.
 
 ---
 
@@ -304,15 +304,32 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 - **`string indices must be integers, not 'str'` no benchmark**: `_review_with_retry` retornava a resposta crua do LLM em vez das decisões parseadas — `decisions` era string e `d["correction_index"]` falhava. Corrigido parseando a resposta em `_parse_decisions` (aceita `{"review": [...]}` ou lista direta).
 - **`_normalizar_numero` mutilava floats no comparador**: `float(str(4.5).replace(".", "").replace(",", "."))` → `45.0`; os testes passavam porque os dois lados eram mutilados de forma idêntica. Quebrava com mistura int/float e podia colidir casas decimais (12.34 vs 123.4 → ambos `1234`). Corrigido tratando `int/float` diretamente e strings no formato BR (mesma lógica de `extractor._para_decimal`); adicionados testes de regressão.
 - **Processos em background morrem com a sessão do shell**: uvicorn (`--reload`) iniciado via `Start-Process` e `npm run dev` caíram juntos (provavelmente quando o terminal pai encerrou). Em **03/08** ambos estavam fora do ar; reiniciados com `Start-Process` (backend: `uvicorn app.main:app --reload` com `LLM_PROVIDER=gemini`, `RATE_LIMIT_MAX=6000`, `PYTHONPATH=backend`, CWD raiz; frontend: `cmd /c npm run dev > npm-dev.log 2>&1` no `frontend/`). Ao retomar o trabalho, sempre checar `/health` e `http://localhost:3000` antes de assumir que estão de pé.
+- **`ingest_juris_tcu.py` não commitava os dados (Fase E, 05/08)**: o script iterava `JURISPRUDENCIA_DATA` chamando `ingest_extra_document`/`ingest_law_text` (que fazem `flush`), reconstruía o FTS (via 315 transientemente) e fechava a sessão — **sem `db.commit()`**. SQLAlchemy `async_sessionmaker` sem autocommit descarta tudo no fechamento, então os chunks do TCU/RILC eram perdidos (banco voltava a 310). Corrigido adicionando `await db.commit()` antes do fim do `async with`. Os demais scripts (`ingest_laws.py`, `ingest_corpus_extra.py`) já commitavam — por isso a ingestão das leis funcionava.
+- **`ingest_embeddings.py` importava de pacote errado (Fase E, 05/08)**: `from app.services.embeddings import get_embeddings_provider` falhava com `ImportError`, pois a função vive em `app/services/embeddings/base.py` e o `__init__.py` do pacote não a exporta. O `retriever.py` importa corretamente de `app.services.embeddings.base`. Corrigido o import no script.
+- **Config `.env` relativo ao CWD (Fase E, 05/08)**: `config.py` usa `SettingsConfigDict(env_file=".env")` que resolve **relativo ao CWD**. Rodar uvicorn/scripts a partir de `backend\` faz o `.env` da raiz ser ignorado → `LLM_PROVIDER` cai no default `groq` com chave vazia → análises falham com "Erro interno durante a análise". Solução (sem alterar código): exportar as variáveis do `.env` da raiz no ambiente do processo antes de executar.
+- **Gemini free tier esgota cota diária (05/08)**: `generate_content_free_tier_requests` com `limit: 0` (429) durante o dia após uso intenso (benchmark + E2E). Groq TPD também 99.7k/100k. Impacto: 4 testes E2E de análise falharam por **timeout** (a análise completava, mas além da janela de 60s do fixture). Corrigido aumentando o loop do fixture para 120 iterações × 2s (240s) em `e2e/tests/conftest.py`. Não são regressões de código.
+- **Falha de query SQLite envenenava a transação do chat (06/08)**: no Copiloto, `_legal_sources` consulta `legal_chunks_fts` (FTS5). Em banco vazio/in-memory a tabela não existe → `OperationalError`. A exceção era capturada, mas o `commit()` da conversa passava a falhar silenciosamente (mensagens não persistiam). Corrigido executando cada recuperação de fonte dentro de um **savepoint** (`async with db.begin_nested()`) em `_seguro()` — o erro reverte só o savepoint e a transação principal sobrevive.
+- **Override de `get_db` em testes precisa commitar (06/08)**: `test_chat_api.py` sobrescreve `get_db` com `async with Session() as s: yield s`, mas o `get_db` real faz `commit()` após o yield. Sem o commit, mensagens persistidas via `flush()` eram perdidas ao fechar a sessão — o teste de persistência falhava. Corrigido replicando o try/commit/rollback do `get_db` real no override.
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Ver `PLANO.md` para o plano completo do backlog (fases priorizadas, esforço e critérios de aceite). Fases 1 (hardening), 2 (qualidade da análise) e 3 (RF04 feedback/e-mail) concluídas.
+> Ver `PLANO.md` para o plano completo do backlog. Fases 1 (hardening), 2 (qualidade),
+> 3 (RF04 feedback/e-mail), 4 (RAG v1.0), 5 (polimentos), 7 (versionamento) e
+> 8 (gerador/extensão) concluídas. PRD executável v2.0 (correções A–D + validação E)
+> concluído em **05/08/2026**. **Copiloto LicitAI (PRD v1.1) implementado em 06/08/2026.**
 
-- **Fase 4 — RAG v1.0** (próxima): embeddings/pgvector, JurisTCU + RILC, diff entre versões do TR.
-- **Fase 5 — Auditoria (polimentos)**: mais tipos de âncora; duplicar molde; validar molde contra documento.
+- **Copiloto LicitAI — evoluções futuras (06/08/2026)**:
+  - Rodar chat com **LLM real** (remover `chat_force_fake_provider`) para validar o prompt/validator com Gemini/Groq quando a cota diária permitir.
+  - Aplicar `suggested_actions` do LLM em versões futuras (hoje descartadas por design — chat é somente-leitura).
+  - Listagem de conversas no frontend (`listChatConversations`/`getChatMessages` já existem na API) e retomar conversa existente por `analysis_id`/`document_id`.
+  - Considerar `chat_conversations.document_id`/`analysis_id` como FK real (hoje são soft references `VARCHAR(36)` por compatibilidade SQLite/Postgres).
+- **Pendências ambientais (05/08/2026)**:
+  - Rodar os **4 testes E2E de análise** com cota LLM disponível (Gemini/Groq resetarem) para confirmar 17/17.
+  - **Validação de runtime do `db/init.sql` em Postgres real** via `docker compose up -d db` quando houver Docker daemon (hoje validado por parser oficial `pglast` — 12 testes em `tests/test_init_sql.py`). Nota: em volume novo, o `init.sql` é aplicado automaticamente no 1º boot; verificar `document_items` (crítico: `);` corrigido), `analysis_mode`, `agent_origin`, `embedding TEXT`, `uq_comparacao_fornecedor_regra` e ausência de ivfflat.
+  - `data/juristcu/` não existe no repo — só `data/rilc/amostra.txt`; `ingest_corpus_extra.py` ingere apenas o que existir. Considerar adicionar acórdãos TCU reais.
 - **v2.0**:
   - Múltiplos agentes especializados utilizando LangGraph (Agente Jurídico, Agente Técnico, Agente de Redação, Agente Revisor).
   - Autenticação e controle de acesso (RBAC).
+  - Executar os scripts de ingestão **sequencialmente** (execução paralela contra o mesmo SQLite pode causar corrida no rebuild do FTS).
 
-> **Benchmark (03/08)**: recall médio 0,68 · precisão média 0,89 · F1 médio 0,77. Recall baixo no TR de "omissões graves" (0,375) — detector de elementos ausentes do Art. 6º é a maior lacuna; reavaliar redação do checklist/instruções quando a Fase 2 for revisitada.
+> **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83** (melhoria vs 03/08: 0,68/0,89/0,77 — recall subiu com a calibração do agente estrutural). Recall baixo no TR de "omissões graves" segue como maior lacuna; reavaliar redação do checklist/instruções quando revisitado.

@@ -11,9 +11,9 @@ import logging
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -68,13 +68,20 @@ class ComparacaoListResponse(BaseModel):
     description="Retorna todas as comparações, ordenadas por data.",
 )
 async def list_comparacoes(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ):
     """Lista todas as comparações."""
+    total = (
+        await db.execute(select(func.count()).select_from(Comparacao))
+    ).scalar_one()
     result = await db.execute(
         select(Comparacao)
         .options(selectinload(Comparacao.resultados))
         .order_by(Comparacao.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
     )
     comparacoes = result.scalars().all()
 
@@ -94,7 +101,7 @@ async def list_comparacoes(
             fornecedores=_fornecedores_ordenados(fornecedores),
         ))
 
-    return ComparacaoListResponse(comparacoes=itens, total=len(itens))
+    return ComparacaoListResponse(comparacoes=itens, total=total)
 
 
 @router.post(

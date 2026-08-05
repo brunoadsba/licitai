@@ -13,7 +13,7 @@ import logging
 import uuid
 
 import aiofiles
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -173,17 +173,26 @@ async def upload_document(
     description="Retorna todos os documentos enviados, ordenados por data.",
 )
 async def list_documents(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista todos os documentos."""
+    """Lista documentos com paginação (backward compatible)."""
+    total = (
+        await db.execute(select(func.count()).select_from(Document))
+    ).scalar_one()
+
     result = await db.execute(
-        select(Document).order_by(Document.created_at.desc())
+        select(Document)
+        .order_by(Document.created_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
     )
     documents = result.scalars().all()
 
     return DocumentListResponse(
         documents=[DocumentResponse.model_validate(d) for d in documents],
-        total=len(documents),
+        total=total,
     )
 
 

@@ -16,6 +16,7 @@ from sqlalchemy import (
     ForeignKey,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -116,6 +117,13 @@ class ComparacaoResultado(Base):
     """Resultado de uma regra para um fornecedor (status e valores)."""
 
     __tablename__ = "comparacao_resultados"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "comparacao_id", "fornecedor_id", "regra_id",
+            name="uq_comparacao_fornecedor_regra",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4

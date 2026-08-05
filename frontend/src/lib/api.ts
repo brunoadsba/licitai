@@ -5,6 +5,13 @@
  * evitando exposição direta do backend ao client.
  */
 
+import type {
+  ChatConversation,
+  ChatFeedbackResponse,
+  ChatHealthResponse,
+  ChatMessage,
+} from '@/types';
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
 
 async function fetchAPI<T>(
@@ -293,4 +300,54 @@ export async function generateTR(params: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
+}
+
+// ---- Copiloto (Chat Consultivo) ----
+
+export async function chatHealth() {
+  return fetchAPI<ChatHealthResponse>('/chat/health');
+}
+
+export async function createChatConversation(data: {
+  document_id?: string;
+  analysis_id?: string;
+  context?: Record<string, unknown>;
+  title?: string;
+}) {
+  return fetchAPI<ChatConversation>('/chat/conversations', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+}
+
+export async function listChatConversations(limit = 50, offset = 0) {
+  return fetchAPI<ChatConversation[]>(`/chat/conversations?limit=${limit}&offset=${offset}`);
+}
+
+export async function getChatMessages(conversationId: number) {
+  return fetchAPI<ChatMessage[]>(`/chat/conversations/${conversationId}/messages`);
+}
+
+export async function sendChatMessage(conversationId: number, content: string) {
+  return fetchAPI<ChatMessage>(`/chat/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+}
+
+export async function sendChatFeedback(
+  messageId: number,
+  rating: 'up' | 'down',
+  comment?: string
+) {
+  return fetchAPI<ChatFeedbackResponse>(
+    `/chat/messages/${messageId}/feedback`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rating, comment }),
+    }
+  );
 }

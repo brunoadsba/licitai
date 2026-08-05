@@ -11,6 +11,7 @@ from app.api.fornecedores import router as fornecedores_router
 from app.api.comparison import router as comparison_router
 from app.api.revisions import router as revisions_router
 from app.api.generator import router as generator_router
+from app.api.chat import router as chat_router
 
 router = APIRouter(prefix="/api/v1")
 
@@ -21,3 +22,4 @@ router.include_router(fornecedores_router)
 router.include_router(comparison_router)
 router.include_router(revisions_router)
 router.include_router(generator_router)
+router.include_router(chat_router)

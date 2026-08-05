@@ -11,10 +11,10 @@ from app.services.rules.loader import parse_molde
 
 
 def test_extrator_cnpj():
-    item = {"item_number": "1.1", "title": "Empresa", "content": "CNPJ da contratada: 12.345.678/0001-90."}
+    item = {"item_number": "1.1", "title": "Empresa", "content": "CNPJ da contratada: 12.345.678/0001-95."}
     regra = {"id": "cnpj_rule", "rotulo": "CNPJ", "tipo": "cnpj", "ancora": "cnpj"}
     valor = extrair_valor(regra, [item])
-    assert valor == "12.345.678/0001-90"
+    assert valor == "12.345.678/0001-95"
 
 
 def test_extrator_prazo_relativo():

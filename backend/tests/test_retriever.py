@@ -193,3 +193,42 @@ def test_retrieve_vazio_para_query_vazia():
             return await retrieve(db, "   ")
 
     assert _run(_cenario()) == []
+
+
+def test_fts_sem_acento_retorna_chunk_acentuado():
+    async def _cenario():
+        Session = await _seed_sem_embeddings()
+        async with Session() as db:
+            return await retrieve(db, "instrucoes de seguranca", top_k=2)
+
+    chunks = _run(_cenario())
+    assert any("segurança" in c.text or "seguranca" in c.text for c in chunks)
+
+
+def test_retrieve_usa_cache_de_embedding(monkeypatch):
+    from app.services.rag.retriever import _clear_query_embedding_cache
+
+    _clear_query_embedding_cache()
+
+    calls = {"n": 0}
+
+    class FakeComContador(FakeEmbeddingsProvider):
+        provider_name = "fake-contador"
+
+        async def embed(self, text: str) -> list[float]:
+            calls["n"] += 1
+            return VETORES_QUERY.get(text.strip(), [1.0, 0.0, 0.0])
+
+    monkeypatch.setattr(
+        "app.services.rag.retriever.get_embeddings_provider",
+        lambda: FakeComContador(),
+    )
+
+    async def _cenario():
+        Session = await _seed_com_embeddings()
+        async with Session() as db:
+            await retrieve(db, "garantia de execução", top_k=2)
+            await retrieve(db, "garantia de execução", top_k=2)
+
+    _run(_cenario())
+    assert calls["n"] == 1

@@ -5,17 +5,17 @@
       "items": [
         {
           "item_number": "1",
-          "generated": 1,
-          "kept": 1,
+          "generated": 10,
+          "kept": 10,
           "rejected": 0,
-          "expected_hits": 1,
+          "expected_hits": 4,
           "expected_total": 4,
-          "recall": 0.25,
+          "recall": 1.0,
           "categories_kept": {
             "juridica": 0,
             "tecnica": 0,
             "redacao": 0,
-            "estrutural": 1
+            "estrutural": 10
           },
           "erro": null
         },
@@ -36,11 +36,11 @@
           "erro": null
         }
       ],
-      "recall": 0.375,
-      "precision": 0.6666666666666666,
-      "f1": 0.4800000000000001,
-      "generated": 3,
-      "kept": 2,
+      "recall": 0.75,
+      "precision": 0.9166666666666666,
+      "f1": 0.8250000000000001,
+      "generated": 12,
+      "kept": 11,
       "erros": 0
     },
     {
@@ -75,33 +75,33 @@
       "items": [
         {
           "item_number": "1",
-          "generated": 2,
+          "generated": 3,
           "kept": 2,
-          "rejected": 0,
+          "rejected": 1,
           "expected_hits": 0,
           "expected_total": 0,
           "recall": 1.0,
           "categories_kept": {
-            "juridica": 1,
+            "juridica": 0,
             "tecnica": 0,
             "redacao": 0,
-            "estrutural": 1
+            "estrutural": 2
           },
           "erro": null
         }
       ],
       "recall": 1.0,
-      "precision": 1.0,
-      "f1": 1.0,
-      "generated": 2,
+      "precision": 0.6666666666666666,
+      "f1": 0.8,
+      "generated": 3,
       "kept": 2,
       "erros": 0
     }
   ],
   "resumo": {
     "trs": 3,
-    "recall_media": 0.6805555555555555,
-    "precision_media": 0.8888888888888888,
-    "f1_media": 0.7708947885939036
+    "recall_media": 0.8055555555555555,
+    "precision_media": 0.861111111111111,
+    "f1_media": 0.8324074074074074
   }
 }

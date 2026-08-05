@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getDocument, startAnalysis, getDocumentAnalyses, getAnalysis } from '@/lib/api';
 import RevisionsTimelineModal from '@/components/RevisionsTimelineModal';
+import ChatPanel from '@/components/chat/ChatPanel';
 import type {
   DocumentDetailResponse,
   DocumentItemResponse,
@@ -547,6 +548,15 @@ export default function AnalysisPage() {
           )}
         </div>
       </div>
+
+      {/* Copiloto LicitAI */}
+      <ChatPanel
+        documentId={documentId}
+        analysisId={analysis?.id}
+        itemNumber={selectedItem?.item_number}
+        title={`Copiloto — ${document.filename_original}`}
+        page="analysis"
+      />
 
       {/* Modal de Histórico e Versionamento de Edições (Single-User) */}
       <RevisionsTimelineModal

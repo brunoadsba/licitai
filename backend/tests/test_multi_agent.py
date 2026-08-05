@@ -30,10 +30,10 @@ class FakeAgentProvider(LLMProvider):
     async def health_check(self) -> bool:
         return True
 
-    async def generate(self, prompt: str, system_prompt: str | None = None) -> str:
+    async def generate(self, system_prompt: str, user_prompt: str) -> str:
         return self.response_text
 
-    async def _generate_implementation(self, prompt: str, system_prompt: str | None = None) -> str:
+    async def _generate_implementation(self, system_prompt: str, user_prompt: str) -> str:
         return self.response_text
 
 

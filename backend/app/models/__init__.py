@@ -10,6 +10,7 @@ from app.models.comparison import (
     Comparacao,
     ComparacaoResultado,
 )
+from app.models.chat import ChatConversation, ChatMessage
 
 __all__ = [
     "Document",
@@ -23,4 +24,6 @@ __all__ = [
     "Molde",
     "Comparacao",
     "ComparacaoResultado",
+    "ChatConversation",
+    "ChatMessage",
 ]

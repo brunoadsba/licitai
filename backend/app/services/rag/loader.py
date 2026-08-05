@@ -241,7 +241,8 @@ async def build_fts_index(db: AsyncSession) -> None:
         text(
             "CREATE VIRTUAL TABLE legal_chunks_fts USING fts5("
             "chunk_id UNINDEXED, article UNINDEXED, "
-            "section UNINDEXED, chunk_text)"
+            "section UNINDEXED, chunk_text, "
+            "tokenize = 'unicode61 remove_diacritics 2')"
         )
     )
 

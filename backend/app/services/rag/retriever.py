@@ -12,13 +12,16 @@ Busca os artigos mais relevantes para uma consulta:
 Retorna chunks com a lei, o artigo e o texto integral para o LLM.
 """
 
+import asyncio
 import json
 import logging
+from collections import OrderedDict
 from dataclasses import dataclass
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.models.legal import LegalChunk, LegalDocument
 from app.services.embeddings.base import get_embeddings_provider
 
@@ -26,6 +29,36 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TOP_K = 5
 MAX_QUERY_CHARS = 500
+
+_QUERY_EMBEDDING_CACHE: OrderedDict[tuple[str, str], tuple[float, ...]] = OrderedDict()
+_QUERY_EMBEDDING_CACHE_MAX = 256
+_QUERY_EMBEDDING_LOCK = asyncio.Lock()
+
+
+def _clear_query_embedding_cache() -> None:
+    """Limpa o cache de embeddings de consulta."""
+    _QUERY_EMBEDDING_CACHE.clear()
+
+
+async def _query_embedding_cached(query: str, provider_name: str) -> list[float]:
+    """Retorna embedding da query com cache limitado (LRU simples)."""
+    key = (query, provider_name)
+
+    async with _QUERY_EMBEDDING_LOCK:
+        if key in _QUERY_EMBEDDING_CACHE:
+            _QUERY_EMBEDDING_CACHE.move_to_end(key)
+            return list(_QUERY_EMBEDDING_CACHE[key])
+
+    provider = get_embeddings_provider()
+    vector = await provider.embed(query)
+
+    async with _QUERY_EMBEDDING_LOCK:
+        _QUERY_EMBEDDING_CACHE[key] = tuple(vector)
+        _QUERY_EMBEDDING_CACHE.move_to_end(key)
+        while len(_QUERY_EMBEDDING_CACHE) > _QUERY_EMBEDDING_CACHE_MAX:
+            _QUERY_EMBEDDING_CACHE.popitem(last=False)
+
+    return list(vector)
 
 
 @dataclass
@@ -64,17 +97,70 @@ async def retrieve(
         use_semantic = await _tem_embeddings(db)
 
     if use_semantic:
-        rows = await _search_semantic(db, cleaned, top_k, law_numbers)
+        try:
+            sem_rows = await _search_semantic(db, cleaned, top_k, law_numbers)
+        except Exception:
+            logger.exception("Falha na busca semântica; usando fallback textual")
+            sem_rows = []
+
+        try:
+            text_rows = await _search_textual(db, cleaned, top_k, law_numbers)
+        except Exception:
+            logger.exception("Falha na busca textual; seguindo apenas com semântica")
+            text_rows = []
+
+        rows = _rrf(sem_rows, text_rows, top_k)
         if rows:
             return _para_chunks(rows)
 
+    return _para_chunks(
+        await _search_textual(db, cleaned, top_k, law_numbers)
+    )
+
+
+def _rrf(
+    sem_rows: list[dict],
+    text_rows: list[dict],
+    top_k: int,
+    k: int = 60,
+) -> list[dict]:
+    """Combina rankings usando Reciprocal Rank Fusion."""
+
+    def _key(row: dict) -> tuple:
+        return (
+            row.get("law_number"),
+            row.get("article") or "",
+            row.get("chunk_text") or "",
+        )
+
+    scores: dict[tuple, float] = {}
+    merged: dict[tuple, dict] = {}
+
+    for lista in (sem_rows, text_rows):
+        for rank, row in enumerate(lista):
+            key = _key(row)
+            scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank + 1)
+            merged.setdefault(key, row)
+
+    ordered = sorted(
+        merged.items(),
+        key=lambda kv: scores[kv[0]],
+        reverse=True,
+    )
+    return [row for _, row in ordered[:top_k]]
+
+
+async def _search_textual(
+    db: AsyncSession,
+    query: str,
+    top_k: int,
+    law_numbers: list[str] | None,
+) -> list[dict]:
+    """Executa busca textual respeitando o dialeto do banco."""
     dialect = db.bind.dialect.name if db.bind else "sqlite"
     if dialect == "sqlite":
-        rows = await _search_sqlite(db, cleaned, top_k, law_numbers)
-    else:
-        rows = await _search_postgres(db, cleaned, top_k, law_numbers)
-
-    return _para_chunks(rows)
+        return await _search_sqlite(db, query, top_k, law_numbers)
+    return await _search_postgres(db, query, top_k, law_numbers)
 
 
 def _para_chunks(rows: list[dict]) -> list[RetrievedChunk]:
@@ -116,12 +202,18 @@ async def _search_semantic(
     """Busca por similaridade de cosseno sobre os embeddings armazenados."""
     try:
         provider = get_embeddings_provider()
-        query_vector = await provider.embed(query)
+        query_vector = await _query_embedding_cached(query, provider.provider_name)
     except Exception:
         logger.warning(
             "Embeddings indisponíveis para a consulta; usando fallback textual"
         )
         return []
+
+    if len(query_vector) != settings.embeddings_dim:
+        logger.warning(
+            "Dimensão da query (%d) difere da configurada (%d). Resultados podem divergir.",
+            len(query_vector), settings.embeddings_dim,
+        )
 
     stmt = (
         select(

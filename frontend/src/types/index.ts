@@ -274,3 +274,59 @@ export const ANCHOR_TIPO_LABELS: Record<AnchorTipo, string> = {
   prazo_relativo: 'Prazo relativo (ex: 30 dias)',
   cep: 'CEP',
 };
+
+// ---- Copiloto (Chat Consultivo) ----
+
+export type ChatCitationType = 'legal' | 'analysis' | 'correction' | 'document_item';
+
+export interface ChatCitation {
+  type: ChatCitationType;
+  reference: string;
+  title: string;
+  snippet: string;
+}
+
+export interface ChatSuggestedAction {
+  action: string;
+  description: string;
+}
+
+export interface ChatConversation {
+  id: number;
+  document_id: string | null;
+  analysis_id: string | null;
+  context_json: Record<string, unknown>;
+  title: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ChatMessage {
+  id: number;
+  conversation_id: number;
+  role: 'user' | 'assistant';
+  content: string;
+  sources: ChatCitation[];
+  grounded: boolean;
+  confidence: number | null;
+  provider: string | null;
+  model: string | null;
+  latency_ms: number | null;
+  warning: string | null;
+  created_at: string;
+}
+
+export interface ChatHealthResponse {
+  enabled: boolean;
+  require_grounding: boolean;
+  top_k_sources: number;
+  max_message_length: number;
+  force_fake_provider: boolean;
+  llm_provider: string;
+}
+
+export interface ChatFeedbackResponse {
+  message_id: number;
+  rating: 'up' | 'down';
+  status: string;
+}

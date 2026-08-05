@@ -33,6 +33,8 @@ docker-compose.override.yml
 *.db
 *.db-shm
 *.db-wal
+*.db.before
+*.db.e2e-before
 uploads/
 e2e-uploads/
 e2e-test.db
@@ -47,3 +49,7 @@ frontend/dev-server.log
 
 # Documentos reais (CODEBA)
 tr_modelo.pdf
+
+# Temporary scratch files
+scratch/
+

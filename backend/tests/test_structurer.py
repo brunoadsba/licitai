@@ -101,3 +101,31 @@ Adicionalmente, visa cumprir a legislação."""
 
     assert tipos == ["section", "item", "item", "section", "item", "table", "item"]
     assert numeros == ["1", "1.1", "1.2", "2", "2.1", "TAB-6", "2.2"]
+
+
+def test_titulo_gerado_deterministicamente():
+    texto = "[TÍTULO] Contratação especializada"
+    first = structure_items(texto, pages=[])[0]
+    second = structure_items(texto, pages=[])[0]
+    first_number = first.get("item_number") or first.get("number")
+    second_number = second.get("item_number") or second.get("number")
+    assert first_number == second_number
+    assert first_number.startswith("T-")
+
+
+def test_alinea_letra_detectada():
+    items = structure_items("a) Entrega em 30 dias", pages=[])
+    item = items[0]
+    tipo = item.get("item_type", item.get("type"))
+    numero = item.get("item_number", item.get("number"))
+    assert tipo == "subitem"
+    assert numero == "a"
+
+
+def test_item_romano_detectado():
+    items = structure_items("I. DO OBJETO", pages=[])
+    item = items[0]
+    tipo = item.get("item_type", item.get("type"))
+    numero = item.get("item_number", item.get("number"))
+    assert tipo == "section"
+    assert numero == "I"

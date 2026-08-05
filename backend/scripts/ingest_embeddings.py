@@ -19,9 +19,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from sqlalchemy import select
+from app.config import settings
 from app.database import async_session_factory
 from app.models.legal import LegalChunk
-from app.services.embeddings import get_embeddings_provider
+from app.services.embeddings.base import get_embeddings_provider
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger("ingest_embeddings")
@@ -58,6 +59,11 @@ async def run_embeddings_ingestion():
             try:
                 # Gerar vetor de embedding
                 vector = await provider.embed(chunk.chunk_text)
+                if len(vector) != settings.embeddings_dim:
+                    logger.warning(
+                        "Dimensão inesperada de embedding: esperado %d, obtido %d (chunk %s). Salvo mesmo assim.",
+                        settings.embeddings_dim, len(vector), chunk.id,
+                    )
                 chunk.embedding = json.dumps(vector)
                 processed += 1
 
