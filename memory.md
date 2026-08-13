@@ -52,7 +52,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - **Provedores de LLM (Factory Pattern com Failover Simétrico)**:
   - **Google Gemini API** (`gemini_provider.py`) — *Provedor*: `gemini-2.0-flash`.
   - **Groq API** (`groq_provider.py`) — *Provedor ativo*: `llama-3.1-8b-instant` (otimizado para inferência rápida e cota de 500.000 tokens/dia no free tier).
-  - **Ollama** (`ollama_provider.py`) — *Local*: `qwen3:32b`, `deepseek-r1:32b`, etc.
+  - **Ollama** (`ollama_provider.py`) — *Local*: `qwen3:32b`, `deepseek-r1:32b`, `hermes3` (mais leve, bom em JSON/instruções; opção para TRs sigilosos), etc.
   - **Failover Simétrico (`provider.py`)**: Tenta o provedor primário configurado (`LLM_PROVIDER`) e realiza fallback automático para os demais provedores com chaves válidas.
 - **Compatibilidade Windows**:
   - `python-magic-bin` instalado para validação de magic bytes sem dependências C externas no Windows.
@@ -84,6 +84,9 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - Endpoint `POST /comparison/{comparacao_id}/feedback`: 404 se comparação não encontrada; 400 se status ≠ `completed` ou SMTP ausente; retorna `{enviados, falhas[{fornecedor_id, nome, email?, motivo}], fornecedores_sem_pendencias, fornecedores_sem_email}`. Falhas de envio não propagam erro.
   - Config SMTP por env (`config.py` + `.env.example`): `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`.
   - Frontend: formulário de fornecedor com CNPJ/e-mail + edição/exclusão (`comparacao/page.tsx`); botão **Enviar Pendências** nas comparações concluídas; `api.ts` com `updateFornecedor`/`deleteFornecedor`/`enviarFeedback`.
+- **Refatoração de manutenibilidade (13/08/2026)**:
+  - **Backend — extração de módulos de serviço** (commit `047f0ff`): `structurer.py` → `parser/detection.py` + `parser/pagemap.py`; `engine.py` → `analyzer/item_analysis.py` + `analyzer/scoring.py`; `app/api/comparison.py` → `comparator/runner.py` + `comparator/serializers.py` (e-mail movido para `comparator/feedback.py`); `retriever.py` → `rag/backends.py` + `rag/semantic.py`; upload orquestrado por `services/upload_service.py`. Revisão ampla de tratamento de exceções em `generator.py`, `review.py`, `comparison.py`, `documents.py`, `feedback.py` e `schemas/comparison.py`. **+3 testes** (`test_engine.py`); suíte total: **159 testes**.
+  - **Frontend — extração de componentes de páginas grandes** (commit `032a890`): páginas reduzidas de 300–600 para < 280 LOC, com componentes por domínio em `src/components/{moldes,analysis,report,comparacao,upload,gerar-tr}/` e módulos compartilhados `src/lib/badges.tsx` (badges de categoria/severidade/agente) e `src/lib/useCopy.ts` (feedback de copiar/colar). `tsc --noEmit` limpo após cada extração e no estado final.
 
 ---
 
@@ -138,13 +141,22 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `app/services/parser/`:
   - `pdf_parser.py`: PyMuPDF primário -> pdfplumber fallback (tabelas) -> Tesseract OCR.
   - `docx_parser.py`: Extração via `python-docx` com detecção de estilos e tabelas.
-  - `structurer.py`: Regex para extração da árvore de itens numerados e anexos.
+  - `structurer.py`: Regex para extração da árvore de itens numerados e anexos (orquestra `detection.py` + `pagemap.py` desde 13/08).
+  - `detection.py`: Detecção de padrões de numeração/seções (extraído de `structurer.py` em 13/08).
+  - `pagemap.py`: Mapeamento de texto por página (extraído de `structurer.py` em 13/08).
+- `app/services/upload_service.py`: Orquestração de upload de documentos (extraído de `api/documents.py` em 13/08).
+- `app/services/rag/`:
+  - `retriever.py`: Retrieval híbrido (semântico + FTS5 com RRF) e cache de embeddings (orquestra `backends.py` + `semantic.py` desde 13/08).
+  - `backends.py`: Backends de busca textual/semântica (extraído de `retriever.py` em 13/08).
+  - `semantic.py`: Busca semântica por embeddings (extraído de `retriever.py` em 13/08).
 - `app/services/llm/`:
   - `provider.py`: Classe abstrata `LLMProvider` e factory `get_llm_provider()`.
   - `groq_provider.py`, `gemini_provider.py`, `ollama_provider.py`: Implementações dos provedores.
 - `app/services/analyzer/`:
   - `prompts.py`: Persona do Especialista Sênior, regras estritas, checklist do Art. 6º XXIII, prompts de análise e de revisão cruzada.
-  - `engine.py`: Motor de execução da análise item a item + revisão cruzada pós-análise + pontuação global.
+  - `engine.py`: Motor de execução da análise item a item + revisão cruzada pós-análise + pontuação global (orquestra `item_analysis.py` + `scoring.py` desde 13/08).
+  - `item_analysis.py`: Análise individual de um item (extraído de `engine.py` em 13/08).
+  - `scoring.py`: Pontuação global e por severidade (extraído de `engine.py` em 13/08).
   - `review.py`: Revisão cruzada das correções pelo LLM (aprova/rejeita/ajusta) — Fase 2.2.
   - `report.py`: Gerador de relatórios em Markdown formatado.
 - `app/services/rules/` (Auditoria RF02):
@@ -154,7 +166,9 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `app/services/comparator/` (Auditoria RF03 + RF04):
   - `comparator.py`: `comparar_regra()` classifica OK/FALHA/ATENÇÃO; `comparar()` executa regras × propostas.
   - `matrix.py`: `montar_matriz()` organiza regras (linhas) × fornecedores (colunas).
-  - `feedback.py`: `montar_pendencias()` agrega `falha`/`atencao` por fornecedor (ignora `ok`); `formatar_email_pendencias()` monta texto PT-BR.
+  - `runner.py`: Execução da comparação em background (extraído de `api/comparison.py` em 13/08).
+  - `serializers.py`: Conversão ORM → schemas das comparações (extraído de `api/comparison.py` em 13/08).
+  - `feedback.py`: `montar_pendencias()` agrega `falha`/`atencao` por fornecedor (ignora `ok`); `formatar_email_pendencias()` monta texto PT-BR; re-exporta `enviar_email` (moveu de `api/comparison.py` em 13/08).
 - `app/services/email/` (RF04):
   - `sender.py`: `smtp_configurado()`, `enviar_email()` (smtplib em `asyncio.to_thread`, texto simples), `EmailConfigError`.
 - `app/services/chat/` (Copiloto):
@@ -173,19 +187,29 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `package.json`: Next.js 14, React 18, Tailwind CSS v3.
 - `src/types/index.ts`: Mapeamento TypeScript dos schemas da API, tipos de âncora (`AnchorTipo`, `RegraConfig`, `MoldeConfig`) e rótulos amigáveis em PT-BR.
 - `src/lib/api.ts`: Cliente HTTP para chamadas assíncronas ao backend (inclui `getMolde`, `updateMolde`, `deleteMolde`, `updateFornecedor`, `deleteFornecedor`, `enviarFeedback`).
+- `src/lib/badges.tsx`: Badges compartilhados de categoria/severidade/agente (`AGENT_ORIGIN_CONFIG`, `getCategoryBadge`, `getSeverityBadge`) — extraídos das páginas analysis/report em 13/08.
+- `src/lib/useCopy.ts`: Hook `useCopy()` com estado `copiedKey` compartilhado para feedback de cópia (2s) — extraído das páginas em 13/08.
+- `src/components/` (extração de páginas grandes, 13/08 — páginas < ~280 LOC):
+  - `moldes/`: `DryRunModal.tsx`, `RegraEditor.tsx`, `MoldeForm.tsx`, `MoldeList.tsx`.
+  - `analysis/`: `CorrectionCard.tsx`, `ItemList.tsx`, `ItemDetail.tsx` (prop `showCorrections`), `AnalysisProgress.tsx`.
+  - `report/`: `ScoreGauge.tsx`, `CorrectionAccordion.tsx`.
+  - `comparacao/`: `NovaComparacaoForm.tsx`, `FornecedorPanel.tsx`, `ComparacaoList.tsx`.
+  - `upload/`: `DropZone.tsx` (drag-and-drop com estado interno).
+  - `gerar-tr/`: `PassoDados.tsx`, `PassoRequisitos.tsx`, `ResultadoTR.tsx`.
 - `src/app/`:
   - `globals.css`: Estilos globais, glassmorphism e estilização de diffs DE/PARA.
   - `layout.tsx`: Layout raiz com `Sidebar` e `Header`.
   - `page.tsx`: Dashboard (resumo de métricas, lista de documentos enviados, status e ações).
-  - `upload/page.tsx`: Tela de upload com drag-and-drop, indicador de progresso e validação client-side.
-  - `analysis/[id]/page.tsx`: Tela principal de análise com ações em 1-clique para cópia rápida ao SEI:
+  - `upload/page.tsx`: Tela de upload com drag-and-drop (via `DropZone`), indicador de progresso e validação client-side (361→204 LOC).
+  - `analysis/[id]/page.tsx`: Tela principal de análise (538→242 LOC, via `components/analysis/`):
     - `Copiar Texto Corrigido (PARA)`
     - `Copiar Item Inteiro para o SEI` (substituição automática do texto original pelo corrigido)
     - `Copiar Justificativa & Fundamentação Legal`
-  - `report/[id]/page.tsx`: Relatório consolidado com gauges SVG de nota (0-10), gráficos de barras de distribuição por categoria/severidade, botão `Copiar Parecer para o SEI` e acordeão de correções com atalhos de cópia.
-  - `comparacao/page.tsx`: Listagem de comparações + criação (seleção de TR, molde e propostas) + cadastro de fornecedor + upload de proposta vinculado.
+  - `report/[id]/page.tsx`: Relatório consolidado com gauges SVG de nota (0-10), gráficos de barras de distribuição por categoria/severidade, botão `Copiar Parecer para o SEI` e acordeão de correções com atalhos de cópia (419→258 LOC, via `ScoreGauge`/`CorrectionAccordion`).
+  - `comparacao/page.tsx`: Listagem de comparações + criação (seleção de TR, molde e propostas) + cadastro de fornecedor + upload de proposta vinculado (542→279 LOC, via `components/comparacao/`).
   - `comparacao/[id]/page.tsx`: Matriz de conformidade regras × fornecedores com polling a cada 3s durante execução.
-  - `moldes/page.tsx`: Editor visual de moldes de regras (cria/edita regras com campos dinâmicos por tipo de âncora, preview do JSON, delete protegido).
+  - `moldes/page.tsx`: Editor visual de moldes de regras (cria/edita regras com campos dinâmicos por tipo de âncora, preview do JSON, delete protegido) — 592→216 LOC via `components/moldes/`.
+  - `gerar-tr/page.tsx`: Geração assistida de TR (304→141 LOC, via `components/gerar-tr/`).
   - `src/hooks/useChat.ts`: Hook do Copiloto (cria conversa, carrega histórico, envia mensagens, feedback up/down).
   - `src/components/chat/`: `ChatPanel.tsx` (painel com header, lista e input), `ChatMessage.tsx` (bolha com badges grounded/confiança/provider/latência e feedback), `ChatInput.tsx` (textarea + Enter), `CitationList.tsx` (acordeão de fontes citadas).
 
@@ -215,7 +239,7 @@ A IA atua estritamente sob as seguintes diretrizes:
   - **Fase C (RAG)**: FTS5 com `remove_diacritics 2` (busca sem acento); retrieval híbrido RRF (semântico + textual com try/except); warn de dimensão de embedding; cache LRU 256 de query-embeddings. **+2 testes**.
   - **Fase D (Banco)**: `db/init.sql` sincronizado com os models (corrigido `);` faltante em `document_items`, `items_snapshot JSON`, `analysis_mode`, `agent_origin`, `embedding TEXT`, removido ivfflat); constraint `uq_comparacao_fornecedor_regra`; script `dedupe_comparacao_resultados.py`; paginação `page`/`page_size` em documents/fornecedores/comparison (backward-compatible; `analysis.py` sem paginação — frontend espera lista crua).
   - **Fase E (Validação)**: corpus reingerido no banco real (**7 documentos, 315 chunks, 100% com embedding**); benchmark sem regressão; `db/init.sql` validado via parser oficial do PostgreSQL (**12 testes `test_init_sql.py`**).
-- **Suíte de Testes**: **156 testes unitários passando** (0 falhas) + **17 E2E** (13 passed; 4 erros de timeout do fixture de análise aguardando LLM real sob cota diária esgotada — ambientais, janela ajustada 60s→240s).
+- **Suíte de Testes**: **156 testes unitários passando** (0 falhas) + **17 E2E** (13 passed; 4 erros de timeout do fixture de análise aguardando LLM real sob cota diária esgotada — ambientais, janela ajustada 60s→240s). **13/08**: +3 testes (`test_engine.py`) → **159 testes unitários passando** no venv uv (`backend/.venv`).
 - **Copiloto LicitAI (chat consultivo) implementado (06/08/2026)**: módulo backend isolado + API `/api/v1/chat` + frontend integrado na tela de análise; **26 novos testes** (11 validator + 16 API incl. guards) + **4 testes de schema** (`test_init_sql.py` chat contract). Smoke test real validado com `chat_force_fake_provider=True` (health, conversa, mensagem com fonte, feedback, 404/400).
 - **Backend FastAPI**: modo nativo Windows (SQLite), provedor ativo **gemini** (`gemini-2.0-flash`), failover Groq. Chaves reais no `.env` da raiz — `config.py` lê `.env` relativo ao CWD (rodar de `backend\` não vê o `.env` da raiz).
 - **Frontend Next.js Rodando Ativamente**: `http://localhost:3000`.
@@ -240,11 +264,32 @@ A IA atua estritamente sob as seguintes diretrizes:
 - **Correções pré-existentes descobertas na Fase E (05/08/2026)**:
   - `ingest_juris_tcu.py` não chamava `db.commit()` — dados eram descartados ao fechar a sessão (FTS via 315 transientemente, rollback para 310). Corrigido com `await db.commit()`.
   - `ingest_embeddings.py` importava `get_embeddings_provider` de `app.services.embeddings` (inexistente) em vez de `app.services.embeddings.base`. Corrigido.
+- **Refatoração de manutenibilidade (13/08/2026, commits `047f0ff` backend + `032a890` frontend)**:
+  - **Backend**: `structurer.py` → `detection.py` + `pagemap.py`; `engine.py` → `item_analysis.py` + `scoring.py`; `api/comparison.py` → `comparator/runner.py` + `serializers.py` (email movido p/ `feedback.py`); `retriever.py` → `rag/backends.py` + `semantic.py`; upload → `services/upload_service.py`. Revisão ampla de `except/raise` em generator, review, comparison, documents, feedback e schemas. **159 testes verdes** no venv uv.
+  - **Frontend**: 6 páginas grandes extraídas em componentes por domínio — moldes 592→216, analysis/[id] 538→242, report/[id] 419→258, comparacao 542→279, upload 361→204, gerar-tr 304→141 (total 2.756→1.340 LOC). Compartilhados: `src/lib/badges.tsx` + `src/lib/useCopy.ts`. `tsc --noEmit` limpo.
+- **Ambiente de desenvolvimento (13/08/2026)**: Python 3.12 do sistema WSL está **corrompido** (`_ctypes` com `undefined symbol: _PyErr_SetLocaleString` — libpython dessincronizada; sem sudo para reparar). Backend roda/valida no venv uv `backend/.venv` (Python 3.13 em cache do uv). **Backend não sobe com o python do sistema** — usar o venv uv.
 - `next build` compilado com 0 erros de compilação ou TypeScript.
 
 ---
 
 ## 6. Como Executar e Continuar o Desenvolvimento
+
+### Ambiente atual (WSL/Linux, 13/08/2026)
+> O Python 3.12 do sistema está corrompido (`_ctypes`). Use o **venv uv** de `backend/.venv` (Python 3.13):
+
+```bash
+# Backend (venv uv já criado e com dependências instaladas)
+cd backend
+.venv/bin/python -m uvicorn app.main:app --reload --app-dir . --host 127.0.0.1 --port 8000
+
+# Testes
+cd backend
+.venv/bin/python -m pytest tests -q    # 159 passed
+
+# Frontend
+cd frontend
+npm run dev
+```
 
 ### Modo Nativo no Windows (Sem Docker / Sem necessidade de BIOS):
 1. **Backend**:
@@ -311,6 +356,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 - **Falha de query SQLite envenenava a transação do chat (06/08)**: no Copiloto, `_legal_sources` consulta `legal_chunks_fts` (FTS5). Em banco vazio/in-memory a tabela não existe → `OperationalError`. A exceção era capturada, mas o `commit()` da conversa passava a falhar silenciosamente (mensagens não persistiam). Corrigido executando cada recuperação de fonte dentro de um **savepoint** (`async with db.begin_nested()`) em `_seguro()` — o erro reverte só o savepoint e a transação principal sobrevive.
 - **Override de `get_db` em testes precisa commitar (06/08)**: `test_chat_api.py` sobrescreve `get_db` com `async with Session() as s: yield s`, mas o `get_db` real faz `commit()` após o yield. Sem o commit, mensagens persistidas via `flush()` eram perdidas ao fechar a sessão — o teste de persistência falhava. Corrigido replicando o try/commit/rollback do `get_db` real no override.
 - **Groq 429 Rate Limit (05/08/2026)**: o modelo `llama-3.3-70b-versatile` no free tier do Groq possui limite de 100k tokens/dia (TPD), que estourou durante o uso do Copiloto. Solução: alterado modelo padrão no `config.py` para `llama-3.1-8b-instant` (cota de 500k tokens/dia no free tier e latência < 1s), tornado o `_build_providers()` simétrico para failover bidirecional (Groq ↔ Gemini) e reiniciado o processo do backend. Teste ao vivo da API confirmou retorno HTTP 200 com resposta válida do Llama.
+- **Python 3.12 do sistema WSL corrompido — `_ctypes` quebrado (13/08/2026)**: `import ctypes` (e por consequência `python-magic`, `weasyprint` e qualquer módulo que use ctypes) falha com `ImportError: /usr/lib/python3.12/lib-dynload/_ctypes.cpython-312-x86_64-linux-gnu.so: undefined symbol: _PyErr_SetLocaleString`. Causa: a libpython3.12.so do sistema não exporta o símbolo que o `.so` do dynload exige (dessincronização de pacotes apt; `sudo` exige senha não disponível na sessão). **Workaround**: criar venv com uv usando o cpython-3.13 em cache — `uv venv .venv --python ~/.local/share/uv/python/cpython-3.13-linux-x86_64-gnu/bin/python3.13` + `uv pip install -r requirements.txt pytest pytest-asyncio pytest-timeout pytest-cov aiosqlite`. Reparo definitivo pendente: `sudo apt reinstall python3.12-minimal libpython3.12-minimal`.
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
@@ -325,6 +371,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
   - Listagem de conversas no frontend (`listChatConversations`/`getChatMessages` já existem na API) e retomar conversa existente por `analysis_id`/`document_id`.
   - Considerar `chat_conversations.document_id`/`analysis_id` como FK real (hoje são soft references `VARCHAR(36)` por compatibilidade SQLite/Postgres).
 - **Pendências ambientais (05/08/2026)**:
+  - **Reparar Python 3.12 do WSL (13/08)**: `sudo apt reinstall python3.12-minimal libpython3.12-minimal` (ou o pacote correto do `_ctypes`) para destravar o python do sistema; até lá, usar `backend/.venv` (uv, Python 3.13) para rodar backend e testes.
   - Rodar os **4 testes E2E de análise** com cota LLM disponível (Gemini/Groq resetarem) para confirmar 17/17.
   - **Validação de runtime do `db/init.sql` em Postgres real** via `docker compose up -d db` quando houver Docker daemon (hoje validado por parser oficial `pglast` — 12 testes em `tests/test_init_sql.py`). Nota: em volume novo, o `init.sql` é aplicado automaticamente no 1º boot; verificar `document_items` (crítico: `);` corrigido), `analysis_mode`, `agent_origin`, `embedding TEXT`, `uq_comparacao_fornecedor_regra` e ausência de ivfflat.
   - `data/juristcu/` não existe no repo — só `data/rilc/amostra.txt`; `ingest_corpus_extra.py` ingere apenas o que existir. Considerar adicionar acórdãos TCU reais.
