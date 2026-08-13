@@ -4,6 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { getDocument, startAnalysis, getDocumentAnalyses, getAnalysis } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import AlertBanner from '@/components/ui/AlertBanner';
 import RevisionsTimelineModal from '@/components/RevisionsTimelineModal';
 import ChatPanel from '@/components/chat/ChatPanel';
 import type {
@@ -160,9 +162,7 @@ export default function AnalysisPage() {
     );
   }
 
-  const progress = analysis
-    ? Math.round((analysis.analyzed_items / Math.max(analysis.total_items, 1)) * 100)
-    : 0;
+  const errorInfo = error ? getErrorMessage(error, 'analysis') : null;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -235,7 +235,7 @@ export default function AnalysisPage() {
 
       {/* Barra de progresso da análise com estilo premium */}
       {analysis && ['pending', 'running'].includes(analysis.status) && (
-        <div className="glass-card p-5 border-primary-500/30 glow space-y-3">
+        <div role="status" className="glass-card p-5 border-primary-500/30 glow space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="relative flex items-center justify-center">
@@ -285,33 +285,28 @@ export default function AnalysisPage() {
 
       {/* Banner de erro da análise */}
       {analysis?.status === 'error' && (
-        <div className="glass-card border-red-500/30 p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-xl">⚠️</span>
-              <div>
-                <h4 className="text-sm font-bold text-red-300">A análise anterior foi interrompida</h4>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {analysis.error_message || 'Erro interno ou reinicialização do servidor.'}
-                </p>
-              </div>
-            </div>
+        <AlertBanner
+          variant="error"
+          title="A análise anterior foi interrompida"
+          action={
             <button
               onClick={handleStartAnalysis}
               disabled={analyzing}
               className="btn-primary text-xs"
             >
-              🔄 Tentar Novamente com IA
+              Tentar Novamente com IA
             </button>
-          </div>
-        </div>
+          }
+        >
+          {analysis.error_message || 'Erro interno ou reinicialização do servidor.'}
+        </AlertBanner>
       )}
 
       {/* Erro de Requisição */}
-      {error && (
-        <div className="glass-card border-red-500/20 p-4">
-          <p className="text-red-400 text-sm">{error}</p>
-        </div>
+      {errorInfo && (
+        <AlertBanner variant="error" title={errorInfo.title}>
+          {errorInfo.message}
+        </AlertBanner>
       )}
 
       {/* Layout principal: itens à esquerda, detalhes à direita */}
