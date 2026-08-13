@@ -7,6 +7,11 @@ esperado no TR e valor proposto).
 """
 
 import logging
+import uuid
+
+from app.models.comparison import Comparacao, Fornecedor
+from app.schemas.comparison import FeedbackFalha
+from app.services.email.sender import enviar_email
 
 logger = logging.getLogger(__name__)
 
@@ -92,3 +97,71 @@ def formatar_email_pendencias(
         "Solicitamos a regularização das pendências no prazo indicado no edital."
     )
     return "\n".join(linhas).strip()
+
+
+async def enviar_pendencias_por_email(
+    comparacao: Comparacao,
+    regras_por_id: dict[str, str],
+    fornecedores: dict[uuid.UUID, Fornecedor],
+    tr_nome: str,
+) -> tuple[int, list[FeedbackFalha], list[str], list[str]]:
+    """
+    Envia e-mail de pendências a cada fornecedor com e-mail cadastrado.
+
+    Returns:
+        Tupla (enviados, falhas, sem_pendencias, sem_email). Falhas de envio
+        são acumuladas sem interromper o lote.
+    """
+    pendencias_por_fornecedor = montar_pendencias(
+        [
+            {
+                "fornecedor_id": str(r.fornecedor_id),
+                "regra_id": r.regra_id,
+                "status": r.status,
+                "motivo": r.motivo,
+                "valor_tr": r.valor_tr,
+                "valor_proposta": r.valor_proposta,
+            }
+            for r in comparacao.resultados
+        ],
+        regras_por_id,
+    )
+
+    enviados = 0
+    falhas: list[FeedbackFalha] = []
+    sem_pendencias: list[str] = []
+    sem_email: list[str] = []
+
+    for fornecedor_id, fornecedor in fornecedores.items():
+        pendencias = pendencias_por_fornecedor.get(str(fornecedor_id), [])
+        if not pendencias:
+            sem_pendencias.append(fornecedor.nome)
+            continue
+        if not fornecedor.email:
+            sem_email.append(fornecedor.nome)
+            continue
+
+        corpo = formatar_email_pendencias(
+            fornecedor.nome,
+            pendencias,
+            tr_nome=tr_nome,
+        )
+        try:
+            await enviar_email(
+                to=fornecedor.email,
+                subject=f"Pendências de conformidade — {tr_nome or 'Termo de Referência'}",
+                body=corpo,
+            )
+            enviados += 1
+        except Exception as e:  # noqa: BLE001 — falha de envio não quebra o lote
+            logger.exception(
+                "Falha ao enviar e-mail para %s (%s)", fornecedor.nome, fornecedor.email
+            )
+            falhas.append(FeedbackFalha(
+                fornecedor_id=fornecedor.id,
+                nome=fornecedor.nome,
+                email=fornecedor.email,
+                motivo=str(e)[:500],
+            ))
+
+    return enviados, falhas, sem_pendencias, sem_email

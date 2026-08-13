@@ -20,19 +20,15 @@ from app.models.document import Document, DocumentItem
 from app.models.analysis import Analysis, Correction
 from app.services.llm import get_llm_provider
 from app.services.rag.retriever import retrieve
-from app.services.analyzer.prompts import (
-    SYSTEM_PROMPT,
-    ITEM_ANALYSIS_PROMPT,
-    SCORING_PROMPT,
-)
-from app.services.analyzer.json_utils import (
-    parse_json_response,
-    validate_correction,
-    sanitize_correction,
+from app.services.analyzer.item_analysis import analyze_item_llm
+from app.services.analyzer.scoring import (
+    calculate_fallback_scores,
+    generate_scores,
 )
 from app.services.analyzer.review import (
-    review_item_corrections,
     apply_review_decisions,
+    correction_to_dict,
+    review_item_corrections,
 )
 from app.services.agents.orchestrator import MultiAgentOrchestrator
 
@@ -167,7 +163,7 @@ async def run_analysis(
 
     # Gerar pontuação consolidada
     try:
-        scores = await _generate_scores(llm, all_corrections, len(document.items))
+        scores = await generate_scores(llm, all_corrections, len(document.items))
 
         analysis.score_overall = scores.get("score_overall")
         analysis.score_juridical = scores.get("score_juridical")
@@ -182,7 +178,7 @@ async def run_analysis(
 
     except Exception:
         logger.exception("Erro ao gerar pontuação via LLM para análise %s; aplicando cálculo determinístico de fallback", analysis_id)
-        scores = _calculate_fallback_scores(all_corrections, len(document.items))
+        scores = calculate_fallback_scores(all_corrections, len(document.items))
         analysis.score_overall = scores["score_overall"]
         analysis.score_juridical = scores["score_juridical"]
         analysis.score_technical = scores["score_technical"]
@@ -218,33 +214,6 @@ async def _analyze_item(
     return await analyze_item_llm(llm, item, legal_context)
 
 
-async def analyze_item_llm(llm, item, legal_context: str) -> list[dict]:
-    """Analisa um item via LLM usando contexto jurídico fornecido (sem DB).
-
-    Usada pelo engine (com contexto do RAG) e pelo benchmark (com contexto fixo).
-    """
-    user_prompt = ITEM_ANALYSIS_PROMPT.format(
-        item_number=item.item_number,
-        item_title=item.title or "(sem título)",
-        page_number=item.page_number or "N/A",
-        item_content=item.content[:8000],  # Limitar tamanho do conteúdo
-        legal_context=legal_context,
-    )
-
-    response = await llm.generate(SYSTEM_PROMPT, user_prompt)
-
-    # Parsear resposta JSON
-    corrections = parse_json_response(response)
-
-    # Validar e limpar cada correção
-    valid_corrections = []
-    for c in corrections:
-        if isinstance(c, dict) and validate_correction(c):
-            valid_corrections.append(sanitize_correction(c))
-
-    return valid_corrections
-
-
 async def _run_cross_review(
     db: AsyncSession,
     llm,
@@ -259,7 +228,7 @@ async def _run_cross_review(
 
         try:
             corrections_dict = [
-                _correction_to_dict(obj) for obj in correction_objs
+                correction_to_dict(obj) for obj in correction_objs
             ]
             decisions = await review_item_corrections(
                 llm, item, corrections_dict, legal_context
@@ -272,27 +241,11 @@ async def _run_cross_review(
             # Sem revisão: mantém as correções como estão
             for obj in correction_objs:
                 obj.review_status = "pendente"
-            kept.extend(_correction_to_dict(obj) for obj in correction_objs)
+            kept.extend(correction_to_dict(obj) for obj in correction_objs)
 
     await db.flush()
     logger.info("Revisão cruzada concluída: %d correções válidas", len(kept))
     return kept
-
-
-def _correction_to_dict(obj: Correction) -> dict:
-    """Converte um objeto Correction em dict (para pontuação)."""
-    return {
-        "category": obj.category,
-        "severity": obj.severity,
-        "situation": obj.situation,
-        "problem": obj.problem,
-        "risk": obj.risk,
-        "original_text": obj.original_text,
-        "suggested_text": obj.suggested_text,
-        "justification": obj.justification,
-        "legal_basis": obj.legal_basis,
-        "importance": obj.importance,
-    }
 
 
 async def _retrieve_legal_context(db: AsyncSession, item: DocumentItem) -> str:
@@ -316,89 +269,3 @@ async def _retrieve_legal_context(db: AsyncSession, item: DocumentItem) -> str:
             f"### {c.law_number} — {c.article}\n{c.text[:2500]}"
         )
     return "\n\n".join(parts)
-
-
-async def _generate_scores(
-    llm, corrections: list[dict], total_items: int
-) -> dict:
-    """Gera pontuação consolidada via LLM."""
-    # Resumir correções para o prompt
-    summary_parts = []
-    for i, c in enumerate(corrections[:50], 1):  # Limitar a 50 correções
-        summary_parts.append(
-            f"{i}. [{c.get('category', '?')}] [{c.get('severity', '?')}] "
-            f"{c.get('problem', 'N/A')[:100]}"
-        )
-
-    corrections_summary = "\n".join(summary_parts) if summary_parts else "Nenhuma correção identificada."
-
-    user_prompt = SCORING_PROMPT.format(
-        corrections_summary=corrections_summary,
-        total_items=total_items,
-        total_corrections=len(corrections),
-    )
-
-    response = await llm.generate(SYSTEM_PROMPT, user_prompt)
-    scores = parse_json_response(response)
-
-    # Se retornou lista, pegar primeiro item
-    if isinstance(scores, list) and scores:
-        scores = scores[0]
-
-    if not isinstance(scores, dict):
-        raise ValueError("Resposta de pontuação não é um JSON válido.")
-
-    return scores
-
-
-def _calculate_fallback_scores(corrections: list[dict], total_items: int) -> dict:
-    """Calcula pontuação e parecer de forma determinística caso a LLM falhe na sumarização final."""
-    cat_penalties = {"juridica": 0.0, "tecnica": 0.0, "redacao": 0.0, "estrutural": 0.0}
-    has_critical = False
-    has_high = False
-
-    sev_weights = {"critico": 2.5, "alto": 1.5, "medio": 0.7, "baixo": 0.2}
-
-    for c in corrections:
-        cat = c.get("category", "tecnica")
-        sev = c.get("severity", "medio")
-        weight = sev_weights.get(sev, 0.7)
-        if cat in cat_penalties:
-            cat_penalties[cat] += weight
-        if sev == "critico":
-            has_critical = True
-        elif sev == "alto":
-            has_high = True
-
-    score_juridical = round(max(0.0, min(10.0, 10.0 - cat_penalties["juridica"])), 1)
-    score_technical = round(max(0.0, min(10.0, 10.0 - cat_penalties["tecnica"])), 1)
-    score_writing = round(max(0.0, min(10.0, 10.0 - cat_penalties["redacao"])), 1)
-    score_structural = round(max(0.0, min(10.0, 10.0 - cat_penalties["estrutural"])), 1)
-
-    score_overall = round(
-        (score_juridical * 0.35 + score_technical * 0.30 + score_structural * 0.20 + score_writing * 0.15), 1
-    )
-
-    if has_critical or score_overall < 5.0:
-        risk_level = "critico"
-    elif has_high or score_overall < 7.0:
-        risk_level = "alto"
-    elif score_overall < 8.5:
-        risk_level = "medio"
-    else:
-        risk_level = "baixo"
-
-    final_opinion = (
-        f"Análise concluída com {len(corrections)} apontamento(s) de atenção formulados pelos 4 agentes especialistas. "
-        f"Pontuação consolidada do Termo de Referência: {score_overall}/10. Nível de Risco Global: {risk_level.upper()}."
-    )
-
-    return {
-        "score_overall": score_overall,
-        "score_juridical": score_juridical,
-        "score_technical": score_technical,
-        "score_writing": score_writing,
-        "score_structural": score_structural,
-        "risk_level": risk_level,
-        "final_opinion": final_opinion,
-    }

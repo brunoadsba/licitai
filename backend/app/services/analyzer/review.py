@@ -136,13 +136,13 @@ def apply_review_decisions(correction_objs: list, decisions: list[dict]) -> list
                 obj.justification = d["adjusted_justification"]
 
     return [
-        _correction_to_dict(obj)
+        correction_to_dict(obj)
         for obj in correction_objs
         if obj.review_status in ("aprovada", "ajustada", "pendente")
     ]
 
 
-def _correction_to_dict(obj) -> dict:
+def correction_to_dict(obj) -> dict:
     """Converte um objeto Correction em dict para pontuação/benchmark."""
     return {
         "category": obj.category,

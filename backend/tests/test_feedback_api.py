@@ -200,7 +200,7 @@ def test_feedback_envia_apenas_com_email_e_pendencia(monkeypatch):
         chamadas.append({"to": to, "subject": subject, "body": body})
 
     monkeypatch.setattr("app.api.comparison.smtp_configurado", lambda: True)
-    monkeypatch.setattr("app.api.comparison.enviar_email", fake_enviar_email)
+    monkeypatch.setattr("app.services.comparator.feedback.enviar_email", fake_enviar_email)
 
     async def _cenario():
         Session, ids = await _montar_cenario()
@@ -227,7 +227,7 @@ def test_feedback_falha_parcial_nao_quebra_lote(monkeypatch):
         raise ConnectionError("Servidor SMTP recusou conexão")
 
     monkeypatch.setattr("app.api.comparison.smtp_configurado", lambda: True)
-    monkeypatch.setattr("app.api.comparison.enviar_email", fake_enviar_email)
+    monkeypatch.setattr("app.services.comparator.feedback.enviar_email", fake_enviar_email)
 
     async def _cenario():
         Session, ids = await _montar_cenario()

@@ -12,7 +12,6 @@ Segurança:
 import logging
 import uuid
 
-import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,15 +29,13 @@ from app.schemas.document import (
     DiffItemResponse,
 )
 from app.services.comparator.diff import diff_terms, resumir_diffs
-from app.utils.file_validation import (
-    validate_file_extension,
-    validate_file_content,
-    validate_file_size,
-    generate_safe_filename,
-    get_upload_path,
-    UPLOAD_DIR,
+from app.utils.file_validation import get_upload_path
+from app.services.upload_service import (
+    UploadValidationError,
+    parse_e_inserir_itens,
+    salvar_arquivo_upload,
+    validar_upload,
 )
-from app.services.parser import parse_document
 
 
 logger = logging.getLogger(__name__)
@@ -65,53 +62,19 @@ async def upload_document(
 ):
     """Upload seguro de documento com validação completa."""
 
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="Nome do arquivo é obrigatório.")
-
     if document_type not in TIPOS_DOCUMENTO:
         raise HTTPException(
             status_code=400,
             detail=f"document_type inválido. Use um de: {sorted(TIPOS_DOCUMENTO)}",
         )
 
-    # 1. Validar extensão (allowlist)
-    try:
-        file_ext = validate_file_extension(file.filename)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    # 2. Ler conteúdo do arquivo
     file_bytes = await file.read()
 
-    # 3. Validar tamanho
     try:
-        validate_file_size(len(file_bytes))
-    except ValueError as e:
+        file_ext = validar_upload(file.filename, file_bytes)
+    except UploadValidationError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # 4. Validar conteúdo real (magic bytes)
-    try:
-        validate_file_content(file_bytes, file_ext)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    # 5. Gerar nome seguro (UUID)
-    safe_filename = generate_safe_filename(file_ext)
-    file_path = get_upload_path(safe_filename)
-
-    # 6. Salvar arquivo
-    try:
-        UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-        async with aiofiles.open(file_path, "wb") as f:
-            await f.write(file_bytes)
-    except OSError:
-        logger.exception("Erro ao salvar arquivo")
-        raise HTTPException(
-            status_code=500,
-            detail="Erro interno ao salvar o arquivo.",
-        )
-
-    # 6.1 Validar fornecedor para propostas
     if document_type == "proposta" and fornecedor_id is None:
         raise HTTPException(
             status_code=400,
@@ -121,7 +84,15 @@ async def upload_document(
     if document_type == "tr":
         fornecedor_id = None
 
-    # 7. Criar registro no banco
+    try:
+        safe_filename = await salvar_arquivo_upload(file_bytes, file_ext)
+    except OSError:
+        logger.exception("Erro ao salvar arquivo")
+        raise HTTPException(
+            status_code=500,
+            detail="Erro interno ao salvar o arquivo.",
+        )
+
     document = Document(
         filename_original=file.filename,
         filename_stored=safe_filename,
@@ -134,34 +105,8 @@ async def upload_document(
     db.add(document)
     await db.flush()
 
-    # 8. Parsear documento automaticamente
     document.status = "parsing"
-
-    try:
-        items = await parse_document(file_path, file_ext)
-    except Exception:
-        logger.exception("Erro ao parsear documento %s", document.id)
-        document.status = "error"
-        document.error_message = "Erro ao processar o documento. Verifique o formato."
-        await db.flush()
-        return DocumentResponse.model_validate(document)
-
-    for order, item_data in enumerate(items):
-        db_item = DocumentItem(
-            document_id=document.id,
-            item_number=item_data["item_number"],
-            title=item_data.get("title"),
-            content=item_data["content"],
-            page_number=item_data.get("page_number"),
-            item_order=order,
-            item_type=item_data.get("item_type", "item"),
-        )
-        db.add(db_item)
-
-    document.total_items = len(items)
-    document.status = "parsed"
-
-    await db.flush()
+    await parse_e_inserir_itens(db, document, file_ext)
 
     return DocumentResponse.model_validate(document)
 
@@ -274,12 +219,9 @@ async def get_document(
     if not document:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
-    # Contar correções por item
     items_response = []
     for item in document.items:
-        item_dict = DocumentItemResponse.model_validate(item)
-        # Correções serão contadas quando houver análise
-        items_response.append(item_dict)
+        items_response.append(DocumentItemResponse.model_validate(item))
 
     response = DocumentDetailResponse.model_validate(document)
     response.items = items_response
@@ -306,7 +248,6 @@ async def delete_document(
     if not document:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
-    # Remover arquivo físico
     try:
         file_path = get_upload_path(document.filename_stored)
         if file_path.exists():
@@ -314,7 +255,6 @@ async def delete_document(
     except (ValueError, OSError):
         logger.warning("Não foi possível remover arquivo: %s", document.filename_stored)
 
-    # Remover do banco (cascade remove itens e análises)
     await db.delete(document)
     # Commit explícito: o commit do get_db ocorre após o envio da resposta
     await db.commit()

@@ -143,3 +143,16 @@ class FeedbackResponse(BaseModel):
     falhas: list[FeedbackFalha] = []
     fornecedores_sem_pendencias: list[str] = []
     fornecedores_sem_email: list[str] = []
+
+
+class ComparacaoStartRequest(BaseModel):
+    """Payload para iniciar uma comparação."""
+    tr_document_id: uuid.UUID
+    molde_id: uuid.UUID
+    propostas_ids: list[uuid.UUID]
+
+
+class ComparacaoListResponse(BaseModel):
+    """Lista resumida de comparações."""
+    comparacoes: list[ComparacaoResponse]
+    total: int
