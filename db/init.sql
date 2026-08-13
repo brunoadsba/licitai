@@ -10,6 +10,19 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- -----------------------------------------------------------
+-- Tabela: fornecedores
+-- Fornecedores que participam da licitação (módulo de auditoria)
+-- Criada antes de documents por causa da FK documents.fornecedor_id
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS fornecedores (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nome VARCHAR(500) NOT NULL,
+    cnpj VARCHAR(18),
+    email VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- -----------------------------------------------------------
 -- Tabela: documents
 -- Armazena os documentos enviados pelo usuário
 -- -----------------------------------------------------------
@@ -146,18 +159,6 @@ CREATE TABLE IF NOT EXISTS legal_chunks (
     chunk_text TEXT NOT NULL,
     embedding TEXT,
     metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- -----------------------------------------------------------
--- Tabela: fornecedores
--- Fornecedores que participam da licitação (módulo de auditoria)
--- -----------------------------------------------------------
-CREATE TABLE IF NOT EXISTS fornecedores (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    nome VARCHAR(500) NOT NULL,
-    cnpj VARCHAR(18),
-    email VARCHAR(255),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
