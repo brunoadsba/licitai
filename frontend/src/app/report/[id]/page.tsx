@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getReport } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import AlertBanner from '@/components/ui/AlertBanner';
 import type { ReportResponse } from '@/types';
 import { CATEGORY_LABELS, SEVERITY_LABELS, RISK_LABELS } from '@/types';
 
@@ -134,14 +136,44 @@ export default function ReportPage() {
     );
   }
 
-  if (error || !report) {
+  if (error) {
+    const errInfo = getErrorMessage(error, 'analysis');
+    return (
+      <div className="space-y-4 animate-fade-in">
+        <AlertBanner variant="error" title={errInfo.title}>
+          {errInfo.message}
+        </AlertBanner>
+        <Link href="/" className="btn-primary inline-flex">Voltar ao Painel</Link>
+      </div>
+    );
+  }
+
+  if (!report) {
     return (
       <div className="glass-card p-12 text-center">
-        <p className="text-red-400">{error || 'Relatório não encontrado.'}</p>
+        <p className="text-gray-400">Relatório não encontrado.</p>
         <Link href="/" className="btn-primary mt-4 inline-flex">Voltar</Link>
       </div>
     );
   }
+
+  const overallScore =
+    report.scores.find((s) => s.label === 'Nota Geral') ?? report.scores[0] ?? null;
+  const criticalCount = report.corrections_by_severity?.critico ?? 0;
+  const highCount = report.corrections_by_severity?.alto ?? 0;
+  const totalCorrections = report.total_corrections ?? 0;
+  const severityParts: string[] = [];
+  if (criticalCount > 0) {
+    severityParts.push(`${criticalCount} ${criticalCount === 1 ? 'achado crítico' : 'achados críticos'}`);
+  }
+  if (highCount > 0) {
+    severityParts.push(`${highCount} de alto risco`);
+  }
+  const severidade = severityParts.length > 0 ? `, com ${severityParts.join(' e ')}` : '';
+  const recomendacoes =
+    totalCorrections === 0
+      ? ' e nenhuma recomendação pendente'
+      : ` e ${totalCorrections} ${totalCorrections === 1 ? 'recomendação no total' : 'recomendações no total'}`;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -181,6 +213,23 @@ export default function ReportPage() {
             />
           ))}
         </div>
+        {overallScore && overallScore.score !== null ? (
+          <p className="mt-6 pt-4 border-t border-white/[0.06] text-center text-sm">
+            <span className={`font-bold ${getRiskColor(report.risk_level)}`}>
+              {overallScore.score.toFixed(1)}/10
+            </span>
+            <span className="text-gray-400">
+              {' — '}
+              {report.risk_level ? RISK_LABELS[report.risk_level].toLowerCase() : 'sem classificação de risco'}
+              {severidade}
+              {recomendacoes}
+            </span>
+          </p>
+        ) : (
+          <p className="mt-6 pt-4 border-t border-white/[0.06] text-center text-sm text-gray-400">
+            Análise sem pontuação — consulte o parecer final.
+          </p>
+        )}
       </div>
 
       {/* Resumo em cards */}
