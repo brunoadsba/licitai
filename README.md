@@ -102,7 +102,7 @@ Para conectar o LicitAI diretamente ao editor de textos do **SEI**:
 |----------|-----------|-----------|
 | **Groq** | [console.groq.com](https://console.groq.com) | ~30 req/min, Llama 3.3 70B |
 | **Google Gemini** | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) | Cota diária limitada (429 possível sob uso intenso), Gemini 2.0 Flash |
-| **Ollama** | [ollama.com](https://ollama.com) | Ilimitado (local) |
+| **Ollama** | [ollama.com](https://ollama.com) | Ilimitado (local) — `qwen3:32b` (padrão) ou `hermes3` (mais leve, bom em JSON/instruções; ideal p/ TRs sigilosos) |
 
 ## 🧹 Gerenciamento de Processos do Backend
 
@@ -269,6 +269,26 @@ cd backend
 ```
 
 - **40 testes** cobrindo validação de moldes, extração por âncoras (numérica/extensa/booleana/legal/data/percentual/monetária), classificação OK/FALHA/ATENÇÃO e montagem da matriz.
+
+### Benchmark comparativo de modelos (`scripts/benchmark_modelos.py`)
+
+Compara modelos lado a lado nos TRs fixture usando os **mesmos prompts de produção**, medindo por modelo: aderência ao formato DE→PARA (JSON válido), recall (grounding nos problemas esperados), % de correções com fundamento legal e latência média:
+
+```powershell
+cd backend
+# Baixe os modelos locais antes (uma vez):
+ollama pull hermes3
+ollama pull qwen3:32b
+
+# Roda todos (Groq llama-3.1-8b + Hermes 3 8B local + Qwen3 32B local):
+.\.venv\Scripts\python.exe scripts\benchmark_modelos.py
+# Só locais, apontando para o Ollama na sua máquina (execução nativa Windows):
+.\.venv\Scripts\python.exe scripts\benchmark_modelos.py --models hermes3,qwen3 --ollama-base-url http://localhost:11434
+```
+
+- Requer `GROQ_API_KEY` no `.env` apenas para o modelo Groq; os modelos Ollama rodam 100% local (privacidade para TRs sigilosos).
+- Saídas em `backend/`: `benchmark_modelos_report.json` (métricas detalhadas) e `benchmark_modelos_report.md` (tabela markdown comparativa).
+- Para usar Hermes 3 no fluxo normal, defina `OLLAMA_MODEL=hermes3` no `.env` (veja [Configuração de Chaves de IA](#-configuração-de-chaves-de-ia-env)).
 
 ## 🧪 API do Módulo de Auditoria (RF02/RF03)
 
