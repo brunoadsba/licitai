@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { listRevisions, createRevision, restoreRevision } from '@/lib/api';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface RevisionsTimelineModalProps {
   documentId: string;
@@ -64,10 +65,9 @@ export default function RevisionsTimelineModal({
     }
   }
 
+  const [restoreConfirm, setRestoreConfirm] = useState<{ versao: number; rotulo: string } | null>(null);
+
   async function handleRestore(versao: number, rotuloVersao: string) {
-    if (!window.confirm(`Deseja restaurar os itens do documento para a versão ${versao} ('${rotuloVersao}')?`)) {
-      return;
-    }
     try {
       setRestoringVersao(versao);
       setError(null);
@@ -176,7 +176,7 @@ export default function RevisionsTimelineModal({
                   </div>
 
                   <button
-                    onClick={() => handleRestore(rev.versao, rev.rotulo)}
+                    onClick={() => setRestoreConfirm({ versao: rev.versao, rotulo: rev.rotulo })}
                     disabled={restoringVersao === rev.versao}
                     className="btn-secondary text-xs shrink-0 py-1.5 px-3 hover:border-amber-500/50 hover:text-amber-300"
                   >
@@ -188,6 +188,22 @@ export default function RevisionsTimelineModal({
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        open={restoreConfirm !== null}
+        title="Restaurar versão"
+        message={
+          restoreConfirm
+            ? `Deseja restaurar os itens do documento para a versão ${restoreConfirm.versao} ('${restoreConfirm.rotulo}')?`
+            : ''
+        }
+        confirmLabel="Restaurar"
+        onConfirm={() => {
+          if (restoreConfirm) handleRestore(restoreConfirm.versao, restoreConfirm.rotulo);
+          setRestoreConfirm(null);
+        }}
+        onCancel={() => setRestoreConfirm(null)}
+      />
     </div>
   );
 }

@@ -18,6 +18,7 @@ import {
 import {
   COMPARACAO_STATUS_LABELS,
 } from '@/types';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface Comparacao {
   id: string;
@@ -146,8 +147,9 @@ export default function ComparacaoPage() {
     setNovoFornecedorEmail(f.email || '');
   }
 
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
   async function handleExcluirFornecedor(id: string) {
-    if (!window.confirm('Excluir este fornecedor?')) return;
     try {
       await deleteFornecedor(id);
       if (editandoFornecedorId === id) {
@@ -400,7 +402,7 @@ export default function ComparacaoPage() {
                           Editar
                         </button>
                         <button
-                          onClick={() => handleExcluirFornecedor(f.id)}
+                          onClick={() => setConfirmDeleteId(f.id)}
                           className="btn-secondary text-[10px] px-2 py-1 text-red-400"
                         >
                           Excluir
@@ -522,6 +524,19 @@ export default function ComparacaoPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmDeleteId !== null}
+        title="Excluir fornecedor"
+        message="Excluir este fornecedor? Esta ação não pode ser desfeita."
+        confirmLabel="Excluir"
+        danger
+        onConfirm={() => {
+          if (confirmDeleteId) handleExcluirFornecedor(confirmDeleteId);
+          setConfirmDeleteId(null);
+        }}
+        onCancel={() => setConfirmDeleteId(null)}
+      />
     </div>
   );
 }

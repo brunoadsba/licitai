@@ -18,6 +18,7 @@ import {
   AnchorTipo,
   ANCHOR_TIPO_LABELS,
 } from '@/types';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 const TIPOS: AnchorTipo[] = [
   'numero_inteiro',
@@ -142,10 +143,9 @@ export default function MoldesPage() {
     }
   }
 
+  const [confirmRemoveId, setConfirmRemoveId] = useState<string | null>(null);
+
   async function handleRemove(id: string) {
-    if (!window.confirm('Remover este molde? As comparações existentes serão mantidas.')) {
-      return;
-    }
     try {
       await deleteMolde(id);
       await loadMoldes();
@@ -311,7 +311,7 @@ export default function MoldesPage() {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleRemove(m.id);
+                          setConfirmRemoveId(m.id);
                         }}
                         className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
                         title="Remover molde"
@@ -615,6 +615,19 @@ export default function MoldesPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmRemoveId !== null}
+        title="Remover molde"
+        message="Remover este molde? As comparações existentes serão mantidas."
+        confirmLabel="Remover"
+        danger
+        onConfirm={() => {
+          if (confirmRemoveId) handleRemove(confirmRemoveId);
+          setConfirmRemoveId(null);
+        }}
+        onCancel={() => setConfirmRemoveId(null)}
+      />
     </div>
   );
 }
