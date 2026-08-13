@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
 import {
   listComparacoes,
   listFornecedores,
@@ -10,15 +9,14 @@ import {
   createFornecedor,
   updateFornecedor,
   deleteFornecedor,
-  createMolde,
   startComparacao,
   enviarFeedback,
   uploadDocument,
 } from '@/lib/api';
-import {
-  COMPARACAO_STATUS_LABELS,
-} from '@/types';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import NovaComparacaoForm from '@/components/comparacao/NovaComparacaoForm';
+import FornecedorPanel from '@/components/comparacao/FornecedorPanel';
+import ComparacaoList from '@/components/comparacao/ComparacaoList';
 
 interface Comparacao {
   id: string;
@@ -102,7 +100,7 @@ export default function ComparacaoPage() {
     try {
       setSubmitting(true);
       setError(null);
-      const result = await startComparacao({
+      await startComparacao({
         tr_document_id: trId,
         molde_id: moldeId,
         propostas_ids: propostaIds,
@@ -212,23 +210,6 @@ export default function ComparacaoPage() {
     }
   }
 
-  function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString('pt-BR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-  }
-
-  function getStatusBadge(status: string) {
-    const classes: Record<string, string> = {
-      pending: 'badge-medio',
-      running: 'badge-medio',
-      completed: 'badge-baixo',
-      error: 'badge-critico',
-    };
-    return classes[status] || 'badge-info';
-  }
-
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Cabeçalho */}
@@ -257,272 +238,55 @@ export default function ComparacaoPage() {
       <div className="glass-card p-6">
         <h2 className="text-lg font-semibold text-white mb-4">Nova Comparação</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Seleção TR e molde */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
-                Termo de Referência
-              </label>
-              <select
-                value={trId}
-                onChange={(e) => setTrId(e.target.value)}
-                className="input-field w-full"
-              >
-                <option value="">Selecione o TR...</option>
-                {trs.map((tr) => (
-                  <option key={tr.id} value={tr.id}>
-                    {tr.filename_original}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <NovaComparacaoForm
+            trs={trs}
+            moldes={moldes}
+            propostas={propostas}
+            propostaIds={propostaIds}
+            submitting={submitting}
+            onToggleProposta={toggleProposta}
+            onStart={handleStart}
+            setTrId={setTrId}
+            setMoldeId={setMoldeId}
+          />
 
-            <div>
-              <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
-                Molde de Regras
-              </label>
-              <select
-                value={moldeId}
-                onChange={(e) => setMoldeId(e.target.value)}
-                className="input-field w-full"
-              >
-                <option value="">Selecione o molde...</option>
-                {moldes.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.nome}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
-                Propostas ({propostaIds.length} selecionada(s))
-              </label>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {propostas.length === 0 ? (
-                  <p className="text-sm text-gray-500">
-                    Nenhuma proposta cadastrada. Envie uma abaixo.
-                  </p>
-                ) : (
-                  propostas.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => toggleProposta(p.id)}
-                      className={`w-full text-left p-3 rounded-xl border transition-all ${
-                        propostaIds.includes(p.id)
-                          ? 'bg-primary-500/10 border-primary-500/40'
-                          : 'glass-card-interactive'
-                      }`}
-                    >
-                      <p className="text-sm text-gray-200 font-medium truncate">
-                        {p.filename_original}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        {p.total_items} itens
-                      </p>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <button
-              onClick={handleStart}
-              disabled={submitting}
-              className="btn-primary w-full"
-            >
-              {submitting ? 'Iniciando...' : 'Iniciar Comparação'}
-            </button>
-          </div>
-
-          {/* Cadastro de fornecedor e upload de proposta */}
-          <div className="space-y-4">
-            <div className="glass-card p-4">
-              <h3 className="text-sm font-semibold text-gray-300 mb-3">
-                {editandoFornecedorId ? 'Editar Fornecedor' : 'Cadastrar Fornecedor'}
-              </h3>
-              <div className="space-y-2">
-                <input
-                  value={novoFornecedor}
-                  onChange={(e) => setNovoFornecedor(e.target.value)}
-                  placeholder="Nome do fornecedor"
-                  className="input-field w-full"
-                />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <input
-                    value={novoFornecedorCnpj}
-                    onChange={(e) => setNovoFornecedorCnpj(e.target.value)}
-                    placeholder="CNPJ"
-                    className="input-field w-full"
-                  />
-                  <input
-                    value={novoFornecedorEmail}
-                    onChange={(e) => setNovoFornecedorEmail(e.target.value)}
-                    placeholder="E-mail"
-                    type="email"
-                    className="input-field w-full"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={handleCadastrarFornecedor} className="btn-secondary flex-1">
-                    {editandoFornecedorId ? 'Salvar' : 'Cadastrar'}
-                  </button>
-                  {editandoFornecedorId && (
-                    <button
-                      onClick={() => {
-                        setEditandoFornecedorId(null);
-                        setNovoFornecedor('');
-                        setNovoFornecedorCnpj('');
-                        setNovoFornecedorEmail('');
-                      }}
-                      className="btn-secondary"
-                    >
-                      Cancelar
-                    </button>
-                  )}
-                </div>
-              </div>
-              {fornecedores.length > 0 && (
-                <div className="mt-3 space-y-1.5">
-                  {fornecedores.map((f) => (
-                    <div
-                      key={f.id}
-                      className="flex items-center justify-between gap-2 text-xs"
-                    >
-                      <span className="badge badge-info text-[10px] truncate flex-1">
-                        {f.nome}
-                        {f.email ? ` • ${f.email}` : ''}
-                      </span>
-                      <div className="flex gap-1 shrink-0">
-                        <button
-                          onClick={() => handleEditarFornecedor(f)}
-                          className="btn-secondary text-[10px] px-2 py-1"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(f.id)}
-                          className="btn-secondary text-[10px] px-2 py-1 text-red-400"
-                        >
-                          Excluir
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="glass-card p-4">
-              <h3 className="text-sm font-semibold text-gray-300 mb-3">
-                Enviar Proposta
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
-                    Fornecedor
-                  </label>
-                  <select
-                    value={propostaFornecedorId}
-                    onChange={(e) => setPropostaFornecedorId(e.target.value)}
-                    className="input-field w-full"
-                  >
-                    <option value="">Selecione o fornecedor...</option>
-                    {fornecedores.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.nome}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <label className="btn-secondary cursor-pointer flex-1 text-center">
-                    {propostaFile ? propostaFile.name : 'Selecionar arquivo'}
-                    <input
-                      type="file"
-                      accept=".pdf,.docx"
-                      className="hidden"
-                      onChange={(e) => setPropostaFile(e.target.files?.[0] || null)}
-                    />
-                  </label>
-                  <button
-                    onClick={handleUploadProposta}
-                    disabled={!propostaFile || uploading}
-                    className="btn-primary"
-                  >
-                    {uploading ? 'Enviando...' : 'Enviar'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <FornecedorPanel
+            fornecedores={fornecedores}
+            editandoId={editandoFornecedorId}
+            nome={novoFornecedor}
+            cnpj={novoFornecedorCnpj}
+            email={novoFornecedorEmail}
+            propostaFornecedorId={propostaFornecedorId}
+            propostaFile={propostaFile}
+            uploading={uploading}
+            setNome={setNovoFornecedor}
+            setCnpj={setNovoFornecedorCnpj}
+            setEmail={setNovoFornecedorEmail}
+            setPropostaFornecedorId={setPropostaFornecedorId}
+            setPropostaFile={setPropostaFile}
+            onSalvar={handleCadastrarFornecedor}
+            onCancelarEdicao={() => {
+              setEditandoFornecedorId(null);
+              setNovoFornecedor('');
+              setNovoFornecedorCnpj('');
+              setNovoFornecedorEmail('');
+            }}
+            onEditar={handleEditarFornecedor}
+            onExcluir={(id) => setConfirmDeleteId(id)}
+            onUpload={handleUploadProposta}
+          />
         </div>
       </div>
 
       {/* Listagem de comparações */}
       <div>
         <h2 className="text-lg font-semibold text-white mb-4">Comparações Realizadas</h2>
-
-        {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="skeleton h-20" />
-            ))}
-          </div>
-        ) : comparacoes.length === 0 ? (
-          <div className="glass-card p-12 text-center">
-            <p className="text-gray-500">Nenhuma comparação realizada ainda.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {comparacoes.map((cmp) => (
-              <div key={cmp.id} className="glass-card-interactive p-5">
-                <div className="flex items-center justify-between">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-3">
-                      <span className={`badge ${getStatusBadge(cmp.status)}`}>
-                        {COMPARACAO_STATUS_LABELS[cmp.status as keyof typeof COMPARACAO_STATUS_LABELS] || cmp.status}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {formatDate(cmp.created_at)}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-gray-500">
-                      <span>{cmp.total_resultados} resultados</span>
-                      {cmp.fornecedores.length > 0 && (
-                        <>
-                          <span>•</span>
-                          <span>
-                            Fornecedores:{' '}
-                            {cmp.fornecedores.map((f) => f.nome).join(', ')}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  {cmp.status === 'completed' && (
-                    <div className="flex items-center gap-2 shrink-0 ml-4">
-                      <button
-                        onClick={() => handleFeedback(cmp.id)}
-                        disabled={sendingFeedbackId === cmp.id}
-                        className="btn-secondary text-xs px-4 py-2"
-                      >
-                        {sendingFeedbackId === cmp.id ? 'Enviando...' : 'Enviar Pendências'}
-                      </button>
-                      <Link
-                        href={`/comparacao/${cmp.id}`}
-                        className="btn-secondary text-xs px-4 py-2"
-                      >
-                        Ver Matriz
-                      </Link>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <ComparacaoList
+          comparacoes={comparacoes}
+          loading={loading}
+          sendingFeedbackId={sendingFeedbackId}
+          onFeedback={handleFeedback}
+        />
       </div>
 
       <ConfirmDialog
