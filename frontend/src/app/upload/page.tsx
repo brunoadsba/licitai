@@ -1,24 +1,80 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { uploadDocument } from '@/lib/api';
+import { uploadDocument, getDocument, listFornecedores } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import AlertBanner from '@/components/ui/AlertBanner';
+import type { DocumentStatus, Fornecedor } from '@/types';
 
-type UploadState = 'idle' | 'dragging' | 'uploading' | 'processing' | 'success' | 'error';
+type UploadState = 'idle' | 'dragging' | 'processing' | 'success' | 'error';
+
+const STAGE_LABELS: Partial<Record<DocumentStatus, string>> = {
+  uploaded: 'Enviando arquivo...',
+  parsing: 'Extraindo texto e estrutura do documento...',
+  analyzing: 'Análise em andamento...',
+};
+
+const POLL_INTERVAL_MS = 1000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 export default function UploadPage() {
   const router = useRouter();
   const [state, setState] = useState<UploadState>('idle');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [documentId, setDocumentId] = useState<string | null>(null);
+  const [documentType, setDocumentType] = useState<'tr' | 'proposta'>('tr');
+  const [fornecedorId, setFornecedorId] = useState<string>('');
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
+  const [currentStage, setCurrentStage] = useState<DocumentStatus>('uploaded');
 
   const ALLOWED_TYPES = [
     'application/pdf',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   ];
   const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+
+  useEffect(() => {
+    listFornecedores()
+      .then((data) => setFornecedores(data.fornecedores))
+      .catch(() => {
+        // Fornecedores são opcionais no fluxo TR — silencioso
+      });
+  }, []);
+
+  // Polling do status real do documento após o envio
+  useEffect(() => {
+    if (state !== 'processing' || !documentId) return;
+
+    const startedAt = Date.now();
+    const interval = setInterval(async () => {
+      try {
+        const doc = await getDocument(documentId);
+        setCurrentStage(doc.status);
+
+        if (doc.status === 'error') {
+          clearInterval(interval);
+          setState('error');
+          setError(doc.error_message || 'Falha no processamento do documento.');
+        } else if (doc.status === 'parsed' || doc.status === 'completed') {
+          clearInterval(interval);
+          setState('success');
+          setTimeout(() => router.push(`/analysis/${documentId}`), 1200);
+        } else if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+          clearInterval(interval);
+          setState('error');
+          setError(
+            'O processamento demorou mais que o esperado. Verifique o status do documento na lista do Painel.'
+          );
+        }
+      } catch {
+        // Erros de polling são silenciosos — a última resposta válida continua valendo
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [state, documentId, router]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -68,40 +124,34 @@ export default function UploadPage() {
   async function handleUpload() {
     if (!selectedFile) return;
 
+    if (documentType === 'proposta' && !fornecedorId) {
+      setError('Selecione o fornecedor da proposta antes de enviar.');
+      return;
+    }
+
     try {
-      setState('uploading');
-      setProgress(10);
+      setState('processing');
+      setCurrentStage('uploaded');
+      setError(null);
 
-      // Simular progresso visual
-      const progressInterval = setInterval(() => {
-        setProgress((prev) => Math.min(prev + 10, 80));
-      }, 200);
+      const result = await uploadDocument(selectedFile, {
+        documentType,
+        fornecedorId: documentType === 'proposta' ? fornecedorId : undefined,
+      });
 
-      const result = await uploadDocument(selectedFile);
-
-      clearInterval(progressInterval);
-      setProgress(100);
-      setState('success');
       setDocumentId(result.id);
-
-      // Redirecionar após 1.5s
-      setTimeout(() => {
-        router.push(`/analysis/${result.id}`);
-      }, 1500);
-
-    } catch (err: any) {
+    } catch (err) {
       setState('error');
-      setError(err.message || 'Erro ao enviar documento.');
-      setProgress(0);
+      setError(err instanceof Error ? err.message : 'Erro ao enviar documento.');
     }
   }
 
   function resetUpload() {
     setState('idle');
     setSelectedFile(null);
-    setProgress(0);
     setError(null);
     setDocumentId(null);
+    setCurrentStage('uploaded');
   }
 
   function formatFileSize(bytes: number): string {
@@ -110,6 +160,9 @@ export default function UploadPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
+  const uploadError = error ? getErrorMessage(error, 'upload') : null;
+  const stageLabel = STAGE_LABELS[currentStage] || 'Processando documento...';
+
   return (
     <div className="max-w-2xl mx-auto space-y-8 animate-fade-in">
       <div>
@@ -117,6 +170,47 @@ export default function UploadPage() {
         <p className="text-gray-400 mt-1 text-sm">
           Envie um Termo de Referência em PDF ou DOCX para análise automática.
         </p>
+      </div>
+
+      {/* Tipo de documento */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor="document-type" className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
+            Tipo de documento
+          </label>
+          <select
+            id="document-type"
+            value={documentType}
+            onChange={(e) => setDocumentType(e.target.value as 'tr' | 'proposta')}
+            disabled={state === 'processing' || state === 'success'}
+            className="input-field"
+          >
+            <option value="tr">Termo de Referência</option>
+            <option value="proposta">Proposta de fornecedor</option>
+          </select>
+        </div>
+
+        {documentType === 'proposta' && (
+          <div>
+            <label htmlFor="fornecedor" className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
+              Fornecedor
+            </label>
+            <select
+              id="fornecedor"
+              value={fornecedorId}
+              onChange={(e) => setFornecedorId(e.target.value)}
+              disabled={state === 'processing' || state === 'success'}
+              className="input-field"
+            >
+              <option value="">Selecione o fornecedor...</option>
+              {fornecedores.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.nome}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
 
       {/* Drop Zone */}
@@ -130,9 +224,9 @@ export default function UploadPage() {
             : 'hover:border-white/10'
         } ${state === 'success' ? 'border-green-500/30' : ''}`}
       >
-        {state === 'uploading' || state === 'processing' ? (
-          /* Progresso do upload */
-          <div className="space-y-6">
+        {state === 'processing' ? (
+          /* Processamento com etapas reais */
+          <div aria-live="polite" className="space-y-6">
             <div className="w-16 h-16 mx-auto rounded-2xl bg-primary-500/10 flex items-center justify-center">
               <svg className="w-8 h-8 text-primary-400 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -140,11 +234,10 @@ export default function UploadPage() {
               </svg>
             </div>
             <div>
-              <p className="text-white font-semibold">Processando documento...</p>
-              <p className="text-gray-500 text-sm mt-1">Extraindo e estruturando conteúdo</p>
-            </div>
-            <div className="progress-bar w-64 mx-auto">
-              <div className="progress-bar-fill" style={{ width: `${progress}%` }} />
+              <p className="text-white font-semibold">{stageLabel}</p>
+              <p className="text-gray-500 text-sm mt-1">
+                Isso pode levar alguns minutos dependendo do tamanho do documento.
+              </p>
             </div>
           </div>
         ) : state === 'success' ? (
@@ -228,16 +321,18 @@ export default function UploadPage() {
       </div>
 
       {/* Mensagem de erro */}
-      {error && (
-        <div className="glass-card border-red-500/20 p-4 flex items-start gap-3">
-          <svg className="w-5 h-5 text-red-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
-          </svg>
-          <div>
-            <p className="text-red-400 text-sm font-medium">Erro</p>
-            <p className="text-red-400/70 text-sm mt-0.5">{error}</p>
-          </div>
-        </div>
+      {uploadError && (
+        <AlertBanner
+          variant="error"
+          title={uploadError.title}
+          action={
+            <button onClick={resetUpload} className="btn-secondary text-xs">
+              Tentar Novamente
+            </button>
+          }
+        >
+          {uploadError.message}
+        </AlertBanner>
       )}
 
       {/* Instruções */}
