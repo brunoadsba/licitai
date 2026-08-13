@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { listDocuments, deleteDocument } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import AlertBanner from '@/components/ui/AlertBanner';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import type { DocumentResponse } from '@/types';
 import { STATUS_LABELS } from '@/types';
 
@@ -10,6 +13,9 @@ export default function DashboardPage() {
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<DocumentResponse | null>(null);
+
+  const errorInfo = error ? getErrorMessage(error, 'documents') : null;
 
   useEffect(() => {
     loadDocuments();
@@ -28,7 +34,6 @@ export default function DashboardPage() {
   }
 
   async function handleDelete(id: string, name: string) {
-    if (!confirm(`Remover "${name}"? Esta ação não pode ser desfeita.`)) return;
     try {
       await deleteDocument(id);
       setDocuments((prev) => prev.filter((d) => d.id !== id));
@@ -101,14 +106,15 @@ export default function DashboardPage() {
       </div>
 
       {/* Mensagem de erro */}
-      {error && (
-        <div className="glass-card border-red-500/20 p-4">
-          <p className="text-red-400 text-sm">{error}</p>
-        </div>
+      {errorInfo && (
+        <AlertBanner variant="error" title={errorInfo.title}>
+          {errorInfo.message}
+        </AlertBanner>
       )}
 
       {/* Lista de documentos */}
-      {loading ? (
+      <div aria-live="polite">
+        {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
             <div key={i} className="skeleton h-24" />
@@ -186,7 +192,7 @@ export default function DashboardPage() {
                   )}
 
                   <button
-                    onClick={() => handleDelete(doc.id, doc.filename_original)}
+                    onClick={() => setConfirmDelete(doc)}
                     className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
                     title="Remover"
                   >
@@ -200,6 +206,21 @@ export default function DashboardPage() {
           ))}
         </div>
       )}
+      </div>
+
+      {/* Confirmação de exclusão */}
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Remover documento"
+        message={`Remover "${confirmDelete?.filename_original}"? Esta ação não pode ser desfeita.`}
+        confirmLabel="Remover"
+        danger
+        onConfirm={() => {
+          if (confirmDelete) handleDelete(confirmDelete.id, confirmDelete.filename_original);
+          setConfirmDelete(null);
+        }}
+        onCancel={() => setConfirmDelete(null)}
+      />
     </div>
   );
 }
