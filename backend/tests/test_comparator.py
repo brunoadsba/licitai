@@ -4,14 +4,12 @@ Testes do comparador determinístico TR × Propostas (RF03).
 
 import asyncio
 
-import pytest
-
 from app.services.comparator.comparator import (
-    comparar_regra,
-    comparar,
-    STATUS_OK,
-    STATUS_FALHA,
     STATUS_ATENCAO,
+    STATUS_FALHA,
+    STATUS_OK,
+    comparar,
+    comparar_regra,
 )
 
 

@@ -10,13 +10,14 @@ from typing import Annotated, Literal
 
 from pydantic import (
     BaseModel,
-    ConfigDict,
     BeforeValidator,
+    ConfigDict,
     Field,
     field_validator,
 )
 
 from app.config import settings
+
 
 def _ensure_tz(v: datetime) -> datetime:
     if isinstance(v, datetime) and v.tzinfo is None:

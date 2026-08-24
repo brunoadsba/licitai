@@ -14,7 +14,6 @@ from collections import defaultdict
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-
 logger = logging.getLogger(__name__)
 
 

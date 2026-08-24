@@ -31,7 +31,6 @@ from app.services.chat.service import (
     send_message,
 )
 
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["Copiloto"])

@@ -3,13 +3,12 @@ Testes Unitários da Arquitetura de Múltiplos Agentes Inteligentes Especializad
 """
 
 import asyncio
-import pytest
-from app.services.agents.base_agent import BaseSpecializedAgent
+
 from app.services.agents.legal_agent import LegalAgent
+from app.services.agents.orchestrator import MultiAgentOrchestrator
+from app.services.agents.structural_agent import StructuralAgent
 from app.services.agents.technical_agent import TechnicalAgent
 from app.services.agents.writing_agent import WritingAgent
-from app.services.agents.structural_agent import StructuralAgent
-from app.services.agents.orchestrator import MultiAgentOrchestrator
 from app.services.llm.provider import LLMProvider
 
 

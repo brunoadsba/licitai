@@ -6,7 +6,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -14,10 +14,9 @@ from app.models.comparison import Fornecedor
 from app.models.document import Document
 from app.schemas.comparison import (
     FornecedorCreate,
-    FornecedorResponse,
     FornecedorListResponse,
+    FornecedorResponse,
 )
-
 
 logger = logging.getLogger(__name__)
 

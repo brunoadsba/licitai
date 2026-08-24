@@ -25,7 +25,6 @@ from app.services.chat.prompts import build_messages
 from app.services.chat.sources import build_sources
 from app.services.chat.validator import ValidatedAnswer, validate_llm_answer
 
-
 logger = logging.getLogger(__name__)
 
 

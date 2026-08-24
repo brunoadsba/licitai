@@ -30,9 +30,9 @@ async def create_tr(
     """Gera um TR completo e o registra na base de documentos."""
     try:
         return await generate_tr_document(request, db)
-    except Exception:
+    except Exception as e:
         logger.exception("Erro ao gerar TR")
         raise HTTPException(
             status_code=500,
             detail="Erro interno durante a geração do Termo de Referência.",
-        )
+        ) from e

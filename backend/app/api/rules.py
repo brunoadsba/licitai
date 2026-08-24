@@ -12,16 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.comparison import Molde, Comparacao
+from app.models.comparison import Comparacao, Molde
 from app.models.document import Document
 from app.schemas.comparison import (
     MoldeCreate,
-    MoldeResponse,
     MoldeListResponse,
+    MoldeResponse,
 )
-from app.services.rules.loader import parse_molde
 from app.services.rules.extractor import extrair_valor
-
+from app.services.rules.loader import parse_molde
 
 logger = logging.getLogger(__name__)
 
@@ -46,7 +45,7 @@ async def create_molde(
         raise HTTPException(
             status_code=422,
             detail=f"config_json inválido: {exc.errors()[:3]}",
-        )
+        ) from exc
 
     molde = Molde(
         nome=data.nome,
@@ -124,7 +123,7 @@ async def update_molde(
         raise HTTPException(
             status_code=422,
             detail=f"config_json inválido: {exc.errors()[:3]}",
-        )
+        ) from exc
 
     molde.nome = data.nome
     molde.descricao = data.descricao

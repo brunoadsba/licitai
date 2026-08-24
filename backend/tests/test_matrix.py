@@ -4,7 +4,6 @@ Testes da montagem da matriz de conformidade (RF03).
 
 from app.services.comparator.matrix import montar_matriz
 
-
 REGRAS = [
     {"id": "vigencia", "rotulo": "Vigência"},
     {"id": "garantia", "rotulo": "Garantia"},

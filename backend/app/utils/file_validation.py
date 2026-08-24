@@ -18,7 +18,6 @@ import magic
 
 from app.config import settings
 
-
 logger = logging.getLogger(__name__)
 
 # Diretório de uploads — configurável via env, padrão ./uploads

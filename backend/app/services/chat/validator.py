@@ -14,7 +14,6 @@ from pydantic import ValidationError
 
 from app.schemas.chat import ChatCitation
 
-
 logger = logging.getLogger(__name__)
 
 REFUSAL_MESSAGE = (

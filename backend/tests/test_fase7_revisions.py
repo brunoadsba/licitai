@@ -5,7 +5,6 @@ Testa o histórico e versionamento de edições de documentos (single-user)
 e a presença do checklist estrito no Agente Estrutural.
 """
 
-import pytest
 from app.services.agents.structural_agent import StructuralAgent
 
 

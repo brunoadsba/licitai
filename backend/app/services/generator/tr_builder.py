@@ -2,18 +2,16 @@
 Engine de Construção Assistida de Termos de Referência (TR Builder).
 """
 
-import json
 import logging
 import uuid
-from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentItem
-from app.schemas.generator import TRGeneratorRequest, TRGeneratorResponse, TRGeneratorItemResponse
+from app.schemas.generator import TRGeneratorItemResponse, TRGeneratorRequest, TRGeneratorResponse
+from app.services.analyzer.json_utils import parse_json_response
 from app.services.llm.provider import get_llm_provider
 from app.services.rag.retriever import retrieve
-from app.services.analyzer.json_utils import parse_json_response
 
 logger = logging.getLogger(__name__)
 

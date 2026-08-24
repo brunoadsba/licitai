@@ -4,6 +4,7 @@ Schemas Pydantic para o Módulo de Geração Assistida de TRs.
 
 import uuid
 from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 

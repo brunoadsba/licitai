@@ -9,7 +9,6 @@ from datetime import datetime
 
 from app.schemas.analysis import ReportResponse
 
-
 logger = logging.getLogger(__name__)
 
 # Mapeamento de labels para português

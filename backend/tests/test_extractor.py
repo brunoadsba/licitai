@@ -4,7 +4,6 @@ Testes do extrator determinístico de regras (RF02).
 
 from app.services.rules.extractor import extrair_valor
 
-
 ITENS = [
     {
         "item_number": "4.3",

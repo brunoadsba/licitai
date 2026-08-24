@@ -13,7 +13,6 @@ from app.services.comparator.feedback import (
 )
 from app.services.email.sender import enviar_email, smtp_configurado
 
-
 RESULTADOS = [
     {
         "fornecedor_id": "11111111-1111-1111-1111-111111111111",

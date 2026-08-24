@@ -10,7 +10,6 @@ import asyncio
 import json
 import uuid
 
-import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine

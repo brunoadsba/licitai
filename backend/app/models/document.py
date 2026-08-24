@@ -4,6 +4,7 @@ Modelos SQLAlchemy para documentos e seus itens estruturados.
 
 import uuid
 from datetime import datetime, timezone
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     BigInteger,
@@ -18,6 +19,10 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
+
+if TYPE_CHECKING:
+    from app.models.analysis import Analysis, Correction
+    from app.models.comparison import Fornecedor
 
 
 class Document(Base):

@@ -2,11 +2,15 @@
 Classe abstrata base para Agentes Especializados em Análise de TR.
 """
 
-from abc import ABC, abstractmethod
 import logging
+from abc import ABC, abstractmethod
 from typing import Any
 
-from app.services.analyzer.json_utils import parse_json_response, validate_correction, sanitize_correction
+from app.services.analyzer.json_utils import (
+    parse_json_response,
+    sanitize_correction,
+    validate_correction,
+)
 
 logger = logging.getLogger(__name__)
 

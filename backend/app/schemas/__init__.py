@@ -1,18 +1,18 @@
 """Pacote de schemas Pydantic."""
 
-from app.schemas.document import (
-    DocumentCreate,
-    DocumentResponse,
-    DocumentItemResponse,
-    DocumentListResponse,
-    DocumentDetailResponse,
-)
 from app.schemas.analysis import (
-    AnalysisResponse,
     AnalysisDetailResponse,
+    AnalysisResponse,
+    AnalysisStartResponse,
     CorrectionResponse,
     ReportResponse,
-    AnalysisStartResponse,
+)
+from app.schemas.document import (
+    DocumentCreate,
+    DocumentDetailResponse,
+    DocumentItemResponse,
+    DocumentListResponse,
+    DocumentResponse,
 )
 
 __all__ = [

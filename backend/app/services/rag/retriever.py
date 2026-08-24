@@ -13,8 +13,14 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.embeddings.base import get_embeddings_provider  # noqa: F401 (re-export: contrato de monkeypatch em testes)
-from app.services.rag.backends import _search_postgres, _search_sqlite, _search_textual  # noqa: F401
+from app.services.embeddings.base import (
+    get_embeddings_provider,  # noqa: F401 (re-export: contrato de monkeypatch em testes)
+)
+from app.services.rag.backends import (  # noqa: F401
+    _search_postgres,
+    _search_sqlite,
+    _search_textual,
+)
 from app.services.rag.semantic import (
     _clear_query_embedding_cache,  # noqa: F401 (re-export: contrato de testes)
     _cosseno,  # noqa: F401 (re-export: contrato de testes)

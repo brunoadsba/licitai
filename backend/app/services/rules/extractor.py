@@ -242,7 +242,7 @@ def _cnpj_valido(cnpj: str) -> bool:
         return False
 
     def _dv(seq: str, pesos: list[int]) -> int:
-        soma = sum(int(d) * p for d, p in zip(seq, pesos))
+        soma = sum(int(d) * p for d, p in zip(seq, pesos, strict=False))
         resto = soma % 11
         return 0 if resto < 2 else 11 - resto
 

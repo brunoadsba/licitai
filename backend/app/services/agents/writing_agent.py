@@ -3,6 +3,7 @@ Agente de Redação & Competitividade Especializado (✍️).
 """
 
 from typing import Any
+
 from app.services.agents.base_agent import BaseSpecializedAgent
 
 

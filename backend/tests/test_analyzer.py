@@ -8,15 +8,12 @@ providers fake implementam a interface LLMProvider e retornam fixtures.
 
 from datetime import datetime, timezone
 
-import pytest
-
-from app.services.analyzer.prompts import SYSTEM_PROMPT, ITEM_ANALYSIS_PROMPT
+from app.services.analyzer.prompts import ITEM_ANALYSIS_PROMPT, SYSTEM_PROMPT
 from app.services.analyzer.review import (
     apply_review_decisions,
     review_item_corrections,
 )
 from app.services.llm.provider import LLMProvider
-
 
 # ---------------------------------------------------------------------------
 # Checklist do Art. 6º, XXIII (Fase 2.1)

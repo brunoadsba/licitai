@@ -24,7 +24,6 @@ from app.models.document import DocumentItem
 from app.schemas.chat import ChatCitation
 from app.services.rag.retriever import retrieve
 
-
 logger = logging.getLogger(__name__)
 
 _SNIPPET_MAX = 400

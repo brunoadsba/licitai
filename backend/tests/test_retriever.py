@@ -14,13 +14,12 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base
 from app.models.legal import LegalChunk, LegalDocument
+from app.services.rag.loader import build_fts_index
 from app.services.rag.retriever import (
-    retrieve,
     _cosseno,
     _para_chunks,
+    retrieve,
 )
-from app.services.rag.loader import build_fts_index
-
 
 # Vetores determinísticos: cada texto "relevante" mapeia para um vetor fixo.
 VETORES_QUERY = {

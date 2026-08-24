@@ -5,7 +5,6 @@ Cobre os novos extratores de âncoras (cnpj, prazo_relativo, cep),
 a duplicação de moldes e a validação dry-run de regras.
 """
 
-import pytest
 from app.services.rules.extractor import extrair_valor
 from app.services.rules.loader import parse_molde
 

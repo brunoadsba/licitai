@@ -42,7 +42,7 @@ Formato esperado do config_json:
 import json
 import logging
 
-from pydantic import BaseModel, Field, field_validator, ValidationError
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 logger = logging.getLogger(__name__)
 

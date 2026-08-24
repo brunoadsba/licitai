@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, BeforeValidator
+from pydantic import BaseModel, BeforeValidator, ConfigDict
 
 
 def _ensure_tz(v: datetime) -> datetime:

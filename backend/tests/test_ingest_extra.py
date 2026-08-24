@@ -15,7 +15,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.database import Base
 from app.models.legal import LegalChunk, LegalDocument
-from app.services.rag.loader import parse_extra_text, ingest_extra_document
+from app.services.rag.loader import ingest_extra_document, parse_extra_text
 
 
 def test_parse_extra_text_ignora_cabecalho():

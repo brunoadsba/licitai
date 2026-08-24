@@ -5,7 +5,6 @@ Cobre a classificação por item_number: inalterado, alterado, adicionado,
 removido, além da ordenação natural e do resumo.
 """
 
-import pytest
 
 from app.services.comparator.diff import diff_terms, resumir_diffs
 

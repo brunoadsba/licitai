@@ -3,7 +3,9 @@ Testes unitários e de integração para a Fase 8 (Geração Assistida de TRs).
 """
 
 import pytest
-from app.schemas.generator import TRGeneratorRequest, TRGeneratorResponse
+from pydantic import ValidationError
+
+from app.schemas.generator import TRGeneratorRequest
 
 
 def test_generator_schema_validation():
@@ -23,7 +25,7 @@ def test_generator_schema_validation():
 
 
 def test_generator_schema_invalid_tipo():
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         TRGeneratorRequest(
             tipo_contratacao="tipo_invalido",
             objeto="Objeto de teste curto.",
