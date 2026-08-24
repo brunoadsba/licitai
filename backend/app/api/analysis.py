@@ -2,10 +2,10 @@
 Endpoints para análise de documentos e geração de relatórios.
 """
 
+import asyncio
 import logging
 import uuid
 from collections import Counter
-from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
@@ -13,23 +13,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.database import get_db, async_session_factory
+from app.database import async_session_factory, get_db
+from app.models.analysis import Analysis
 from app.models.document import Document
-from app.models.analysis import Analysis, Correction
 from app.schemas.analysis import (
+    AnalysisDetailResponse,
     AnalysisStartRequest,
     AnalysisStartResponse,
-    AnalysisDetailResponse,
     CorrectionResponse,
     ReportResponse,
     ScoreDetail,
 )
 from app.services.analyzer.engine import run_analysis
 
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analysis", tags=["Análise"])
+
+_ANALYSIS_SLOTS = asyncio.Semaphore(max(1, settings.max_concurrent_analyses))
+
+
+def _score_details(analysis: Analysis) -> list[ScoreDetail]:
+    """Mapeia as notas da análise preservando zero legítimo (0.0 ≠ ausente)."""
+    def _score(value) -> float | None:
+        return float(value) if value is not None else None
+
+    return [
+        ScoreDetail(label="Nota Geral", score=_score(analysis.score_overall)),
+        ScoreDetail(label="Segurança Jurídica", score=_score(analysis.score_juridical)),
+        ScoreDetail(label="Qualidade Técnica", score=_score(analysis.score_technical)),
+        ScoreDetail(label="Qualidade da Redação", score=_score(analysis.score_writing)),
+        ScoreDetail(label="Conformidade Estrutural", score=_score(analysis.score_structural)),
+    ]
 
 
 @router.post(
@@ -48,9 +63,9 @@ async def start_analysis(
     """Inicia análise em background."""
     mode = payload.mode if payload and payload.mode else "multi_agent"
 
-    # Verificar se documento existe e está parseado
+    # Lock do documento serializa starts concorrentes (TOCTOU); no-op no SQLite.
     result = await db.execute(
-        select(Document).where(Document.id == document_id)
+        select(Document).where(Document.id == document_id).with_for_update()
     )
     document = result.scalar_one_or_none()
 
@@ -117,26 +132,27 @@ async def _run_analysis_background(
 ) -> None:
     """Executa a análise em background com sessão própria do banco."""
     logger.info("Background task iniciada para análise %s", analysis_id)
-    async with async_session_factory() as db:
-        try:
-            await run_analysis(db, analysis_id, document_id)
-            await db.commit()
-        except Exception:
-            logger.exception("Erro na análise %s", analysis_id)
-            await db.rollback()
-
-            # Marcar análise como erro
+    async with _ANALYSIS_SLOTS:
+        async with async_session_factory() as db:
             try:
-                result = await db.execute(
-                    select(Analysis).where(Analysis.id == analysis_id)
-                )
-                analysis = result.scalar_one_or_none()
-                if analysis:
-                    analysis.status = "error"
-                    analysis.error_message = "Erro interno durante a análise."
-                    await db.commit()
+                await run_analysis(db, analysis_id, document_id)
+                await db.commit()
             except Exception:
-                logger.exception("Erro ao atualizar status da análise %s", analysis_id)
+                logger.exception("Erro na análise %s", analysis_id)
+                await db.rollback()
+
+                # Marcar análise como erro
+                try:
+                    result = await db.execute(
+                        select(Analysis).where(Analysis.id == analysis_id)
+                    )
+                    analysis = result.scalar_one_or_none()
+                    if analysis:
+                        analysis.status = "error"
+                        analysis.error_message = "Erro interno durante a análise."
+                        await db.commit()
+                except Exception:
+                    logger.exception("Erro ao atualizar status da análise %s", analysis_id)
 
 
 @router.get(
@@ -193,20 +209,12 @@ async def get_report(
     category_counts = dict(Counter(c.category for c in corrections))
     severity_counts = dict(Counter(c.severity for c in corrections))
 
-    scores = [
-        ScoreDetail(label="Nota Geral", score=float(analysis.score_overall) if analysis.score_overall else None),
-        ScoreDetail(label="Segurança Jurídica", score=float(analysis.score_juridical) if analysis.score_juridical else None),
-        ScoreDetail(label="Qualidade Técnica", score=float(analysis.score_technical) if analysis.score_technical else None),
-        ScoreDetail(label="Qualidade da Redação", score=float(analysis.score_writing) if analysis.score_writing else None),
-        ScoreDetail(label="Conformidade Estrutural", score=float(analysis.score_structural) if analysis.score_structural else None),
-    ]
-
     return ReportResponse(
         analysis_id=analysis.id,
         document_name=analysis.document.filename_original,
         document_id=analysis.document_id,
         status=analysis.status,
-        scores=scores,
+        scores=_score_details(analysis),
         risk_level=analysis.risk_level,
         total_corrections=len(corrections),
         corrections_by_category=category_counts,
