@@ -10,11 +10,8 @@ Segurança:
 
 import logging
 from pathlib import Path
-from xml.etree import ElementTree
 
 from docx import Document as DocxDocument
-from docx.opc.constants import RELATIONSHIP_TYPE as RT
-
 
 logger = logging.getLogger(__name__)
 
@@ -33,9 +30,9 @@ def parse_docx(file_path: Path) -> tuple[str, list[dict]]:
     """
     try:
         doc = DocxDocument(str(file_path))
-    except Exception:
+    except Exception as e:
         logger.exception("Erro ao abrir DOCX: %s", file_path.name)
-        raise ValueError("Não foi possível abrir o arquivo DOCX. Verifique o formato.")
+        raise ValueError("Não foi possível abrir o arquivo DOCX. Verifique o formato.") from e
 
     text_parts = []
 

@@ -10,6 +10,7 @@ Segurança:
 - Sem execução de JavaScript embutido
 """
 
+import io
 import logging
 from pathlib import Path
 
@@ -17,8 +18,6 @@ import fitz  # PyMuPDF
 import pdfplumber
 import pytesseract
 from PIL import Image
-import io
-
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +39,6 @@ def parse_pdf(file_path: Path) -> tuple[str, list[dict]]:
         Cada página é um dict: {"page": int, "text": str}
     """
     pages = []
-    full_text_parts = []
 
     try:
         pages = _extract_with_pymupdf(file_path)
@@ -48,9 +46,9 @@ def parse_pdf(file_path: Path) -> tuple[str, list[dict]]:
         logger.warning("PyMuPDF falhou, tentando pdfplumber para %s", file_path.name)
         try:
             pages = _extract_with_pdfplumber(file_path)
-        except Exception:
+        except Exception as fallback_err:
             logger.exception("Ambos parsers falharam para %s", file_path.name)
-            raise ValueError("Não foi possível extrair texto do PDF.")
+            raise ValueError("Não foi possível extrair texto do PDF.") from fallback_err
 
     # Verificar se obteve texto suficiente
     total_chars = sum(len(p["text"]) for p in pages)

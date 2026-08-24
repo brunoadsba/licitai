@@ -16,7 +16,8 @@ logger = logging.getLogger(__name__)
 TEXT_NS = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
 TABLE_NS = "urn:oasis:names:tc:opendocument:xmlns:table:1.0"
 
-_clean_ns = lambda tag: tag.split("}")[1] if "}" in tag else tag
+def _clean_ns(tag: str) -> str:
+    return tag.split("}")[1] if "}" in tag else tag
 
 
 def parse_odt(file_path: Path) -> tuple[str, list[dict]]:
@@ -34,9 +35,9 @@ def parse_odt(file_path: Path) -> tuple[str, list[dict]]:
             if "content.xml" not in zf.namelist():
                 raise ValueError("Arquivo ODT inválido: content.xml não encontrado.")
             xml_content = zf.read("content.xml")
-    except zipfile.BadZipFile:
+    except zipfile.BadZipFile as e:
         logger.exception("Erro ao abrir ODT: %s", file_path.name)
-        raise ValueError("Não foi possível abrir o arquivo ODT. Verifique o formato.")
+        raise ValueError("Não foi possível abrir o arquivo ODT. Verifique o formato.") from e
 
     root = ElementTree.fromstring(xml_content)
 
