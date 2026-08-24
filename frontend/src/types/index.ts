@@ -286,6 +286,62 @@ export interface ChatCitation {
   snippet: string;
 }
 
+// ---- Diff de versões de TR ----
+
+export interface DiffItemResponse {
+  status: string;
+  item_number: string;
+  titulo: string;
+  conteudo_antes: string | null;
+  conteudo_depois: string | null;
+}
+
+export interface DiffResponse {
+  documento_antigo_id: string;
+  documento_novo_id: string;
+  total: number;
+  resumo: Record<string, number>;
+  itens: DiffItemResponse[];
+}
+
+// ---- Revisões (histórico/versionamento) ----
+
+export interface DocumentRevision {
+  id: string;
+  document_id: string;
+  versao: number;
+  rotulo: string;
+  descricao: string | null;
+  items_snapshot: Record<string, unknown>[];
+  created_at: string;
+}
+
+export interface DocumentRevisionListResponse {
+  revisions: DocumentRevision[];
+  total: number;
+}
+
+// ---- Dry-Run de moldes ----
+
+export interface DryRunResultado {
+  regra_id: string;
+  rotulo: string;
+  tipo: AnchorTipo;
+  ancora: string | null;
+  valor_extraido: string | null;
+  encontrado: boolean;
+}
+
+export interface DryRunResponse {
+  molde_id: string;
+  molde_nome: string;
+  documento_id: string;
+  documento_nome: string;
+  total_regras: number;
+  regras_encontradas: number;
+  resultados: DryRunResultado[];
+}
+
 export interface ChatSuggestedAction {
   action: string;
   description: string;
