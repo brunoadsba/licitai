@@ -12,31 +12,30 @@ Segurança:
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Form
-from sqlalchemy import select, func
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.document import Document, DocumentItem
+from app.models.document import Document
 from app.schemas.document import (
-    DocumentResponse,
-    DocumentListResponse,
-    DocumentDetailResponse,
-    DocumentItemResponse,
+    DiffItemResponse,
     DiffRequest,
     DiffResponse,
-    DiffItemResponse,
+    DocumentDetailResponse,
+    DocumentItemResponse,
+    DocumentListResponse,
+    DocumentResponse,
 )
 from app.services.comparator.diff import diff_terms, resumir_diffs
-from app.utils.file_validation import get_upload_path
 from app.services.upload_service import (
     UploadValidationError,
     parse_e_inserir_itens,
     salvar_arquivo_upload,
     validar_upload,
 )
-
+from app.utils.file_validation import get_upload_path
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +72,7 @@ async def upload_document(
     try:
         file_ext = validar_upload(file.filename, file_bytes)
     except UploadValidationError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     if document_type == "proposta" and fornecedor_id is None:
         raise HTTPException(
@@ -86,12 +85,12 @@ async def upload_document(
 
     try:
         safe_filename = await salvar_arquivo_upload(file_bytes, file_ext)
-    except OSError:
+    except OSError as e:
         logger.exception("Erro ao salvar arquivo")
         raise HTTPException(
             status_code=500,
             detail="Erro interno ao salvar o arquivo.",
-        )
+        ) from e
 
     document = Document(
         filename_original=file.filename,
@@ -107,6 +106,10 @@ async def upload_document(
 
     document.status = "parsing"
     await parse_e_inserir_itens(db, document, file_ext)
+
+    # Commit explícito antes do 201: evita corrida com DELETE/GET imediatos
+    # (o commit pós-resposta do get_db chega depois que o cliente já recebeu 201).
+    await db.commit()
 
     return DocumentResponse.model_validate(document)
 
