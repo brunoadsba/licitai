@@ -10,7 +10,6 @@ from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -59,6 +58,13 @@ class Settings(BaseSettings):
 
     # --- LLM ---
     llm_timeout_seconds: float = 120.0
+
+    # --- Concorrência da análise ---
+    # Itens analisados em paralelo por análise (chamadas LLM concorrentes).
+    analysis_concurrency: int = 3
+    # Análises em background simultâneas permitidas no processo
+    # (protege a cota free tier de múltiplas análises disparadas juntas).
+    max_concurrent_analyses: int = 2
 
     # --- Copiloto (Chat Consultivo) ---
     chat_enabled: bool = True

@@ -1,14 +1,16 @@
 """
 Motor de análise de documentos.
 
-Orquestra a análise item a item usando LLM:
+Orquestra a análise item a item usando LLM em fases:
 1. Carrega documento e seus itens do banco
-2. Para cada item, monta prompt e envia ao LLM
-3. Parseia resposta estruturada (JSON)
-4. Salva correções no banco
-5. Gera pontuação consolidada via LLM
+2. Recupera contexto jurídico (RAG) por item — sequencial (usa a sessão DB)
+3. Analisa os itens via LLM com concorrência limitada (sem acesso ao DB)
+4. Persiste resultados sequencialmente, commitando progresso por item
+5. Revisão cruzada (LLM concorrente) + aplicação sequencial das decisões
+6. Gera pontuação consolidada via LLM
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 
@@ -16,22 +18,22 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.document import Document, DocumentItem
+from app.config import settings
 from app.models.analysis import Analysis, Correction
-from app.services.llm import get_llm_provider
-from app.services.rag.retriever import retrieve
+from app.models.document import Document, DocumentItem
+from app.services.agents.orchestrator import MultiAgentOrchestrator
 from app.services.analyzer.item_analysis import analyze_item_llm
-from app.services.analyzer.scoring import (
-    calculate_fallback_scores,
-    generate_scores,
-)
 from app.services.analyzer.review import (
     apply_review_decisions,
     correction_to_dict,
     review_item_corrections,
 )
-from app.services.agents.orchestrator import MultiAgentOrchestrator
-
+from app.services.analyzer.scoring import (
+    calculate_fallback_scores,
+    generate_scores,
+)
+from app.services.llm import get_llm_provider
+from app.services.rag.retriever import retrieve
 
 logger = logging.getLogger(__name__)
 
@@ -78,68 +80,69 @@ async def run_analysis(
     # Obter provedor LLM
     try:
         llm = get_llm_provider()
-    except ValueError as e:
+    except (ValueError, RuntimeError) as e:
         analysis.status = "error"
         analysis.error_message = str(e)
         await db.flush()
         return
 
-    all_corrections = []
-    analyzed_count = 0
-    pending_reviews = []
     orchestrator = MultiAgentOrchestrator() if getattr(analysis, "analysis_mode", "multi_agent") == "multi_agent" else None
 
-    # Analisar cada item
-    for idx, item in enumerate(document.items):
-        try:
-            legal_context = await _retrieve_legal_context(db, item)
-            if orchestrator:
-                corrections = await orchestrator.analyze_item_multi(llm, item, legal_context)
-            else:
-                corrections = await _analyze_item(db, llm, item, legal_context)
+    # --- Fase 1: contexto jurídico por item (sequencial — usa a sessão DB) ---
+    items_context: list[tuple[DocumentItem, str]] = []
+    for item in document.items:
+        legal_context = await _retrieve_legal_context(db, item)
+        items_context.append((item, legal_context))
 
-            correction_objs = []
-            for correction_data in corrections:
-                correction = Correction(
-                    analysis_id=analysis.id,
-                    document_item_id=item.id,
-                    category=correction_data.get("category", "tecnica"),
-                    severity=correction_data.get("severity", "medio"),
-                    situation=correction_data.get("situation", ""),
-                    problem=correction_data.get("problem", ""),
-                    risk=correction_data.get("risk", ""),
-                    original_text=correction_data.get("original_text", ""),
-                    suggested_text=correction_data.get("suggested_text", ""),
-                    justification=correction_data.get("justification", ""),
-                    legal_basis=correction_data.get("legal_basis"),
-                    importance=correction_data.get("importance", "media"),
-                    agent_origin=correction_data.get("agent_origin"),
-                )
-                db.add(correction)
-                correction_objs.append(correction)
-                all_corrections.append(correction_data)
+    # --- Fase 2: análise LLM concorrente (sem acesso ao DB) ---
+    results = await _analyze_items_concurrent(llm, orchestrator, items_context)
 
-            pending_reviews.append((item, legal_context, correction_objs))
+    # --- Fase 3: persistência sequencial + progresso por item ---
+    analyzed_count = 0
+    pending_reviews: list[tuple[DocumentItem, str, list[Correction]]] = []
+    all_corrections: list[dict] = []
 
-            analyzed_count += 1
-            analysis.analyzed_items = analyzed_count
-            await db.commit()
-
-            logger.info(
-                "Item %d/%d analisado: %s — %d correções",
-                idx + 1,
-                len(document.items),
-                item.item_number,
-                len(corrections),
+    for (item, legal_context), outcome in zip(items_context, results, strict=False):
+        if isinstance(outcome, Exception):
+            logger.warning(
+                "Erro ao analisar item %s do documento %s: %s",
+                item.item_number, document_id, outcome,
             )
+            continue
 
-        except Exception:
-            logger.exception(
-                "Erro ao analisar item %s do documento %s",
-                item.item_number,
-                document_id,
+        correction_objs = []
+        for correction_data in outcome:
+            correction = Correction(
+                analysis_id=analysis.id,
+                document_item_id=item.id,
+                category=correction_data.get("category", "tecnica"),
+                severity=correction_data.get("severity", "medio"),
+                situation=correction_data.get("situation", ""),
+                problem=correction_data.get("problem", ""),
+                risk=correction_data.get("risk", ""),
+                original_text=correction_data.get("original_text", ""),
+                suggested_text=correction_data.get("suggested_text", ""),
+                justification=correction_data.get("justification", ""),
+                legal_basis=correction_data.get("legal_basis"),
+                importance=correction_data.get("importance", "media"),
+                agent_origin=correction_data.get("agent_origin"),
             )
-            # Continuar com os próximos itens
+            db.add(correction)
+            correction_objs.append(correction)
+            all_corrections.append(correction_data)
+
+        pending_reviews.append((item, legal_context, correction_objs, outcome))
+        analyzed_count += 1
+        analysis.analyzed_items = analyzed_count
+        await db.commit()
+
+        logger.info(
+            "Item %s analisado (%d/%d): %d correções",
+            item.item_number,
+            analyzed_count,
+            len(document.items),
+            len(outcome),
+        )
 
     # Se nenhum item foi analisado, os provedores LLM estão indisponíveis:
     # marcar como erro em vez de reportar sucesso falso.
@@ -158,7 +161,7 @@ async def run_analysis(
         )
         return
 
-    # Fase 2.2: revisão cruzada das correções (após análise completa)
+    # --- Fase 2.2: revisão cruzada das correções (após análise completa) ---
     all_corrections = await _run_cross_review(db, llm, pending_reviews)
 
     # Gerar pontuação consolidada
@@ -173,8 +176,8 @@ async def run_analysis(
         analysis.risk_level = scores.get("risk_level", "medio")
         analysis.final_opinion = scores.get("final_opinion", "")
 
-        if not analysis.score_overall:
-            raise ValueError("Score zerado ou ausente")
+        if analysis.score_overall is None:
+            raise ValueError("Score ausente")
 
     except Exception:
         logger.exception("Erro ao gerar pontuação via LLM para análise %s; aplicando cálculo determinístico de fallback", analysis_id)
@@ -201,51 +204,40 @@ async def run_analysis(
         analysis_id,
         len(document.items),
         len(all_corrections),
-        float(analysis.score_overall) if analysis.score_overall else 0,
+        float(analysis.score_overall) if analysis.score_overall is not None else 0.0,
     )
 
 
-async def _analyze_item(
-    db: AsyncSession, llm, item: DocumentItem, legal_context: str | None = None
-) -> list[dict]:
-    """Analisa um item individual usando o LLM, com contexto jurídico."""
-    if legal_context is None:
-        legal_context = await _retrieve_legal_context(db, item)
-    return await analyze_item_llm(llm, item, legal_context)
-
-
-async def _run_cross_review(
-    db: AsyncSession,
+async def _analyze_items_concurrent(
     llm,
-    pending_reviews: list[tuple[DocumentItem, str, list[Correction]]],
-) -> list[dict]:
-    """Revisa as correções de cada item e devolve o conjunto final válido."""
-    kept: list[dict] = []
+    orchestrator: MultiAgentOrchestrator | None,
+    items_context: list[tuple[DocumentItem, str]],
+) -> list[list[dict] | Exception]:
+    """
+    Executa a análise LLM dos itens com concorrência limitada.
 
-    for item, legal_context, correction_objs in pending_reviews:
-        if not correction_objs:
-            continue
+    Não toca no banco: apenas leitura de atributos já carregados dos itens,
+    o que é seguro sob concorrência. Exceções são devolvidas por posição
+    (`return_exceptions=True`) para que a persistência decida o que fazer.
+    """
+    semaphore = asyncio.Semaphore(max(1, settings.analysis_concurrency))
 
-        try:
-            corrections_dict = [
-                correction_to_dict(obj) for obj in correction_objs
-            ]
-            decisions = await review_item_corrections(
-                llm, item, corrections_dict, legal_context
-            )
-            kept.extend(apply_review_decisions(correction_objs, decisions))
-        except Exception:
-            logger.exception(
-                "Falha na revisão cruzada do item %s", item.item_number
-            )
-            # Sem revisão: mantém as correções como estão
-            for obj in correction_objs:
-                obj.review_status = "pendente"
-            kept.extend(correction_to_dict(obj) for obj in correction_objs)
+    async def _analyze_one(item: DocumentItem, legal_context: str) -> list[dict]:
+        async with semaphore:
+            if orchestrator:
+                return await orchestrator.analyze_item_multi(llm, item, legal_context)
+            return await analyze_item_llm(llm, item, legal_context)
 
-    await db.flush()
-    logger.info("Revisão cruzada concluída: %d correções válidas", len(kept))
-    return kept
+    total = len(items_context)
+    if total > 1:
+        logger.info(
+            "Analisando %d itens com concorrência %d", total, settings.analysis_concurrency
+        )
+
+    return await asyncio.gather(
+        *(_analyze_one(item, ctx) for item, ctx in items_context),
+        return_exceptions=True,
+    )
 
 
 async def _retrieve_legal_context(db: AsyncSession, item: DocumentItem) -> str:
@@ -269,3 +261,49 @@ async def _retrieve_legal_context(db: AsyncSession, item: DocumentItem) -> str:
             f"### {c.law_number} — {c.article}\n{c.text[:2500]}"
         )
     return "\n\n".join(parts)
+
+
+async def _run_cross_review(
+    db: AsyncSession,
+    llm,
+    pending_reviews: list[tuple[DocumentItem, str, list[Correction]]],
+) -> list[dict]:
+    """Revisa as correções de cada item (LLM concorrente) e aplica as decisões."""
+    kept: list[dict] = []
+    revisaveis = [
+        (item, legal_context, correction_objs)
+        for item, legal_context, correction_objs, _ in pending_reviews
+        if correction_objs
+    ]
+    if not revisaveis:
+        return kept
+
+    semaphore = asyncio.Semaphore(max(1, settings.analysis_concurrency))
+
+    async def _review_one(item: DocumentItem, legal_context: str, correction_objs: list[Correction]):
+        async with semaphore:
+            corrections_dict = [correction_to_dict(obj) for obj in correction_objs]
+            return await review_item_corrections(llm, item, corrections_dict, legal_context)
+
+    decisions_or_exc = await asyncio.gather(
+        *(_review_one(item, ctx, objs) for item, ctx, objs in revisaveis),
+        return_exceptions=True,
+    )
+
+    # Aplicação sequencial das decisões (mutação de objetos ORM + flush)
+    for (item, _ctx, correction_objs), outcome in zip(revisaveis, decisions_or_exc, strict=False):
+        if isinstance(outcome, Exception):
+            logger.warning(
+                "Falha na revisão cruzada do item %s: %s",
+                item.item_number, outcome,
+            )
+            for obj in correction_objs:
+                obj.review_status = "pendente"
+            kept.extend(correction_to_dict(obj) for obj in correction_objs)
+            continue
+
+        kept.extend(apply_review_decisions(correction_objs, outcome))
+
+    await db.flush()
+    logger.info("Revisão cruzada concluída: %d correções válidas", len(kept))
+    return kept
