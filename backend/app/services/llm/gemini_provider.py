@@ -6,12 +6,12 @@ Free tier: 1500 req/dia para Gemini 2.0 Flash.
 """
 
 import logging
+import time
 
 from google import genai
 from google.genai import types
 
 from app.services.llm.provider import LLMProvider
-
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +33,7 @@ class GeminiProvider(LLMProvider):
 
     async def generate(self, system_prompt: str, user_prompt: str) -> str:
         """Envia prompt ao Gemini e retorna resposta."""
+        started = time.perf_counter()
         try:
             response = await self._client.aio.models.generate_content(
                 model=self._model,
@@ -48,6 +49,16 @@ class GeminiProvider(LLMProvider):
             if not response.text:
                 raise ValueError("Resposta vazia do Gemini.")
 
+            usage = getattr(response, "usage_metadata", None)
+            logger.info(
+                "llm_usage provider=gemini model=%s latency_ms=%d "
+                "prompt_tokens=%s completion_tokens=%s total_tokens=%s",
+                self._model,
+                int((time.perf_counter() - started) * 1000),
+                getattr(usage, "prompt_token_count", None),
+                getattr(usage, "candidates_token_count", None),
+                getattr(usage, "total_token_count", None),
+            )
             return response.text.strip()
 
         except Exception as e:

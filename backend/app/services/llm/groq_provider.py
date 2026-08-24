@@ -6,11 +6,11 @@ Free tier: ~30 req/min para modelos como Llama 3.3 70B.
 """
 
 import logging
+import time
 
 from groq import AsyncGroq
 
 from app.services.llm.provider import LLMProvider
-
 
 logger = logging.getLogger(__name__)
 
@@ -32,6 +32,7 @@ class GroqProvider(LLMProvider):
 
     async def generate(self, system_prompt: str, user_prompt: str) -> str:
         """Envia prompt ao Groq e retorna resposta."""
+        started = time.perf_counter()
         try:
             response = await self._client.chat.completions.create(
                 model=self._model,
@@ -48,6 +49,16 @@ class GroqProvider(LLMProvider):
             if not content:
                 raise ValueError("Resposta vazia do Groq.")
 
+            usage = getattr(response, "usage", None)
+            logger.info(
+                "llm_usage provider=groq model=%s latency_ms=%d "
+                "prompt_tokens=%s completion_tokens=%s total_tokens=%s",
+                self._model,
+                int((time.perf_counter() - started) * 1000),
+                getattr(usage, "prompt_tokens", None),
+                getattr(usage, "completion_tokens", None),
+                getattr(usage, "total_tokens", None),
+            )
             return content.strip()
 
         except Exception as e:

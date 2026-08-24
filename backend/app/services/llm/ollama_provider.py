@@ -6,11 +6,11 @@ Suporta: Qwen3-32B, DeepSeek-R1, Llama 3.3, etc.
 """
 
 import logging
+import time
 
 import httpx
 
 from app.services.llm.provider import LLMProvider
-
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ class OllamaProvider(LLMProvider):
 
     async def generate(self, system_prompt: str, user_prompt: str) -> str:
         """Envia prompt ao Ollama e retorna resposta."""
+        started = time.perf_counter()
         try:
             response = await self._client.post(
                 "/api/chat",
@@ -61,6 +62,15 @@ class OllamaProvider(LLMProvider):
             if not content:
                 raise ValueError("Resposta vazia do Ollama.")
 
+            logger.info(
+                "llm_usage provider=ollama model=%s latency_ms=%d "
+                "prompt_tokens=%s completion_tokens=%s total_tokens=%s",
+                self._model,
+                int((time.perf_counter() - started) * 1000),
+                data.get("prompt_eval_count"),
+                data.get("eval_count"),
+                (data.get("prompt_eval_count") or 0) + (data.get("eval_count") or 0),
+            )
             return content.strip()
 
         except httpx.HTTPError as e:
