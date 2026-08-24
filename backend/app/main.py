@@ -10,20 +10,64 @@ Configura:
 """
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 
-from app.config import settings
-from app.database import engine, Base, async_session_factory
 from app.api.router import router
-from app.utils.security import SecurityHeadersMiddleware, RateLimitMiddleware
+from app.config import settings
+from app.database import Base, async_session_factory, engine
 from app.utils.logging_config import setup_logging
-
+from app.utils.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
 # Configurar logging estruturado (JSON) — sem dados sensíveis
 setup_logging()
 logger = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    async with engine.begin() as conn:
+        from app.models.analysis import Analysis, Correction  # noqa: F401
+        from app.models.comparison import (  # noqa: F401
+            Comparacao,
+            ComparacaoResultado,
+            Fornecedor,
+            Molde,
+        )
+        from app.models.document import Document, DocumentItem  # noqa: F401
+        from app.models.legal import LegalChunk, LegalDocument  # noqa: F401
+        await conn.run_sync(Base.metadata.create_all)
+
+    # Resetar análises pendentes órfãs de reinicializações anteriores
+    try:
+        from sqlalchemy import select
+
+        from app.models.analysis import Analysis
+        async with async_session_factory() as session:
+            result = await session.execute(
+                select(Analysis).where(Analysis.status.in_(["pending", "running"]))
+            )
+            orphaned = result.scalars().all()
+            for an in orphaned:
+                an.status = "error"
+                an.error_message = "Análise interrompida por reinicialização do servidor backend."
+            if orphaned:
+                await session.commit()
+                logger.info("Resetadas %d análises órfãs de sessões anteriores.", len(orphaned))
+    except Exception as e:
+        logger.warning("Não foi possível resetar análises órfãs no startup: %s", e)
+
+    logger.info("Sistema de Análise de TR iniciado")
+    logger.info("Provedor LLM: %s", settings.llm_provider)
+    logger.info("Banco de dados: %s", "SQLite" if "sqlite" in settings.database_url else "PostgreSQL")
+
+    yield
+
+    logger.info("Sistema de Análise de TR encerrado")
+
 
 app = FastAPI(
     title="Sistema de Análise de Termos de Referência",
@@ -34,6 +78,7 @@ app = FastAPI(
     version="0.1.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
+    lifespan=lifespan,
 )
 
 # --- Middleware (ordem importa: último adicionado = primeiro executado) ---
@@ -66,50 +111,17 @@ app.include_router(router)
     description="Verifica se o sistema está operacional.",
 )
 async def health_check():
+    database_status = "ok"
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+    except Exception:
+        logger.exception("Health check: falha ao conectar no banco")
+        database_status = "error"
+
     return {
         "status": "ok",
         "provider": settings.llm_provider,
         "version": "0.1.0",
+        "database": database_status,
     }
-
-
-@app.on_event("startup")
-async def startup_event():
-    async with engine.begin() as conn:
-        from app.models.document import Document, DocumentItem  # noqa: F401
-        from app.models.analysis import Analysis, Correction  # noqa: F401
-        from app.models.legal import LegalDocument, LegalChunk  # noqa: F401
-        from app.models.comparison import (  # noqa: F401
-            Fornecedor,
-            Molde,
-            Comparacao,
-            ComparacaoResultado,
-        )
-        await conn.run_sync(Base.metadata.create_all)
-
-    # Resetar análises pendentes órfãs de reinicializações anteriores
-    try:
-        from app.models.analysis import Analysis
-        from sqlalchemy import select
-        async with async_session_factory() as session:
-            result = await session.execute(
-                select(Analysis).where(Analysis.status.in_(["pending", "running"]))
-            )
-            orphaned = result.scalars().all()
-            for an in orphaned:
-                an.status = "error"
-                an.error_message = "Análise interrompida por reinicialização do servidor backend."
-            if orphaned:
-                await session.commit()
-                logger.info("Resetadas %d análises órfãs de sessões anteriores.", len(orphaned))
-    except Exception as e:
-        logger.warning("Não foi possível resetar análises órfãs no startup: %s", e)
-
-    logger.info("Sistema de Análise de TR iniciado")
-    logger.info("Provedor LLM: %s", settings.llm_provider)
-    logger.info("Banco de dados: %s", "SQLite" if "sqlite" in settings.database_url else "PostgreSQL")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("Sistema de Análise de TR encerrado")
