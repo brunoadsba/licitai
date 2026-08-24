@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { listDocuments, diffDocuments } from '@/lib/api';
+import { listDocuments, diffDocuments , extractErrorMessage } from '@/lib/api';
+import type { DiffItemResponse, DocumentResponse } from '@/types';
 
 export default function DiffVersoesPage() {
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<DocumentResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +18,7 @@ export default function DiffVersoesPage() {
     async function loadData() {
       try {
         const res = await listDocuments();
-        const trs = res.documents.filter((d: any) => d.document_type === 'tr');
+        const trs = res.documents.filter((d) => d.document_type === 'tr');
         setDocuments(trs);
         if (trs.length >= 2) {
           setDocAntigoId(trs[1].id);
@@ -45,8 +46,8 @@ export default function DiffVersoesPage() {
       setError(null);
       const result = await diffDocuments(docAntigoId, docNovoId);
       setDiffResult(result);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao comparar versões do TR.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao comparar versões do TR.'));
     } finally {
       setDiffing(false);
     }
@@ -173,7 +174,7 @@ export default function DiffVersoesPage() {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-white">Detalhamento das Alterações</h2>
 
-            {diffResult.itens.map((item: any) => (
+            {diffResult.itens.map((item: DiffItemResponse) => (
               <div key={item.item_number} className="glass-card p-5 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">

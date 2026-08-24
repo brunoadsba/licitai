@@ -1,9 +1,4 @@
-interface Fornecedor {
-  id: string;
-  nome: string;
-  cnpj?: string | null;
-  email?: string | null;
-}
+import type { Fornecedor } from '@/types';
 
 interface FornecedorPanelProps {
   fornecedores: Fornecedor[];

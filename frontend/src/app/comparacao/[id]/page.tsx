@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { getComparacao, getMatriz } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/api';
 import {
   COMPARACAO_STATUS_LABELS,
   CONFORMIDADE_LABELS,
@@ -22,6 +23,8 @@ export default function MatrizPage() {
   const [matriz, setMatriz] = useState<MatrizResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pollingError, setPollingError] = useState<string | null>(null);
+  const falhasConsecutivas = useRef(0);
 
   const loadData = useCallback(async () => {
     try {
@@ -33,8 +36,8 @@ export default function MatrizPage() {
         const m = await getMatriz(comparacaoId);
         setMatriz(m);
       }
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar a comparação.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao carregar a comparação.'));
     } finally {
       setLoading(false);
     }
@@ -49,17 +52,27 @@ export default function MatrizPage() {
     if (!comparacao || !['pending', 'running'].includes(comparacao.status)) return;
 
     const interval = setInterval(async () => {
+      // Aba em background: economiza requests sem parar o monitoramento.
+      if (document.hidden) return;
+
       try {
         const updated = await getComparacao(comparacaoId);
         setComparacao(updated);
+        falhasConsecutivas.current = 0;
+        setPollingError(null);
 
         if (['completed', 'error'].includes(updated.status)) {
           clearInterval(interval);
           const m = await getMatriz(comparacaoId);
           setMatriz(m);
         }
-      } catch {
-        // silenciar erros de polling
+      } catch (err) {
+        falhasConsecutivas.current += 1;
+        if (falhasConsecutivas.current >= 2) {
+          setPollingError(
+            `${extractErrorMessage(err, 'Falha ao atualizar status.')} Verificando novamente...`
+          );
+        }
       }
     }, 3000);
 
@@ -151,6 +164,12 @@ export default function MatrizPage() {
           <p className="text-red-400 text-sm">
             {comparacao.error_message || 'Erro durante a comparação.'}
           </p>
+        </div>
+      )}
+
+      {pollingError && (
+        <div className="glass-card border-yellow-500/20 p-4">
+          <p className="text-yellow-400 text-sm">{pollingError}</p>
         </div>
       )}
 

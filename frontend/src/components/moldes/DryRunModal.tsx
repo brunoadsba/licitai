@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { listDocuments, validateMoldeDryRun } from '@/lib/api';
-import { Molde } from '@/types';
+import { listDocuments, validateMoldeDryRun , extractErrorMessage } from '@/lib/api';
+import { Molde, DocumentResponse, DryRunResultado } from '@/types';
 
 interface DryRunModalProps {
   molde: Molde;
@@ -11,7 +11,7 @@ interface DryRunModalProps {
 }
 
 export default function DryRunModal({ molde, onClose, onError }: DryRunModalProps) {
-  const [docsList, setDocsList] = useState<any[]>([]);
+  const [docsList, setDocsList] = useState<DocumentResponse[]>([]);
   const [selectedDocId, setSelectedDocId] = useState('');
   const [dryRunLoading, setDryRunLoading] = useState(false);
   const [dryRunResult, setDryRunResult] = useState<any | null>(null);
@@ -21,7 +21,7 @@ export default function DryRunModal({ molde, onClose, onError }: DryRunModalProp
       try {
         setDryRunResult(null);
         const res = await listDocuments();
-        const trDocs = res.documents.filter((d: any) => d.document_type === 'tr');
+        const trDocs = res.documents.filter((d) => d.document_type === 'tr');
         setDocsList(trDocs);
         if (trDocs.length > 0) {
           setSelectedDocId(trDocs[0].id);
@@ -38,8 +38,8 @@ export default function DryRunModal({ molde, onClose, onError }: DryRunModalProp
       setDryRunLoading(true);
       const res = await validateMoldeDryRun(molde.id, selectedDocId);
       setDryRunResult(res);
-    } catch (err: any) {
-      onError(err.message || 'Erro ao executar validação dry-run.');
+    } catch (err) {
+      onError(extractErrorMessage(err, 'Erro ao executar validação dry-run.'));
     } finally {
       setDryRunLoading(false);
     }
@@ -111,7 +111,7 @@ export default function DryRunModal({ molde, onClose, onError }: DryRunModalProp
             </div>
 
             <div className="space-y-2 max-h-60 overflow-y-auto">
-              {dryRunResult.resultados.map((r: any) => (
+              {dryRunResult.resultados.map((r: DryRunResultado) => (
                 <div
                   key={r.regra_id}
                   className={`p-3 rounded-lg border text-xs flex items-center justify-between ${

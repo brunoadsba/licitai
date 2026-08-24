@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { listRevisions, createRevision, restoreRevision } from '@/lib/api';
+import { listRevisions, createRevision, restoreRevision , extractErrorMessage } from '@/lib/api';
+import type { DocumentRevision } from '@/types';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface RevisionsTimelineModalProps {
@@ -17,7 +18,7 @@ export default function RevisionsTimelineModal({
   onClose,
   onRestored,
 }: RevisionsTimelineModalProps) {
-  const [revisions, setRevisions] = useState<any[]>([]);
+  const [revisions, setRevisions] = useState<DocumentRevision[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,8 +59,8 @@ export default function RevisionsTimelineModal({
       setRotulo('');
       setDescricao('');
       await loadRevisionsList();
-    } catch (err: any) {
-      setError(err.message || 'Erro ao criar versão snapshot.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao criar versão snapshot.'));
     } finally {
       setSaving(false);
     }
@@ -74,8 +75,8 @@ export default function RevisionsTimelineModal({
       await restoreRevision(documentId, versao);
       onRestored();
       onClose();
-    } catch (err: any) {
-      setError(err.message || 'Erro ao restaurar versão.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao restaurar versão.'));
     } finally {
       setRestoringVersao(null);
     }

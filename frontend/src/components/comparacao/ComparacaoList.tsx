@@ -15,6 +15,7 @@ interface ComparacaoListProps {
   comparacoes: Comparacao[];
   loading: boolean;
   sendingFeedbackId: string | null;
+  feedbackEnviadosIds: string[];
   onFeedback: (id: string) => void;
 }
 
@@ -42,6 +43,7 @@ export default function ComparacaoList({
   comparacoes,
   loading,
   sendingFeedbackId,
+  feedbackEnviadosIds,
   onFeedback,
 }: ComparacaoListProps) {
   if (loading) {
@@ -93,10 +95,14 @@ export default function ComparacaoList({
               <div className="flex items-center gap-2 shrink-0 ml-4">
                 <button
                   onClick={() => onFeedback(cmp.id)}
-                  disabled={sendingFeedbackId === cmp.id}
+                  disabled={sendingFeedbackId === cmp.id || feedbackEnviadosIds.includes(cmp.id)}
                   className="btn-secondary text-xs px-4 py-2"
                 >
-                  {sendingFeedbackId === cmp.id ? 'Enviando...' : 'Enviar Pendências'}
+                  {sendingFeedbackId === cmp.id
+                    ? 'Enviando...'
+                    : feedbackEnviadosIds.includes(cmp.id)
+                      ? 'Pendências Enviadas'
+                      : 'Enviar Pendências'}
                 </button>
                 <Link
                   href={`/comparacao/${cmp.id}`}

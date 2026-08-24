@@ -7,6 +7,7 @@ import {
   getChatMessages,
   sendChatFeedback,
   sendChatMessage,
+  extractErrorMessage,
 } from '@/lib/api';
 import type { ChatMessage } from '@/types';
 
@@ -56,8 +57,8 @@ export function useChat(options: UseChatOptions = {}) {
       setConversationId(conversation.id);
       const history = await getChatMessages(conversation.id);
       setMessages(history);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao iniciar o Copiloto.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao iniciar o Copiloto.'));
       setEnabled(false);
     } finally {
       setLoading(false);
@@ -93,8 +94,8 @@ export function useChat(options: UseChatOptions = {}) {
       try {
         const assistant = await sendChatMessage(conversationId, text);
         setMessages((prev) => [...prev, assistant]);
-      } catch (err: any) {
-        setError(err.message || 'Erro ao enviar mensagem.');
+      } catch (err) {
+        setError(extractErrorMessage(err, 'Erro ao enviar mensagem.'));
       } finally {
         setSending(false);
       }

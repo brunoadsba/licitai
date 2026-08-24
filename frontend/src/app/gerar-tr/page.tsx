@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { generateTR } from '@/lib/api';
+import { generateTR , extractErrorMessage } from '@/lib/api';
 import PassoDados from '@/components/gerar-tr/PassoDados';
 import PassoRequisitos from '@/components/gerar-tr/PassoRequisitos';
 import ResultadoTR from '@/components/gerar-tr/ResultadoTR';
@@ -56,8 +56,8 @@ export default function GerarTRPage() {
 
       setResultado(res);
       setStep(3);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao gerar Termo de Referência.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao gerar Termo de Referência.'));
     } finally {
       setLoading(false);
     }

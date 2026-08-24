@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { getDocument, startAnalysis, getDocumentAnalyses, getAnalysis } from '@/lib/api';
+import { getDocument, startAnalysis, getDocumentAnalyses, getAnalysis , extractErrorMessage } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import RevisionsTimelineModal from '@/components/RevisionsTimelineModal';
@@ -86,8 +86,8 @@ export default function AnalysisPage() {
       // Carregar a análise criada
       const newAnalysis = await getAnalysis(result.analysis_id);
       setAnalysis(newAnalysis);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao iniciar análise.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao iniciar análise.'));
     } finally {
       setAnalyzing(false);
     }

@@ -12,7 +12,9 @@ import {
   startComparacao,
   enviarFeedback,
   uploadDocument,
+  extractErrorMessage,
 } from '@/lib/api';
+import type { DocumentResponse, Fornecedor, Molde } from '@/types';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import NovaComparacaoForm from '@/components/comparacao/NovaComparacaoForm';
 import FornecedorPanel from '@/components/comparacao/FornecedorPanel';
@@ -36,10 +38,10 @@ export default function ComparacaoPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Dados para criar comparação
-  const [trs, setTrs] = useState<any[]>([]);
-  const [propostas, setPropostas] = useState<any[]>([]);
-  const [moldes, setMoldes] = useState<any[]>([]);
-  const [fornecedores, setFornecedores] = useState<any[]>([]);
+  const [trs, setTrs] = useState<DocumentResponse[]>([]);
+  const [propostas, setPropostas] = useState<DocumentResponse[]>([]);
+  const [moldes, setMoldes] = useState<Molde[]>([]);
+  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
 
   const [trId, setTrId] = useState('');
   const [moldeId, setMoldeId] = useState('');
@@ -57,6 +59,7 @@ export default function ComparacaoPage() {
 
   // Feedback de pendências por e-mail (RF04)
   const [sendingFeedbackId, setSendingFeedbackId] = useState<string | null>(null);
+  const [feedbackEnviadosIds, setFeedbackEnviadosIds] = useState<string[]>([]);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
   const loadAll = useCallback(async () => {
@@ -71,8 +74,8 @@ export default function ComparacaoPage() {
           listFornecedores(),
         ]);
       setComparacoes(cmp.comparacoes);
-      setTrs(trsData.documents.filter((d: any) => d.document_type === 'tr'));
-      setPropostas(propData.documents.filter((d: any) => d.document_type === 'proposta'));
+      setTrs(trsData.documents.filter((d) => d.document_type === 'tr'));
+      setPropostas(propData.documents.filter((d) => d.document_type === 'proposta'));
       setMoldes(moldesData.moldes);
       setFornecedores(fornecedoresData.fornecedores);
     } catch {
@@ -107,8 +110,8 @@ export default function ComparacaoPage() {
       });
       setPropostaIds([]);
       await loadAll();
-    } catch (err: any) {
-      setError(err.message || 'Erro ao iniciar comparação.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao iniciar comparação.'));
     } finally {
       setSubmitting(false);
     }
@@ -133,12 +136,12 @@ export default function ComparacaoPage() {
       setEditandoFornecedorId(null);
       const data = await listFornecedores();
       setFornecedores(data.fornecedores);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao salvar fornecedor.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao salvar fornecedor.'));
     }
   }
 
-  function handleEditarFornecedor(f: any) {
+  function handleEditarFornecedor(f: Fornecedor) {
     setEditandoFornecedorId(f.id);
     setNovoFornecedor(f.nome);
     setNovoFornecedorCnpj(f.cnpj || '');
@@ -158,8 +161,8 @@ export default function ComparacaoPage() {
       }
       const data = await listFornecedores();
       setFornecedores(data.fornecedores);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao excluir fornecedor.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao excluir fornecedor.'));
     }
   }
 
@@ -180,8 +183,9 @@ export default function ComparacaoPage() {
         msg += ` Sem e-mail cadastrado: ${result.fornecedores_sem_email.join(', ')}.`;
       }
       setFeedbackMsg(msg);
-    } catch (err: any) {
-      setError(err.message || 'Erro ao enviar pendências.');
+      setFeedbackEnviadosIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao enviar pendências.'));
     } finally {
       setSendingFeedbackId(null);
     }
@@ -202,9 +206,9 @@ export default function ComparacaoPage() {
       setPropostaFile(null);
       setPropostaFornecedorId('');
       const data = await listDocuments();
-      setPropostas(data.documents.filter((d: any) => d.document_type === 'proposta'));
-    } catch (err: any) {
-      setError(err.message || 'Erro ao enviar proposta.');
+      setPropostas(data.documents.filter((d) => d.document_type === 'proposta'));
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao enviar proposta.'));
     } finally {
       setUploading(false);
     }
@@ -285,6 +289,7 @@ export default function ComparacaoPage() {
           comparacoes={comparacoes}
           loading={loading}
           sendingFeedbackId={sendingFeedbackId}
+          feedbackEnviadosIds={feedbackEnviadosIds}
           onFeedback={handleFeedback}
         />
       </div>

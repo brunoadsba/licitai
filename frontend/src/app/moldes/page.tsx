@@ -8,6 +8,7 @@ import {
   getMolde,
   listMoldes,
   updateMolde,
+  extractErrorMessage,
 } from '@/lib/api';
 import { Molde, MoldeConfig, RegraConfig } from '@/types';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -63,8 +64,8 @@ export default function MoldesPage() {
       setError(null);
       await duplicateMolde(id);
       await loadMoldes();
-    } catch (err: any) {
-      setError(err.message || 'Erro ao duplicar molde.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao duplicar molde.'));
     }
   }
 
@@ -85,8 +86,8 @@ export default function MoldesPage() {
       setDescricao(molde.descricao || '');
       const config = JSON.parse(molde.config_json) as MoldeConfig;
       setRegras(config.regras.map((r) => ({ ...novaRegra(), ...r })));
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar molde.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao carregar molde.'));
     }
   }
 
@@ -97,8 +98,8 @@ export default function MoldesPage() {
       if (editingId === id) {
         startNew();
       }
-    } catch (err: any) {
-      setError(err.message || 'Erro ao remover molde.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao remover molde.'));
     }
   }
 
@@ -149,8 +150,8 @@ export default function MoldesPage() {
       }
       await loadMoldes();
       startNew();
-    } catch (err: any) {
-      setError(err.message || 'Erro ao salvar molde. Verifique o config_json.');
+    } catch (err) {
+      setError(extractErrorMessage(err, 'Erro ao salvar molde. Verifique o config_json.'));
     } finally {
       setSaving(false);
     }
