@@ -23,8 +23,8 @@ from app.schemas.comparison import (
     ComparacaoResponse,
     ComparacaoStartRequest,
     ComparacaoStartResponse,
-    MatrizResponse,
     FeedbackResponse,
+    MatrizResponse,
 )
 from app.services.comparator.feedback import enviar_pendencias_por_email
 from app.services.comparator.matrix import montar_matriz
@@ -65,9 +65,18 @@ async def list_comparacoes(
     )
     comparacoes = result.scalars().all()
 
-    itens = []
-    for c in comparacoes:
-        itens.append(await montar_comparacao_response(c, db))
+    # Uma única query de fornecedores para a página inteira (evita N+1).
+    todos_ids = {
+        r.fornecedor_id
+        for c in comparacoes
+        for r in c.resultados
+    }
+    fornecedores_pagina = await carregar_fornecedores(db, todos_ids)
+
+    itens = [
+        await montar_comparacao_response(c, db, fornecedores_pagina)
+        for c in comparacoes
+    ]
 
     return ComparacaoListResponse(comparacoes=itens, total=total)
 
@@ -84,8 +93,8 @@ async def start_comparacao(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    # Validar TR
-    tr = await db.get(Document, data.tr_document_id)
+    # Lock serializa starts concorrentes do mesmo TR (TOCTOU); no-op no SQLite.
+    tr = await db.get(Document, data.tr_document_id, with_for_update=True)
     if not tr:
         raise HTTPException(status_code=404, detail="TR não encontrado.")
     if tr.document_type != "tr":

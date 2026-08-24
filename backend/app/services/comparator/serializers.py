@@ -52,10 +52,19 @@ def resultados_para_dict(comparacao: Comparacao) -> list[dict]:
 async def montar_comparacao_response(
     comparacao: Comparacao,
     db: AsyncSession,
+    fornecedores_precarregados: dict[uuid.UUID, Fornecedor] | None = None,
 ) -> ComparacaoResponse:
-    """Monta ComparacaoResponse com fornecedores carregados e ordenados."""
-    fornecedor_ids = {r.fornecedor_id for r in comparacao.resultados}
-    fornecedores = await carregar_fornecedores(db, fornecedor_ids)
+    """Monta ComparacaoResponse com fornecedores carregados e ordenados.
+
+    `fornecedores_precarregados` evita N+1 quando vários comparacoes são
+    serializados em lote: passe um único dict com todos os ids da página.
+    """
+    if fornecedores_precarregados is not None:
+        ids = {r.fornecedor_id for r in comparacao.resultados}
+        fornecedores = {i: f for i, f in fornecedores_precarregados.items() if i in ids}
+    else:
+        fornecedor_ids = {r.fornecedor_id for r in comparacao.resultados}
+        fornecedores = await carregar_fornecedores(db, fornecedor_ids)
     return ComparacaoResponse(
         id=comparacao.id,
         tr_document_id=comparacao.tr_document_id,
