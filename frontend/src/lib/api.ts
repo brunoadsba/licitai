@@ -46,38 +46,100 @@ export function extractErrorMessage(err: unknown, fallback = 'Erro inesperado.')
   return fallback;
 }
 
-type FetchAPIOptions = RequestInit & { timeoutMs?: number };
+type FetchAPIOptions = RequestInit & { timeoutMs?: number; skipCache?: boolean };
+
+const CACHE_TTL_MS = 30_000;
+const apiCache = new Map<string, { expiry: number; data: unknown }>();
+const inflightRequests = new Map<string, Promise<unknown>>();
+
+function getCacheKey(endpoint: string, options: FetchAPIOptions): string | null {
+  const method = (options.method || 'GET').toUpperCase();
+  if (method !== 'GET') return null;
+  if (options.skipCache) return null;
+  if (typeof window === 'undefined') return null;
+  return `${method}:${endpoint}`;
+}
+
+function invalidateCache(prefix?: string) {
+  if (typeof window === 'undefined') return;
+  if (!prefix) {
+    apiCache.clear();
+    return;
+  }
+  for (const key of Array.from(apiCache.keys())) {
+    if (key.includes(prefix)) apiCache.delete(key);
+  }
+}
+
+export function clearApiCache() {
+  apiCache.clear();
+  inflightRequests.clear();
+}
 
 async function fetchAPI<T>(endpoint: string, options: FetchAPIOptions = {}): Promise<T> {
   const url = `${API_BASE}/api/v1${endpoint}`;
-  const { timeoutMs = 30_000, ...requestInit } = options;
+  const { timeoutMs = 30_000, skipCache, ...requestInit } = options;
 
-  const response = await fetch(url, {
-    ...requestInit,
-    signal: options.signal ?? AbortSignal.timeout(timeoutMs),
-    headers: {
-      'Accept': 'application/json',
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    let errorMessage = `Erro ${response.status}`;
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.detail || errorMessage;
-    } catch {
-      // Response body não é JSON
+  const cacheKey = getCacheKey(endpoint, options);
+  if (cacheKey) {
+    const cached = apiCache.get(cacheKey);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.data as T;
     }
-    throw new ApiError(errorMessage, response.status);
+    const inflight = inflightRequests.get(cacheKey);
+    if (inflight) {
+      return inflight as Promise<T>;
+    }
   }
 
-  // DELETE retorna 204 sem body
-  if (response.status === 204) {
-    return undefined as T;
+  const doFetch = async (): Promise<T> => {
+    const response = await fetch(url, {
+      ...requestInit,
+      signal: options.signal ?? AbortSignal.timeout(timeoutMs),
+      headers: {
+        'Accept': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Erro ${response.status}`;
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.detail || errorMessage;
+      } catch {
+        // Response body não é JSON
+      }
+      throw new ApiError(errorMessage, response.status);
+    }
+
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    const data = (await response.json()) as T;
+    if (cacheKey) {
+      apiCache.set(cacheKey, { expiry: Date.now() + CACHE_TTL_MS, data });
+    }
+    return data;
+  };
+
+  if (cacheKey) {
+    const promise = doFetch().finally(() => {
+      inflightRequests.delete(cacheKey);
+    });
+    inflightRequests.set(cacheKey, promise as Promise<unknown>);
+    return promise;
   }
 
-  return response.json();
+  const result = await doFetch();
+  const method = (options.method || 'GET').toUpperCase();
+  if (method !== 'GET') {
+    const prefix = endpoint.split('/')[1] || '';
+    if (prefix) invalidateCache(prefix);
+    else invalidateCache();
+  }
+  return result
 }
 
 function jsonBody(data: unknown): BodyInit {
