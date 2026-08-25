@@ -1,43 +1,127 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { Menu, ShieldCheck, ShieldAlert, ShieldQuestion } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useShell } from './ShellContext';
 
 const BREADCRUMB_MAP: Record<string, string> = {
   '/': 'Painel',
   '/upload': 'Enviar Documento',
+  '/gerar-tr': 'Gerar TR',
   '/analysis': 'Análise',
   '/report': 'Relatório',
   '/comparacao': 'Comparações',
+  '/comparacao/versoes': 'Versões de TR',
+  '/comparacao/matriz': 'Matriz de Conformidade',
   '/moldes': 'Moldes de Regras',
+  '/design': 'Design System',
 };
+
+type BackendStatus = 'checking' | 'online' | 'offline';
+
+function useBackendStatus(): BackendStatus {
+  const [status, setStatus] = useState<BackendStatus>('checking');
+
+  useEffect(() => {
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    async function probe() {
+      try {
+        const res = await fetch('/health', { signal: AbortSignal.timeout(5000) });
+        if (!cancelled) setStatus(res.ok ? 'online' : 'offline');
+      } catch {
+        if (!cancelled) setStatus('offline');
+      }
+      if (!cancelled) timer = setTimeout(probe, 30_000);
+    }
+
+    probe();
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  return status;
+}
+
+const STATUS_CONFIG: Record<BackendStatus, { label: string; icon: typeof ShieldCheck; className: string }> = {
+  checking: { label: 'Verificando…', icon: ShieldQuestion, className: 'text-content-subtle' },
+  online: { label: 'Backend ativo', icon: ShieldCheck, className: 'text-green-400' },
+  offline: { label: 'Backend offline', icon: ShieldAlert, className: 'text-red-400' },
+};
+
+function Breadcrumb({ pathname }: { pathname: string }) {
+  const parts = pathname.split('/').filter(Boolean);
+
+  if (parts.length === 0) {
+    return <span className="text-content-muted">SEI</span>;
+  }
+
+  const crumbs = parts.map((part, i) => {
+    const path = '/' + parts.slice(0, i + 1).join('/');
+    const label =
+      BREADCRUMB_MAP[path] ??
+      (/^[\w-]{8,}$/.test(part) ? 'Detalhe' : decodeURIComponent(part));
+    return { path, label, last: i === parts.length - 1 };
+  });
+
+  return (
+    <nav aria-label="Trilha de navegação" className="flex items-center gap-1.5 text-xs text-content-subtle">
+      {crumbs.map((c) => (
+        <span key={c.path} className="flex items-center gap-1.5">
+          {c.last ? (
+            <span className="text-content-muted">{c.label}</span>
+          ) : (
+            <>
+              <span>{c.label}</span>
+              <span aria-hidden>/</span>
+            </>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+}
 
 export default function Header() {
   const pathname = usePathname();
+  const { openSidebar } = useShell();
+  const status = useBackendStatus();
+  const statusConfig = STATUS_CONFIG[status];
+  const StatusIcon = statusConfig.icon;
 
-  // Construir breadcrumb
   const parts = pathname.split('/').filter(Boolean);
-  const title = BREADCRUMB_MAP[pathname] || parts[0] || 'Painel';
+  const title = BREADCRUMB_MAP[pathname] ?? BREADCRUMB_MAP['/' + (parts[0] ?? '')] ?? 'Painel';
 
   return (
-    <header className="sticky top-0 z-40 px-6 lg:px-8 py-4 bg-surface-950/60 backdrop-blur-xl border-b border-white/[0.04]">
-      <div className="flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-            <span>SEI</span>
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
-            <span className="text-gray-400">{title}</span>
+    <header className="sticky top-0 z-30 border-b border-line-subtle bg-panel/80 backdrop-blur-xl">
+      <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-3">
+          <button
+            onClick={openSidebar}
+            aria-label="Abrir menu de navegação"
+            className="rounded-lg p-2 text-content-muted outline-none transition-colors hover:bg-white/[0.06] hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60 lg:hidden"
+          >
+            <Menu className="h-5 w-5" aria-hidden />
+          </button>
+          <div className="min-w-0">
+            <Breadcrumb pathname={pathname} />
+            <h2 className="truncate text-base font-semibold tracking-tight text-content-primary sm:text-lg">
+              {title}
+            </h2>
           </div>
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
         </div>
 
-        {/* Indicador do provedor LLM */}
-        <div className="flex items-center gap-3">
-          <div className="glass-card px-4 py-2 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-primary-400" />
-            <span className="text-xs text-gray-400">IA Ativa</span>
-          </div>
+        <div
+          className="flex shrink-0 items-center gap-2 rounded-lg border border-line-subtle bg-white/[0.03] px-3 py-1.5"
+          title={`Provedor LLM com failover · banco de dados verificado a cada 30s`}
+        >
+          <StatusIcon className={cn('h-3.5 w-3.5', statusConfig.className)} aria-hidden />
+          <span className="text-xs text-content-muted">{statusConfig.label}</span>
         </div>
       </div>
     </header>

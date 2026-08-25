@@ -2,114 +2,119 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
+import { FileUp, GitCompareArrows, LayoutGrid, ScrollText, Sparkles, Layers, X } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useShell } from './ShellContext';
 
 const NAV_ITEMS = [
-  {
-    href: '/',
-    label: 'Painel',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-      </svg>
-    ),
-  },
-  {
-    href: '/upload',
-    label: 'Enviar Documento',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-      </svg>
-    ),
-  },
-  {
-    href: '/gerar-tr',
-    label: 'Gerar TR',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
-      </svg>
-    ),
-  },
-  {
-    href: '/comparacao',
-    label: 'Comparações',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
-      </svg>
-    ),
-  },
-  {
-    href: '/comparacao/versoes',
-    label: 'Versões de TR',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
-      </svg>
-    ),
-  },
-  {
-    href: '/moldes',
-    label: 'Moldes',
-    icon: (
-      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-1.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
-      </svg>
-    ),
-  },
+  { href: '/', label: 'Painel', icon: LayoutGrid },
+  { href: '/upload', label: 'Enviar Documento', icon: FileUp },
+  { href: '/gerar-tr', label: 'Gerar TR', icon: Sparkles },
+  { href: '/comparacao', label: 'Comparações', icon: GitCompareArrows },
+  { href: '/comparacao/versoes', label: 'Versões de TR', icon: ScrollText },
+  { href: '/moldes', label: 'Moldes', icon: Layers },
 ];
 
-export default function Sidebar() {
+function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 bottom-0 w-64 bg-surface-900/80 backdrop-blur-xl border-r border-white/[0.06] flex flex-col z-50">
-      {/* Logo */}
-      <div className="p-6 border-b border-white/[0.06]">
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-500/25 group-hover:shadow-primary-500/40 transition-shadow">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
-            </svg>
-          </div>
-          <div>
-            <h1 className="text-sm font-bold text-white tracking-tight">Análise de TR</h1>
-            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Sistema SEI</p>
-          </div>
-        </Link>
+    <nav className="flex-1 space-y-1 p-4" aria-label="Navegação principal">
+      {NAV_ITEMS.map((item) => {
+        const isActive =
+          item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            onClick={onNavigate}
+            className={cn('sidebar-link', isActive && 'active')}
+            aria-current={isActive ? 'page' : undefined}
+          >
+            <item.icon className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
+function Brand() {
+  return (
+    <Link href="/" className="group flex items-center gap-3">
+      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-600 shadow-rim transition-colors group-hover:bg-accent-500">
+        <ScrollText className="h-5 w-5 text-white" strokeWidth={1.75} aria-hidden />
       </div>
+      <div>
+        <h1 className="text-sm font-semibold tracking-tight text-content-primary">Análise de TR</h1>
+        <p className="text-[10px] uppercase tracking-widest text-content-subtle">Sistema SEI</p>
+      </div>
+    </Link>
+  );
+}
 
-      {/* Navegação */}
-      <nav className="flex-1 p-4 space-y-1">
-        {NAV_ITEMS.map((item) => {
-          const isActive =
-            item.href === '/'
-              ? pathname === '/'
-              : pathname.startsWith(item.href);
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`sidebar-link ${isActive ? 'active' : ''}`}
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </Link>
-          );
-        })}
-      </nav>
+function SidebarFooter() {
+  return (
+    <div className="border-t border-line-subtle p-4">
+      <p className="text-[11px] text-content-subtle">MVP v0.1.0</p>
+    </div>
+  );
+}
 
-      {/* Rodapé */}
-      <div className="p-4 border-t border-white/[0.06]">
-        <div className="glass-card p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse-slow" />
-            <span className="text-xs text-gray-400">Sistema operacional</span>
-          </div>
-          <p className="text-[10px] text-gray-600">MVP v0.1.0</p>
+export default function Sidebar() {
+  const { sidebarOpen, closeSidebar } = useShell();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeSidebar();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = '';
+    };
+  }, [sidebarOpen, closeSidebar]);
+
+  return (
+    <>
+      {/* Desktop: fixa à esquerda */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line-subtle bg-panel lg:flex">
+        <div className="border-b border-line-subtle p-6">
+          <Brand />
         </div>
-      </div>
-    </aside>
+        <NavLinks />
+        <SidebarFooter />
+      </aside>
+
+      {/* Mobile: drawer com overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu de navegação">
+          <button
+            aria-label="Fechar menu"
+            className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
+            onClick={closeSidebar}
+          />
+          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-line-subtle bg-panel shadow-drawer">
+            <div className="flex items-center justify-between border-b border-line-subtle p-4 pr-2">
+              <Brand />
+              <button
+                onClick={closeSidebar}
+                aria-label="Fechar menu"
+                className="rounded-md p-2 text-content-muted outline-none transition-colors hover:bg-white/[0.06] hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
+              >
+                <X className="h-5 w-5" aria-hidden />
+              </button>
+            </div>
+            <NavLinks onNavigate={closeSidebar} />
+            <SidebarFooter />
+          </aside>
+        </div>
+      )}
+    </>
   );
 }
