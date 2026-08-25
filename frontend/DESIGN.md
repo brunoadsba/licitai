@@ -20,32 +20,41 @@
 - **Material base**: superfícies translúcidas com elevação por luminância (0.02 → 0.04 → 0.06 de branco), nunca fundos sólidos claros.
 - **Vidro real** = tint de fundo + `backdrop-blur(12px)` + borda 1px semitransparente + **rim light** (`inset 0 1px 0 rgba(255,255,255,0.06)`) + sheen radial opcional no topo.
 
-## 2. Cor
+## 2. Cor — derivada da identidade CODEBA
+
+Paleta extraída de `Logo CODEBA.png` (25/08/2026, amostragem com Pillow sobre 179×50 RGBA):
+- **Navy CODEBA** `#051853` (5,24,83) / `#00175B` (0,23,91) — forma escura e texto CODEBA
+- **Azul CODEBA** `#0355CF` (3,85,207) — losango intermediário
+- **Teal CODEBA** `#3AA4A4` (58,164,164) / `#36A7A5` — losango claro
+- **Cinza Autoridade** `#606163` (96,97,99) — texto "AUTORIDADE PORTUÁRIA"
 
 ### Tokens semânticos (CSS vars em `:root`, mapeados no tailwind.config)
 
 | Token | Valor | Uso |
 |---|---|---|
-| `--canvas` | `#0B0E13` | Fundo da página (carvão azulado profundo) |
-| `--panel` | `#11151C` | Sidebar, header, superfícies fixas |
-| `--surface` | `#171C25` | Cards, dropdowns, modais |
-| `--surface-hover` | `#1D232E` | Hover de cards/list items |
-| `--border-subtle` | `rgba(255,255,255,0.06)` | Borda padrão |
-| `--border-strong` | `rgba(255,255,255,0.10)` | Inputs, divisores destacados |
+| `--canvas` | `#080E1E` | Fundo da página (navy profundo CODEBA — era `#0B0E13`, agora tingido com `#051853` a ~8%) |
+| `--panel` | `#0F1F3A` | Sidebar, header, superfícies fixas (era `#11151C`) |
+| `--surface` | `#152A4D` | Cards, dropdowns, modais (era `#171C25`, ecoa o losango escuro do logo) |
+| `--surface-hover` | `#1C355E` | Hover de cards/list items (era `#1D232E`) |
+| `--border-subtle` | `rgba(255,255,255,0.07)` | Borda padrão (0.06 → 0.07 para legibilidade sobre navy) |
+| `--border-strong` | `rgba(255,255,255,0.11)` | Inputs, divisores destacados |
 | `--text-primary` | `#F2F5F7` | Texto principal (nunca `#FFF`) |
 | `--text-secondary` | `#C3CBD4` | Corpo de texto |
 | `--text-muted` | `#8A93A0` | Metadados, placeholders |
 | `--text-subtle` | `#5C6570` | Desabilitado, timestamps |
+| `--codeba-navy` | `#051853` | Uso pontual: selo/borda de destaque CODEBA |
+| `--codeba-teal` | `#3AA4A4` | Referência de origem do accent (ver rampa abaixo) |
 
-### Accent único — teal-petróleo (substitui indigo AI-gradient)
+### Accent único — teal CODEBA (substitui indigo AI-gradient)
 
-Rampa `accent` (HSL ~172°, sat ≤65%): `50 #ECFCF9 · 100 #D0F7F0 · 200 #A3EEE3 · 300 #71DFCF · 400 #43C9B9 · **500 #2AAFA0** · 600 #1F8E83 · 700 #1B7268 · 800 #185B54 · 900 #14453F`
+Rampa `accent` ancorada no **Teal CODEBA #3AA4A4** (HSL ~172°, sat ≤65%): `50 #ECFCF9 · 100 #D0F7F0 · 200 #A3EEE3 · 300 #71DFCF · 400 #43C9B9 · **500 #2AAFA0** · 600 #1F8E83 · 700 #1B7268 · 800 #185B54 · 900 #14453F` — 500 calibrado a 5° de `#3AA4A4` para contraste AA 5.8:1 sobre `--panel`.
 
 Regras:
 - `accent-500` = interação primária (links, botões preenchidos, item ativo, foco)
 - `accent-600` = hover de superfícies preenchidas
 - **Nunca decorativo** — só comunica interatividade ou estado ativo
 - Proibidos: gradientes multi-cor em texto/botões (`text-gradient` removido), glow difuso, segunda cor de marca
+- **CODEBA navy** (`#051853`) nunca como fill de botão — reservado a selo/borda/superfície de marca; o teal é o único acento cromático interativo.
 
 ### Semânticos de risco (mantidos, mesma família)
 

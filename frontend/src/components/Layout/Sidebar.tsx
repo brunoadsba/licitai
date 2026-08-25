@@ -44,14 +44,20 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 function Brand() {
   return (
-    <Link href="/" className="group flex items-center gap-3">
-      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-600 shadow-rim transition-colors group-hover:bg-accent-500">
-        <ScrollText className="h-5 w-5 text-white" strokeWidth={1.75} aria-hidden />
+    <Link href="/" className="group block" aria-label="CODEBA — Autoridade Portuária, ir para o Painel">
+      <div className="flex items-center justify-center rounded-xl bg-white px-3 py-2.5 shadow-sm transition-shadow group-hover:shadow-md">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-codeba.png"
+          alt="CODEBA — Autoridade Portuária"
+          width={140}
+          height={32}
+          className="h-8 w-auto object-contain"
+        />
       </div>
-      <div>
-        <h1 className="text-sm font-semibold tracking-tight text-content-primary">Análise de TR</h1>
-        <p className="text-[10px] uppercase tracking-widest text-content-subtle">Sistema SEI</p>
-      </div>
+      <p className="mt-2.5 text-center text-[10px] font-medium uppercase tracking-widest text-content-subtle">
+        Análise de TR • SEI
+      </p>
     </Link>
   );
 }
@@ -59,7 +65,7 @@ function Brand() {
 function SidebarFooter() {
   return (
     <div className="border-t border-line-subtle p-4">
-      <p className="text-[11px] text-content-subtle">MVP v0.1.0</p>
+      <p className="text-[11px] text-content-subtle">MVP v0.1.0 • SEI</p>
     </div>
   );
 }

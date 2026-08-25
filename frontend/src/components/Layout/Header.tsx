@@ -108,6 +108,15 @@ export default function Header() {
           >
             <Menu className="h-5 w-5" aria-hidden />
           </button>
+          {/* Logo CODEBA visível no mobile (sidebar oculta) */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo-codeba.png"
+            alt="CODEBA"
+            width={90}
+            height={24}
+            className="h-6 w-auto rounded bg-white px-1.5 py-0.5 object-contain lg:hidden"
+          />
           <div className="min-w-0">
             <Breadcrumb pathname={pathname} />
             <h2 className="truncate text-base font-semibold tracking-tight text-content-primary sm:text-lg">

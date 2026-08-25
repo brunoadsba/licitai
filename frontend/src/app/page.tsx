@@ -94,12 +94,14 @@ export default function DashboardPage() {
             Gerencie e analise seus Termos de Referência
           </p>
         </div>
-        <Link href="/upload">
-          <Button>
-            <FileUp className="h-4 w-4" aria-hidden />
-            Enviar Documento
-          </Button>
-        </Link>
+        {!(documents.length === 0 && !loading && !error) && (
+          <Link href="/upload">
+            <Button>
+              <FileUp className="h-4 w-4" aria-hidden />
+              Enviar Documento
+            </Button>
+          </Link>
+        )}
       </div>
 
       {/* Estatísticas rápidas */}

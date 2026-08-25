@@ -10,16 +10,18 @@
 
 @layer base {
   :root {
-    --canvas: #0b0e13;
-    --panel: #11151c;
-    --surface: #171c25;
-    --surface-hover: #1d232e;
-    --border-subtle: rgba(255, 255, 255, 0.06);
-    --border-strong: rgba(255, 255, 255, 0.1);
+    --canvas: #080e1e;
+    --panel: #0f1f3a;
+    --surface: #152a4d;
+    --surface-hover: #1c355e;
+    --border-subtle: rgba(255, 255, 255, 0.07);
+    --border-strong: rgba(255, 255, 255, 0.11);
     --text-primary: #f2f5f7;
     --text-secondary: #c3cbd4;
     --text-muted: #8a93a0;
     --text-subtle: #5c6570;
+    --codeba-navy: #051853;
+    --codeba-teal: #3aa4a4;
   }
 
   html {

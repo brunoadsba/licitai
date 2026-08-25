@@ -8,14 +8,21 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // ── Tokens semânticos (ver frontend/DESIGN.md §2) ──────────────
+        // ── Tokens semânticos (ver frontend/DESIGN.md §2 — paleta CODEBA) ─
         canvas: 'var(--canvas)',
         panel: 'var(--panel)',
         elevated: {
           DEFAULT: 'var(--surface)',
           hover: 'var(--surface-hover)',
         },
-        // Acento único teal-petróleo — única cor cromática do sistema
+        // CODEBA — identidade portuária (navy #051853, azul #0355CF, teal #3AA4A4)
+        codeba: {
+          navy: '#051853',
+          blue: '#0355CF',
+          teal: '#3AA4A4',
+          gray: '#606163',
+        },
+        // Acento único teal CODEBA — única cor cromática interativa
         accent: {
           50: '#ECFCF9',
           100: '#D0F7F0',
