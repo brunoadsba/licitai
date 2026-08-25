@@ -103,6 +103,14 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **Testes**: **+8 novos** em `tests/test_llm_resilience.py` (retry transitório, timeout sem retry, circuit breaker 429, quota total → RuntimeError, singleton/reset, detecção rate-limit, regressão score-zero). Suíte: **167 unitários passando**; `tsc --noEmit` limpo.
   - **Validação E2E pós-auditoria (24/08/2026)**: backend local sem chaves API (`RATE_LIMIT_MAX=6000`), rodados os **11 testes E2E não-LLM** — **11/11 verdes em 3 execuções consecutivas**. A 1ª execução expôs uma **corrida latente no upload**: resposta 201 saía antes do commit pós-resposta do `get_db`, e um DELETE imediato do cliente dava 404 (mesma classe do bug "Background Task não commitava", seção 7; o timing do `to_thread` do parsing expôs a janela). **Corrigido** com commit explícito no fim de `upload_document` (mesmo padrão já usado por `start_analysis` e `delete_document`). Os 6 testes com `analyzed_document` seguem pendentes de chaves LLM/cota.
   - **Pendências da auditoria deliberadamente NÃO feitas** (migração/decisão de produto): Alembic (substituir create_all+migrações manuais), pgvector/tsvector no Postgres (ILIKE sem índice/ranking; embeddings em TEXT JSON com cosseno em Python), autenticação/RBAC.
+- **Modernização UX/UI do frontend (25/08/2026, EM ANDAMENTO — branch `feat/ux-modernization`)**:
+  - **Plano aprovado pelo usuário** (`.omo/plans/frontend-ux-modernization.md`): dark premium refinado (nível Linear/Supabase), responsivo completo, stack moderna. Auditoria prévia identificou P0s: zero mobile (sidebar fixa 256px), status fake "IA Ativa"/"Sistema operacional" hardcoded, sem toasts, Inter via `@import`, ~30 emojis como ícones + SVGs Heroicons inline duplicados, estética AI-gradient (indigo #6366f1 + glow), botões sem `focus-visible`, breadcrumb quebrado em `/gerar-tr` e `/comparacao/versoes`, sem error boundary.
+  - **Fase 0 (concluída)**: `frontend/DESIGN.md` (contrato: tokens semânticos em CSS vars — canvas #0B0E13/panel #11151C/surface #171C25, texto #F2F5F7/#C3CBD4/#8A93A0, **accent único teal-petróleo #2AAFA0 substituindo o indigo**, risco mantido); fonte **Geist Sans/Mono** via pacote `geist` + `next/font` (removido @import); `tailwind.config.js` com tokens semânticos (`accent`, `canvas`, `panel`, `elevated`, `content.*`, `line.*`) **mantendo aliases legados** `primary`/`surface` (agora apontando para o teal) até migração total; deps novas: @radix-ui/*, lucide-react, sonner, framer-motion, clsx, tailwind-merge.
+  - **Fase 1 (concluída)**: biblioteca de primitivos `src/components/ui/` — Button (variants/sizes/loading/focus-visible), Input, Textarea, Card, Badge (11 tons), Skeleton, EmptyState, Spinner, Dialog/DropdownMenu/Tooltip/Tabs/Select (Radix), Toaster (sonner montado no layout), ConfirmDialog **migrado para Radix com assinatura pública preservada**; showcase dev-only em `/design` (gate de QA visual 375/768/1280 aprovado).
+  - **Fase 2 (concluída)**: shell responsivo — Sidebar com **drawer mobile** (<1024px, hamburger no Header, fecha em navegação/Escape/overlay, `ShellContext`), desktop fixa; Header honesto com **status real do backend** (polling `/health` 30s → badge "Backend ativo/offline"; rewrite `/health` adicionado ao `next.config.js`) e breadcrumb completo; card fake "Sistema operacional" removido; `error.tsx`/`not-found.tsx` estilizados; skip-to-content; `100dvh`; container `max-w-[1440px]`.
+  - **Fase 3a–3d (concluídas)**: Dashboard (stats tabular-nums, EmptyState, toasts sonner), Analysis (grid empilhável `lg:grid-cols-12`, botões Button com loading, Lucide), AnalysisProgress (emojis → ícones Lucide Bot/Scale/Wrench/PenLine/Ruler, aria-progressbar), ItemList/ItemDetail/CorrectionCard (tokens, foco visível, `lib/badges.tsx` com `AGENT_ORIGIN_CONFIG` usando LucideIcon), ChatPanel/ChatInput (altura responsiva `h-[480px] lg:calc`, Button/textarea com tokens), Report (gauges mantidos, parecer com borda accent em vez de glow, tnum), Upload (Radix Select para tipo/fornecedor, DropZone com Lucide, toasts). `tsc --noEmit` limpo após cada fase; commits por fase.
+  - **Pendências da modernização**: **Fase 3e** — migrar `comparacao/page.tsx`, `comparacao/[id]` (matriz), `comparacao/versoes`, `moldes/page.tsx`, `gerar-tr/page.tsx` e componentes (`components/{comparacao,moldes,gerar-tr}/*`, `RevisionsTimelineModal`, `chat/{ChatMessage,CitationList}` ainda têm emojis/SVGs inline); **Fase 4** — motion com framer-motion (stagger/spring), remover aliases legados se grep provar zero uso, `next build` + Lighthouse ≥95 + QA visual final 9 telas × 3 breakpoints; atualizar este memory ao concluir.
+  - **Nota de ambiente (25/08)**: delegação via subagentes `task()` **indisponível** (billing do workspace opencode — "No payment method"); execução feita diretamente pelo orquestrador com gates por fase (tsc/build/QA visual via Chrome DevTools MCP).
 
 ---
 
@@ -199,19 +207,27 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `logging_config.py`: Logging estruturado JSON (`JsonFormatter` + `setup_logging`) — sem dados sensíveis.
 
 ### Frontend (`/frontend`)
-- `next.config.js`: Proxy rewrites dinâmicos apontando para `BACKEND_URL` (`http://127.0.0.1:8000`).
-- `package.json`: Next.js 14, React 18, Tailwind CSS v3.
+- `DESIGN.md`: **Contrato de design (fonte da verdade visual, 25/08)** — tokens semânticos (canvas/panel/surface, accent teal `#2AAFA0`, content.*, line.*), tipografia Geist, motion, estados, acessibilidade, dívida aceita.
+- `next.config.js`: Proxy rewrites dinâmicos apontando para `BACKEND_URL` (`http://127.0.0.1:8000`) + rewrite `/health` para o badge de status real do Header.
+- `package.json`: Next.js 14, React 18, Tailwind CSS v3 + **stack UI moderna (25/08)**: @radix-ui/*, lucide-react, sonner, framer-motion, geist, clsx, tailwind-merge.
+- `tailwind.config.js`: cores semânticas novas (`accent`, `canvas`, `panel`, `elevated`, `content.*`, `line.*`) **com aliases legados** `primary`/`surface` (agora mapeados ao teal) até o fim da migração das páginas.
 - `src/types/index.ts`: Mapeamento TypeScript dos schemas da API, tipos de âncora (`AnchorTipo`, `RegraConfig`, `MoldeConfig`) e rótulos amigáveis em PT-BR.
+- `src/lib/utils.ts`: `cn()` (clsx + tailwind-merge).
 - `src/lib/api.ts`: Cliente HTTP para chamadas assíncronas ao backend (inclui `getMolde`, `updateMolde`, `deleteMolde`, `updateFornecedor`, `deleteFornecedor`, `enviarFeedback`).
-- `src/lib/badges.tsx`: Badges compartilhados de categoria/severidade/agente (`AGENT_ORIGIN_CONFIG`, `getCategoryBadge`, `getSeverityBadge`) — extraídos das páginas analysis/report em 13/08.
-- `src/lib/useCopy.ts`: Hook `useCopy()` com estado `copiedKey` compartilhado para feedback de cópia (2s) — extraído das páginas em 13/08.
-- `src/components/` (extração de páginas grandes, 13/08 — páginas < ~280 LOC):
-  - `moldes/`: `DryRunModal.tsx`, `RegraEditor.tsx`, `MoldeForm.tsx`, `MoldeList.tsx`.
+- `src/lib/badges.tsx`: Badges de categoria/severidade/agente (`AGENT_ORIGIN_CONFIG` com **ícones Lucide** desde 25/08, `getCategoryBadge`, `getSeverityBadge`).
+- `src/lib/useCopy.ts`: Hook `useCopy()` com estado `copiedKey` compartilhado para feedback de cópia (2s).
+- `src/components/ui/` (**primitivos do design system, 25/08**): `Button` (primary/secondary/ghost/danger × sm/md/lg × loading, focus-visible), `Input`, `Textarea`, `Card`, `Badge` (11 tons), `Skeleton`, `EmptyState`, `Spinner`, `Dialog`/`DropdownMenu`/`Tooltip`/`Tabs`/`Select` (Radix), `Toaster` (sonner, montado no layout), `ConfirmDialog` (Radix, assinatura legada preservada).
+- `src/components/Layout/`: `Sidebar.tsx` (**responsiva: fixa lg+ / drawer mobile via `ShellContext`**, nav Lucide, card fake de status removido), `Header.tsx` (**honesto: polling `/health` 30s → badge Backend ativo/offline, breadcrumb completo, hamburger mobile**), `ShellContext.tsx`.
+- Rota dev-only `/design`: showcase dos primitivos (gate de QA visual do design system).
+- `src/components/` (extração de páginas grandes, 13/08 — páginas < ~280 LOC; **analysis/, report/, upload/ e chat/ migrados para primitivos+Lucide em 25/08**):
+  - `moldes/`: `DryRunModal.tsx`, `RegraEditor.tsx`, `MoldeForm.tsx`, `MoldeList.tsx` (pendente migrar 25/08).
   - `analysis/`: `CorrectionCard.tsx`, `ItemList.tsx`, `ItemDetail.tsx` (prop `showCorrections`), `AnalysisProgress.tsx`.
   - `report/`: `ScoreGauge.tsx`, `CorrectionAccordion.tsx`.
-  - `comparacao/`: `NovaComparacaoForm.tsx`, `FornecedorPanel.tsx`, `ComparacaoList.tsx`.
+  - `comparacao/`: `NovaComparacaoForm.tsx`, `FornecedorPanel.tsx`, `ComparacaoList.tsx` (pendente migrar).
   - `upload/`: `DropZone.tsx` (drag-and-drop com estado interno).
-  - `gerar-tr/`: `PassoDados.tsx`, `PassoRequisitos.tsx`, `ResultadoTR.tsx`.
+  - `gerar-tr/`: `PassoDados.tsx`, `PassoRequisitos.tsx`, `ResultadoTR.tsx` (pendente migrar).
+  - `chat/`: `ChatPanel.tsx`, `ChatMessage.tsx`, `ChatInput.tsx`, `CitationList.tsx` (Panel/Input migrados; Message/CitationList pendentes).
+  - `RevisionsTimelineModal.tsx` (pendente migrar — emojis/SVGs inline).
 - `src/app/`:
   - `globals.css`: Estilos globais, glassmorphism e estilização de diffs DE/PARA.
   - `layout.tsx`: Layout raiz com `Sidebar` e `Header`.
@@ -262,6 +278,7 @@ A IA atua estritamente sob as seguintes diretrizes:
   - **Python 3.12 do sistema reparado** (mix noble/deadsnakes alinhado ao noble 3.12.3, PPA jammy desabilitado, `python3-pglast` instalado) — ver seção 7.
 - **Copiloto LicitAI (chat consultivo) implementado (06/08/2026)**: módulo backend isolado + API `/api/v1/chat` + frontend integrado na tela de análise; **26 novos testes** (11 validator + 16 API incl. guards) + **4 testes de schema** (`test_init_sql.py` chat contract). Smoke test real validado com `chat_force_fake_provider=True` (health, conversa, mensagem com fonte, feedback, 404/400).
 - **Backend FastAPI**: modo nativo Windows (SQLite), provedor ativo **gemini** (`gemini-2.0-flash`), failover Groq. Chaves reais no `.env` da raiz — `config.py` lê `.env` relativo ao CWD (rodar de `backend\` não vê o `.env` da raiz).
+- **Modernização UX/UI em andamento na branch `feat/ux-modernization` (25/08)**: Fases 0–2 e 3a–3d concluídas com `tsc` limpo e QA visual aprovado (commits `b3abbe5`, `19a1c1a`, `801bae0`); faltam Fase 3e (comparacao/moldes/gerar-tr/versões + modais restantes) e Fase 4 (motion, limpeza de aliases legados, build+Lighthouse+QA final). Branch ainda **não mergeada** em `main`.
 - **Frontend Next.js Rodando Ativamente**: `http://localhost:3000`.
 - **Banco de Dados Nativo**: `licitacao.db` (raiz) com corpus jurídico completo reingerido.
 - **Benchmark (05/08/2026)**: recall médio **0,81**, precisão média **0,86**, F1 médio **0,83** (baseline 03/08: 0,68/0,89/0,77) — sem regressão.
@@ -382,6 +399,11 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 > 3 (RF04 feedback/e-mail), 4 (RAG v1.0), 5 (polimentos), 7 (versionamento) e
 > 8 (gerador/extensão) concluídas. PRD executável v2.0 (correções A–D + validação E)
 > concluído em **05/08/2026**. **Copiloto LicitAI (PRD v1.1) implementado em 06/08/2026.**
+
+- **Modernização UX/UI (branch `feat/ux-modernization`, 25/08)** — próximo agente deve:
+  1. Concluir **Fase 3e**: migrar `comparacao/page.tsx`, `comparacao/[id]/page.tsx`, `comparacao/versoes/page.tsx`, `moldes/page.tsx`, `gerar-tr/page.tsx` + componentes `components/{comparacao,moldes,gerar-tr}/*`, `RevisionsTimelineModal.tsx`, `chat/{ChatMessage,CitationList}.tsx` — trocar emojis/SVGs inline por Lucide, estados por primitivos `ui/`, grids empilháveis, toasts em ações. Seguir `frontend/DESIGN.md` como contrato.
+  2. Executar **Fase 4**: motion framer-motion (stagger ≤40ms, springs em drawers/dialogs), remover aliases legados `primary`/`surface` do tailwind.config somente com grep provando zero uso, `next build` exit 0, Lighthouse ≥95 (mobile) nas rotas Dashboard+Analysis, QA visual 375/768/1280 das 9 telas + `/design`.
+  3. Atualizar este `memory.md` e o `PLANO.md` ao concluir; merge em `main` após aprovação do usuário.
 
 - **Copiloto LicitAI — evoluções futuras (06/08/2026)**:
   - Rodar chat com **LLM real** (remover `chat_force_fake_provider`) para validar o prompt/validator com Gemini/Groq quando a cota diária permitir.

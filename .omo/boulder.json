@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "active_work_id": "ux-modernization-2026-08-25",
+  "works": {
+    "ux-modernization-2026-08-25": {
+      "work_id": "ux-modernization-2026-08-25",
+      "active_plan": ".omo/plans/frontend-ux-modernization.md",
+      "plan_name": "frontend-ux-modernization",
+      "session_ids": ["opencode:current"],
+      "status": "active",
+      "worktree_path": null,
+      "branch": "feat/ux-modernization",
+      "note": "Execucao direta no repo em branch dedicada (sem PR solicitado). Delegacao via subagentes indisponivel neste ambiente (billing) - orchestrator executa com gates de verificacao por fase."
+    }
+  }
+}

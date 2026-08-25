@@ -54,3 +54,6 @@ tr_modelo.pdf
 scratch/
 
 .omo/run-continuation/
+
+# QA artifacts (screenshots de verificação visual)
+.opomo-qa/
