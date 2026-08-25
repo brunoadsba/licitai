@@ -15,7 +15,7 @@ function DialogOverlay({ className, ...props }: React.ComponentPropsWithoutRef<t
     <DialogPrimitive.Overlay
       className={cn(
         'fixed inset-0 z-50 bg-black/70 backdrop-blur-[4px]',
-        'data-[state=open]:animate-in data-[state=closed]:animate-out',
+        'data-[state=open]:animate-overlayIn',
         className,
       )}
       {...props}
@@ -36,6 +36,7 @@ function DialogContent({ className, children, hideClose = false, ...props }: Dia
           'fixed left-1/2 top-1/2 z-50 w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2',
           'rounded-xl border border-line-subtle bg-elevated p-6 shadow-dialog outline-none',
           'max-h-[85dvh] overflow-y-auto',
+          'data-[state=open]:animate-contentIn',
           className,
         )}
         {...props}

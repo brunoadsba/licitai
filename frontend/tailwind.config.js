@@ -45,30 +45,6 @@ module.exports = {
           high: '#f97316',
           critical: '#ef4444',
         },
-
-        // ── Aliases LEGADOS (remover após Fase 3 migrar todas as páginas) ──
-        primary: {
-          50: '#ECFCF9',
-          100: '#D0F7F0',
-          200: '#A3EEE3',
-          300: '#71DFCF',
-          400: '#43C9B9',
-          500: '#2AAFA0',
-          600: '#1F8E83',
-          700: '#1B7268',
-          800: '#185B54',
-          900: '#14453F',
-          950: '#0A2E2A',
-        },
-        surface: {
-          50: '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          700: '#1D232E',
-          800: '#171C25',
-          900: '#11151C',
-          950: '#0B0E13',
-        },
       },
       fontFamily: {
         sans: ['var(--font-geist-sans)', 'system-ui', '-apple-system', 'sans-serif'],
@@ -83,6 +59,16 @@ module.exports = {
         dialog:
           '0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
         drawer: '8px 0 40px rgba(0,0,0,0.4)',
+      },
+      animation: {
+        'fade-in': 'fadeIn 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
+        'slide-up': 'slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1)',
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'gauge-fill': 'gaugeFill 1.5s ease-out forwards',
+        shimmer: 'shimmer 2s linear infinite',
+        overlayIn: 'overlayIn 150ms ease-out',
+        contentIn: 'contentIn 200ms cubic-bezier(0.32, 0.72, 0, 1)',
+        menuIn: 'menuIn 150ms cubic-bezier(0.32, 0.72, 0, 1)',
       },
       keyframes: {
         fadeIn: {
@@ -101,13 +87,18 @@ module.exports = {
           '0%': { backgroundPosition: '200% 0' },
           '100%': { backgroundPosition: '-200% 0' },
         },
-      },
-      animation: {
-        'fade-in': 'fadeIn 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
-        'slide-up': 'slideUp 0.35s cubic-bezier(0.32, 0.72, 0, 1)',
-        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-        'gauge-fill': 'gaugeFill 1.5s ease-out forwards',
-        shimmer: 'shimmer 2s linear infinite',
+        overlayIn: {
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
+        },
+        contentIn: {
+          '0%': { opacity: '0', transform: 'translate(-50%, -48%) scale(0.97)' },
+          '100%': { opacity: '1', transform: 'translate(-50%, -50%) scale(1)' },
+        },
+        menuIn: {
+          '0%': { opacity: '0', transform: 'scale(0.97)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
       },
     },
   },

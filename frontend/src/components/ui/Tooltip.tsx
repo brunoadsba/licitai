@@ -20,7 +20,7 @@ function TooltipContent({
         className={cn(
           'z-50 max-w-xs rounded-lg border border-line-subtle bg-elevated px-3 py-1.5',
           'text-xs leading-relaxed text-content-primary shadow-dialog',
-          'data-[state=delayed-open]:animate-in',
+          'data-[state=delayed-open]:animate-menuIn',
           className,
         )}
         {...props}

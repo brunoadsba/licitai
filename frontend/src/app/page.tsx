@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { FileText, FileUp, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion, MotionConfig } from 'framer-motion';
 import { listDocuments, deleteDocument } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
@@ -147,13 +148,22 @@ export default function DashboardPage() {
             />
           </div>
         ) : (
-          <ul className="space-y-3">
-            {documents.map((doc, idx) => (
-              <li
-                key={doc.id}
-                className="glass-card-interactive animate-slide-up p-5"
-                style={{ animationDelay: `${Math.min(idx, 8) * 40}ms` }}
-              >
+          <MotionConfig reducedMotion="user">
+            <motion.ul
+              className="space-y-3"
+              initial="hidden"
+              animate="show"
+              variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}
+            >
+              {documents.map((doc) => (
+                <motion.li
+                  key={doc.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 8 },
+                    show: { opacity: 1, y: 0 },
+                  }}
+                  className="glass-card-interactive p-5"
+                >
                 <div className="flex flex-wrap items-center justify-between gap-4 sm:flex-nowrap">
                   <div className="flex min-w-0 flex-1 items-center gap-4">
                     {/* Ícone do tipo */}
@@ -170,9 +180,9 @@ export default function DashboardPage() {
 
                     {/* Info */}
                     <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-sm font-medium text-content-primary">
+                      <p className="truncate text-sm font-medium text-content-primary">
                         {doc.filename_original}
-                      </h3>
+                      </p>
                       <div className="tnum mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-content-subtle">
                         <span>{formatFileSize(doc.file_size_bytes)}</span>
                         <span aria-hidden>·</span>
@@ -212,9 +222,10 @@ export default function DashboardPage() {
                     </button>
                   </div>
                 </div>
-              </li>
-            ))}
-          </ul>
+                </motion.li>
+              ))}
+            </motion.ul>
+          </MotionConfig>
         )}
       </div>
 

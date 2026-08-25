@@ -79,7 +79,7 @@ Todos os primitivos expõem: default · hover · active(`scale-[0.98]`) · focus
 
 | Primitivo | Base | Variantes |
 |---|---|---|
-| `Button` | 36px h (sm 32/md 40/lg 44) | primary(accent-600 sólido) · secondary(branco 4%+borda) · ghost · danger(red-600/15+borda red-500/40) |
+| `Button` | 36px h (sm 32/md 40/lg 44) | primary(accent-700 sólido, hover accent-800 — contraste AA 5.8:1) · secondary(branco 4%+borda) · ghost · danger(red-600/15+borda red-500/40) |
 | `Input`/`Textarea` | bg branco 3%, borda subtle, focus ring accent | erro: borda red-500/50 + mensagem abaixo |
 | `Card` | surface translúcido + border-subtle + rim light | `interactive`: hover luminância +1 passo |
 | `Badge` | pill, 11px weight 500 | risk-* · category-* · neutral |

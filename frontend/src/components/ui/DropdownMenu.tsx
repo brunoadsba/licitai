@@ -18,7 +18,7 @@ function DropdownMenuContent({
         sideOffset={sideOffset}
         className={cn(
           'z-50 min-w-[10rem] overflow-hidden rounded-lg border border-line-subtle bg-elevated p-1 shadow-dialog',
-          'data-[state=open]:animate-in data-[state=closed]:animate-out',
+          'data-[state=open]:animate-menuIn',
           className,
         )}
         {...props}

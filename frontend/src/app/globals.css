@@ -89,10 +89,10 @@
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5
            text-sm font-medium text-white transition-all duration-150 ease-out
            outline-none;
-    background-color: theme('colors.accent.600');
+    background-color: theme('colors.accent.700');
   }
   .btn-primary:hover:not(:disabled) {
-    background-color: theme('colors.accent.500');
+    background-color: theme('colors.accent.800');
   }
   .btn-primary:active:not(:disabled) {
     transform: scale(0.98);
@@ -199,10 +199,6 @@
   /* Números alinhados (notas, tamanhos, datas) — DESIGN.md §3 */
   .tnum {
     font-variant-numeric: tabular-nums;
-  }
-
-  .glow {
-    box-shadow: 0 0 50px -12px rgba(42, 175, 160, 0.35);
   }
 
   /* Skip-to-content: visível só ao focar via teclado */

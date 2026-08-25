@@ -108,10 +108,10 @@ export default function RevisionsTimelineModal({
 
         {/* Criar Novo Snapshot */}
         <div className="space-y-3 rounded-xl border border-line-strong bg-canvas/60 p-4">
-          <h4 className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-widest text-content-subtle">
+          <h3 className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-widest text-content-subtle">
             <Plus className="h-3.5 w-3.5" aria-hidden />
             Salvar novo snapshot do estado atual
-          </h4>
+          </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input
               value={rotulo}
@@ -135,9 +135,9 @@ export default function RevisionsTimelineModal({
 
         {/* Linha do Tempo de Versões */}
         <div className="space-y-3">
-          <h4 className="text-[11px] font-medium uppercase tracking-widest text-content-subtle">
+          <h3 className="text-[11px] font-medium uppercase tracking-widest text-content-subtle">
             Linha do tempo de versões salvas
-          </h4>
+          </h3>
 
           {loading ? (
             <Skeleton className="h-20" />

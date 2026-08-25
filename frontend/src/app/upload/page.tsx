@@ -226,7 +226,7 @@ export default function UploadPage() {
 
       {/* Instruções */}
       <div className="glass-card p-6">
-        <h3 className="mb-4 text-sm font-semibold text-content-primary">Como funciona</h3>
+        <h2 className="mb-4 text-sm font-semibold text-content-primary">Como funciona</h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {[
             { step: '1', title: 'Envie', desc: 'Faça upload do Termo de Referência em PDF ou DOCX.' },

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import { FileUp, GitCompareArrows, LayoutGrid, ScrollText, Sparkles, Layers, X } from 'lucide-react';
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useShell } from './ShellContext';
 
@@ -92,29 +93,48 @@ export default function Sidebar() {
       </aside>
 
       {/* Mobile: drawer com overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true" aria-label="Menu de navegação">
-          <button
-            aria-label="Fechar menu"
-            className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
-            onClick={closeSidebar}
-          />
-          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-line-subtle bg-panel shadow-drawer">
-            <div className="flex items-center justify-between border-b border-line-subtle p-4 pr-2">
-              <Brand />
-              <button
-                onClick={closeSidebar}
+      <MotionConfig reducedMotion="user">
+        <AnimatePresence>
+          {sidebarOpen && (
+            <div
+              className="fixed inset-0 z-50 lg:hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu de navegação"
+            >
+              <motion.button
                 aria-label="Fechar menu"
-                className="rounded-md p-2 text-content-muted outline-none transition-colors hover:bg-white/[0.06] hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
+                className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
+                onClick={closeSidebar}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              />
+              <motion.aside
+                className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-line-subtle bg-panel shadow-drawer"
+                initial={{ x: '-100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '-100%' }}
+                transition={{ type: 'spring', stiffness: 400, damping: 40 }}
               >
-                <X className="h-5 w-5" aria-hidden />
-              </button>
+                <div className="flex items-center justify-between border-b border-line-subtle p-4 pr-2">
+                  <Brand />
+                  <button
+                    onClick={closeSidebar}
+                    aria-label="Fechar menu"
+                    className="rounded-md p-2 text-content-muted outline-none transition-colors hover:bg-white/[0.06] hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
+                  >
+                    <X className="h-5 w-5" aria-hidden />
+                  </button>
+                </div>
+                <NavLinks onNavigate={closeSidebar} />
+                <SidebarFooter />
+              </motion.aside>
             </div>
-            <NavLinks onNavigate={closeSidebar} />
-            <SidebarFooter />
-          </aside>
-        </div>
-      )}
+          )}
+        </AnimatePresence>
+      </MotionConfig>
     </>
   );
 }

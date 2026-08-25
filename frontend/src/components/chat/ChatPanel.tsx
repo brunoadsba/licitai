@@ -63,9 +63,9 @@ export default function ChatPanel({
           <MessageCircle className="h-4 w-4 text-accent-400" aria-hidden />
         </div>
         <div>
-          <h3 className="flex items-center gap-2 text-sm font-semibold text-content-primary">
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-content-primary">
             Copiloto LicitAI
-          </h3>
+          </h2>
           <p className="text-[11px] text-content-subtle">Assistente consultivo com citação de fontes</p>
         </div>
         <span className="badge badge-info ml-auto text-[9px]">beta</span>

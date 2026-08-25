@@ -31,7 +31,7 @@ export default function ItemDetail({
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <span className="tnum font-mono text-sm font-semibold text-accent-400">{item.item_number}</span>
           {item.title && (
-            <h3 className="text-lg font-semibold tracking-tight text-content-primary">{item.title}</h3>
+            <h2 className="text-lg font-semibold tracking-tight text-content-primary">{item.title}</h2>
           )}
           <span className="badge badge-info ml-auto text-[10px]">{item.item_type}</span>
         </div>
