@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { SendHorizontal } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { cn } from '@/lib/utils';
 
 interface ChatInputProps {
   disabled?: boolean;
@@ -18,8 +21,10 @@ export default function ChatInput({ disabled, sending, onSend }: ChatInputProps)
     setValue('');
   }
 
+  const blocked = disabled || sending;
+
   return (
-    <div className="flex items-end gap-2 pt-3 border-t border-white/[0.06]">
+    <div className="flex items-end gap-2 border-t border-line-subtle pt-3">
       <textarea
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -29,35 +34,27 @@ export default function ChatInput({ disabled, sending, onSend }: ChatInputProps)
             handleSend();
           }
         }}
-        disabled={disabled || sending}
+        disabled={blocked}
         rows={2}
+        aria-label="Mensagem para o Copiloto"
         placeholder={
           disabled
             ? 'Copiloto indisponível'
             : sending
-              ? 'Consultando fontes...'
+              ? 'Consultando fontes…'
               : 'Pergunte sobre este documento (ex: “A cláusula de garantia atende à Lei 14.133/21?”)'
         }
-        className="flex-1 bg-surface-900/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-gray-200 placeholder:text-gray-600 focus:outline-none focus:border-primary-500/40 resize-none disabled:opacity-50"
-      />
-      <button
-        onClick={handleSend}
-        disabled={disabled || sending || !value.trim()}
-        className="btn-primary !px-4 !py-2 text-xs disabled:opacity-40"
-        title="Enviar"
-      >
-        {sending ? (
-          <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-        ) : (
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-          </svg>
+        className={cn(
+          'flex-1 resize-none rounded-lg border bg-white/[0.03] px-3 py-2 text-sm',
+          'text-content-primary placeholder:text-content-subtle outline-none transition-all duration-150',
+          'focus:border-accent-500/45 focus:ring-[3px] focus:ring-accent-500/20',
+          'disabled:opacity-50 border-line-strong',
         )}
+      />
+      <Button onClick={handleSend} disabled={blocked || !value.trim()} loading={sending} size="md" className="shrink-0">
+        {!sending && <SendHorizontal className="h-4 w-4" aria-hidden />}
         Enviar
-      </button>
+      </Button>
     </div>
   );
 }

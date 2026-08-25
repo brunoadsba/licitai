@@ -2,18 +2,27 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { uploadDocument, getDocument, listFornecedores } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
+import { Button } from '@/components/ui/Button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/Select';
 import DropZone from '@/components/upload/DropZone';
 import type { DocumentStatus, Fornecedor } from '@/types';
 
 type UploadState = 'idle' | 'processing' | 'success' | 'error';
 
 const STAGE_LABELS: Partial<Record<DocumentStatus, string>> = {
-  uploaded: 'Enviando arquivo...',
-  parsing: 'Extraindo texto e estrutura do documento...',
-  analyzing: 'Análise em andamento...',
+  uploaded: 'Enviando arquivo…',
+  parsing: 'Extraindo texto e estrutura do documento…',
+  analyzing: 'Análise em andamento…',
 };
 
 const POLL_INTERVAL_MS = 1000;
@@ -61,12 +70,13 @@ export default function UploadPage() {
         } else if (doc.status === 'parsed' || doc.status === 'completed') {
           clearInterval(interval);
           setState('success');
+          toast.success('Documento processado');
           setTimeout(() => router.push(`/analysis/${documentId}`), 1200);
         } else if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
           clearInterval(interval);
           setState('error');
           setError(
-            'O processamento demorou mais que o esperado. Verifique o status do documento na lista do Painel.'
+            'O processamento demorou mais que o esperado. Verifique o status do documento na lista do Painel.',
           );
         }
       } catch {
@@ -121,6 +131,7 @@ export default function UploadPage() {
     } catch (err) {
       setState('error');
       setError(err instanceof Error ? err.message : 'Erro ao enviar documento.');
+      toast.error('Falha no envio do documento');
     }
   }
 
@@ -133,54 +144,56 @@ export default function UploadPage() {
   }
 
   const uploadError = error ? getErrorMessage(error, 'upload') : null;
-  const stageLabel = STAGE_LABELS[currentStage] || 'Processando documento...';
+  const stageLabel = STAGE_LABELS[currentStage] || 'Processando documento…';
+  const locked = state === 'processing' || state === 'success';
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8 animate-fade-in">
+    <div className="animate-fade-in mx-auto max-w-2xl space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-white">Enviar Documento</h1>
-        <p className="text-gray-400 mt-1 text-sm">
+        <h1 className="text-2xl font-semibold tracking-tight text-content-primary">Enviar Documento</h1>
+        <p className="mt-1 text-sm text-content-muted">
           Envie um Termo de Referência em PDF ou DOCX para análise automática.
         </p>
       </div>
 
       {/* Tipo de documento */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label htmlFor="document-type" className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
+          <span className="mb-2 block text-[11px] uppercase tracking-widest text-content-subtle">
             Tipo de documento
-          </label>
-          <select
-            id="document-type"
+          </span>
+          <Select
             value={documentType}
-            onChange={(e) => setDocumentType(e.target.value as 'tr' | 'proposta')}
-            disabled={state === 'processing' || state === 'success'}
-            className="input-field"
+            onValueChange={(v) => setDocumentType(v as 'tr' | 'proposta')}
+            disabled={locked}
           >
-            <option value="tr">Termo de Referência</option>
-            <option value="proposta">Proposta de fornecedor</option>
-          </select>
+            <SelectTrigger aria-label="Tipo de documento">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tr">Termo de Referência</SelectItem>
+              <SelectItem value="proposta">Proposta de fornecedor</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {documentType === 'proposta' && (
           <div>
-            <label htmlFor="fornecedor" className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
+            <span className="mb-2 block text-[11px] uppercase tracking-widest text-content-subtle">
               Fornecedor
-            </label>
-            <select
-              id="fornecedor"
-              value={fornecedorId}
-              onChange={(e) => setFornecedorId(e.target.value)}
-              disabled={state === 'processing' || state === 'success'}
-              className="input-field"
-            >
-              <option value="">Selecione o fornecedor...</option>
-              {fornecedores.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.nome}
-                </option>
-              ))}
-            </select>
+            </span>
+            <Select value={fornecedorId} onValueChange={setFornecedorId} disabled={locked}>
+              <SelectTrigger aria-label="Fornecedor da proposta">
+                <SelectValue placeholder="Selecione o fornecedor…" />
+              </SelectTrigger>
+              <SelectContent>
+                {fornecedores.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>
+                    {f.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
       </div>
@@ -202,9 +215,9 @@ export default function UploadPage() {
           variant="error"
           title={uploadError.title}
           action={
-            <button onClick={resetUpload} className="btn-secondary text-xs">
+            <Button size="sm" variant="secondary" onClick={resetUpload}>
               Tentar Novamente
-            </button>
+            </Button>
           }
         >
           {uploadError.message}
@@ -213,20 +226,20 @@ export default function UploadPage() {
 
       {/* Instruções */}
       <div className="glass-card p-6">
-        <h3 className="text-sm font-semibold text-gray-300 mb-4">Como funciona</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <h3 className="mb-4 text-sm font-semibold text-content-primary">Como funciona</h3>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           {[
             { step: '1', title: 'Envie', desc: 'Faça upload do Termo de Referência em PDF ou DOCX.' },
             { step: '2', title: 'Análise', desc: 'A IA analisa cada item jurídica, técnica e redacionalmente.' },
             { step: '3', title: 'Relatório', desc: 'Receba correções no formato DE → PARA com fundamentação.' },
           ].map((item) => (
             <div key={item.step} className="flex gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary-500/15 text-primary-400 font-bold text-sm flex items-center justify-center shrink-0">
+              <div className="tnum flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-accent-500/25 bg-accent-500/10 text-sm font-semibold text-accent-400">
                 {item.step}
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-300">{item.title}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{item.desc}</p>
+                <p className="text-sm font-medium text-content-primary">{item.title}</p>
+                <p className="mt-0.5 text-xs text-content-muted">{item.desc}</p>
               </div>
             </div>
           ))}

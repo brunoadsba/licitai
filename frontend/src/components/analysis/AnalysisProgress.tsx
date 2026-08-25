@@ -1,60 +1,76 @@
+'use client';
+
 import type { AnalysisDetailResponse } from '@/types';
+import { Bot, Scale, Wrench, PenLine, Ruler } from 'lucide-react';
 
 interface AnalysisProgressProps {
   analysis: AnalysisDetailResponse;
 }
 
+const AGENT_BADGES = [
+  { label: 'Jurídico', icon: Scale, className: 'badge-juridica' },
+  { label: 'Técnico', icon: Wrench, className: 'badge-tecnica' },
+  { label: 'Redação', icon: PenLine, className: 'badge-redacao' },
+  { label: 'Estrutural', icon: Ruler, className: 'badge-estrutural' },
+];
+
 /**
  * Barra de progresso da análise em execução com shimmer e badges dos agentes ativos.
  */
 export default function AnalysisProgress({ analysis }: AnalysisProgressProps) {
-  const pct = Math.min(100, Math.round(((analysis.analyzed_items || 0) / (analysis.total_items || 1)) * 100));
+  const pct = Math.min(
+    100,
+    Math.round(((analysis.analyzed_items || 0) / (analysis.total_items || 1)) * 100),
+  );
 
   return (
-    <div role="status" className="glass-card p-5 border-primary-500/30 glow space-y-3">
-      <div className="flex items-center justify-between">
+    <div role="status" className="glass-card space-y-3 border-accent-500/25 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="relative flex items-center justify-center">
-            <div className="w-3 h-3 rounded-full bg-cyan-400 animate-ping absolute opacity-75" />
-            <div className="w-3 h-3 rounded-full bg-cyan-500" />
+            <div className="absolute h-3 w-3 animate-ping rounded-full bg-accent-400 opacity-75" />
+            <div className="h-3 w-3 rounded-full bg-accent-500" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <span>🤖 Orquestrador Multi-Agente em Execução...</span>
+            <h3 className="flex items-center gap-2 text-sm font-semibold text-content-primary">
+              <Bot className="h-4 w-4 text-accent-400" aria-hidden />
+              Orquestrador Multi-Agente em execução
             </h3>
-            <p className="text-xs text-gray-400">
-              Avaliando conformidade do TR com 4 agentes especializados (Lei 14.133/21 & TCU)
+            <p className="text-xs text-content-muted">
+              Avaliando conformidade do TR com 4 agentes especializados (Lei 14.133/21 &amp; TCU)
             </p>
           </div>
         </div>
 
         <div className="text-right">
-          <span className="text-xl font-extrabold text-cyan-400 font-mono">
-            {pct}%
-          </span>
-          <span className="text-xs text-gray-400 block font-mono">
+          <span className="tnum block font-mono text-xl font-semibold text-accent-400">{pct}%</span>
+          <span className="tnum block font-mono text-xs text-content-muted">
             {analysis.analyzed_items} de {analysis.total_items} itens processados
           </span>
         </div>
       </div>
 
-      {/* Barra de Progresso com Shimmer */}
-      <div className="progress-bar">
-        <div
-          className="progress-bar-fill"
-          style={{
-            width: `${Math.min(100, Math.max(4, pct))}%`,
-          }}
-        />
+      <div
+        className="progress-bar"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
+        <div className="progress-bar-fill" style={{ width: `${Math.min(100, Math.max(4, pct))}%` }} />
       </div>
 
-      {/* Badges dos Agentes Ativos */}
-      <div className="flex items-center gap-2 pt-1 overflow-x-auto">
-        <span className="text-[11px] text-gray-400 font-semibold mr-1">Agentes Ativos:</span>
-        <span className="badge badge-juridica text-[10px] animate-pulse">⚖️ Jurídico</span>
-        <span className="badge badge-tecnica text-[10px] animate-pulse">🛠️ Técnico</span>
-        <span className="badge badge-redacao text-[10px] animate-pulse">✍️ Redação</span>
-        <span className="badge badge-estrutural text-[10px] animate-pulse">📐 Estrutural</span>
+      <div className="flex items-center gap-2 overflow-x-auto pt-1">
+        <span className="mr-1 shrink-0 text-[11px] font-medium text-content-muted">Agentes ativos:</span>
+        {AGENT_BADGES.map((agent) => (
+          <span
+            key={agent.label}
+            className={`badge animate-pulse text-[10px] ${agent.className}`}
+          >
+            <agent.icon className="h-3 w-3" aria-hidden />
+            {agent.label}
+          </span>
+        ))}
       </div>
     </div>
   );

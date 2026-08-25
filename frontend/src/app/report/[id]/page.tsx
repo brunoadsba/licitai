@@ -3,9 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { ArrowLeft, Check, ClipboardCopy, FileText } from 'lucide-react';
 import { getReport } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
 import ScoreGauge from '@/components/report/ScoreGauge';
 import CorrectionAccordion from '@/components/report/CorrectionAccordion';
 import { useCopy } from '@/lib/useCopy';
@@ -20,7 +23,7 @@ function getRiskColor(risk: string | null) {
     alto: 'text-orange-400',
     critico: 'text-red-400',
   };
-  return colors[risk || ''] || 'text-gray-400';
+  return colors[risk || ''] || 'text-content-muted';
 }
 
 export default function ReportPage() {
@@ -48,12 +51,14 @@ export default function ReportPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-fade-in">
-        <div className="skeleton h-12 w-64" />
-        <div className="grid grid-cols-5 gap-4">
-          {[1, 2, 3, 4, 5].map((i) => <div key={i} className="skeleton h-40" />)}
+      <div className="animate-fade-in space-y-6">
+        <Skeleton className="h-12 w-64" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-40" />
+          ))}
         </div>
-        <div className="skeleton h-64" />
+        <Skeleton className="h-64" />
       </div>
     );
   }
@@ -61,11 +66,13 @@ export default function ReportPage() {
   if (error) {
     const errInfo = getErrorMessage(error, 'analysis');
     return (
-      <div className="space-y-4 animate-fade-in">
+      <div className="animate-fade-in space-y-4">
         <AlertBanner variant="error" title={errInfo.title}>
           {errInfo.message}
         </AlertBanner>
-        <Link href="/" className="btn-primary inline-flex">Voltar ao Painel</Link>
+        <Link href="/" className="btn-primary inline-flex">
+          Voltar ao Painel
+        </Link>
       </div>
     );
   }
@@ -73,14 +80,15 @@ export default function ReportPage() {
   if (!report) {
     return (
       <div className="glass-card p-12 text-center">
-        <p className="text-gray-400">Relatório não encontrado.</p>
-        <Link href="/" className="btn-primary mt-4 inline-flex">Voltar</Link>
+        <p className="text-content-muted">Relatório não encontrado.</p>
+        <Link href="/" className="btn-primary mt-4 inline-flex">
+          Voltar
+        </Link>
       </div>
     );
   }
 
-  const overallScore =
-    report.scores.find((s) => s.label === 'Nota Geral') ?? report.scores[0] ?? null;
+  const overallScore = report.scores.find((s) => s.label === 'Nota Geral') ?? report.scores[0] ?? null;
   const criticalCount = report.corrections_by_severity?.critico ?? 0;
   const highCount = report.corrections_by_severity?.alto ?? 0;
   const totalCorrections = report.total_corrections ?? 0;
@@ -98,49 +106,50 @@ export default function ReportPage() {
       : ` e ${totalCorrections} ${totalCorrections === 1 ? 'recomendação no total' : 'recomendações no total'}`;
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="animate-fade-in space-y-8">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-            <Link href="/" className="hover:text-gray-300 transition-colors">Painel</Link>
-            <span>›</span>
-            <Link href={`/analysis/${report.document_id}`} className="hover:text-gray-300 transition-colors">Análise</Link>
-            <span>›</span>
-            <span className="text-gray-400">Relatório</span>
+          <div className="mb-1 flex items-center gap-1.5 text-xs text-content-subtle">
+            <Link href="/" className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60">
+              Painel
+            </Link>
+            <span aria-hidden>/</span>
+            <Link
+              href={`/analysis/${report.document_id}`}
+              className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
+            >
+              Análise
+            </Link>
+            <span aria-hidden>/</span>
+            <span className="text-content-muted">Relatório</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Relatório de Análise</h1>
-          <p className="text-gray-500 text-sm mt-1">{report.document_name}</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-content-primary">Relatório de Análise</h1>
+          <p className="mt-1 text-sm text-content-muted">{report.document_name}</p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/analysis/${report.document_id}`}
-            className="btn-secondary"
-          >
-            ← Voltar à Análise
-          </Link>
-        </div>
+        <Link href={`/analysis/${report.document_id}`}>
+          <Button variant="secondary">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Voltar à Análise
+          </Button>
+        </Link>
       </div>
 
       {/* Gauges de pontuação */}
-      <div className="glass-card p-8">
-        <h2 className="text-lg font-semibold text-white mb-6">Pontuação</h2>
-        <div className="flex items-center justify-around flex-wrap gap-6">
+      <div className="glass-card p-6 sm:p-8">
+        <h2 className="mb-6 text-lg font-semibold tracking-tight text-content-primary">Pontuação</h2>
+        <div className="flex flex-wrap items-center justify-around gap-6">
           {report.scores.map((score) => (
-            <ScoreGauge
-              key={score.label}
-              score={score.score}
-              label={score.label}
-            />
+            <ScoreGauge key={score.label} score={score.score} label={score.label} />
           ))}
         </div>
         {overallScore && overallScore.score !== null ? (
-          <p className="mt-6 pt-4 border-t border-white/[0.06] text-center text-sm">
-            <span className={`font-bold ${getRiskColor(report.risk_level)}`}>
+          <p className="tnum mt-6 border-t border-line-subtle pt-4 text-center text-sm">
+            <span className={`font-semibold ${getRiskColor(report.risk_level)}`}>
               {overallScore.score.toFixed(1)}/10
             </span>
-            <span className="text-gray-400">
+            <span className="text-content-muted">
               {' — '}
               {report.risk_level ? RISK_LABELS[report.risk_level].toLowerCase() : 'sem classificação de risco'}
               {severidade}
@@ -148,36 +157,38 @@ export default function ReportPage() {
             </span>
           </p>
         ) : (
-          <p className="mt-6 pt-4 border-t border-white/[0.06] text-center text-sm text-gray-400">
+          <p className="mt-6 border-t border-line-subtle pt-4 text-center text-sm text-content-muted">
             Análise sem pontuação — consulte o parecer final.
           </p>
         )}
       </div>
 
       {/* Resumo em cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Risco */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div className="glass-card p-6">
-          <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Risco de Impugnação</p>
-          <p className={`text-2xl font-bold ${getRiskColor(report.risk_level)}`}>
-            {report.risk_level ? (RISK_LABELS[report.risk_level] || report.risk_level) : 'N/A'}
+          <p className="mb-2 text-[11px] uppercase tracking-widest text-content-subtle">Risco de Impugnação</p>
+          <p className={`text-2xl font-semibold tracking-tight ${getRiskColor(report.risk_level)}`}>
+            {report.risk_level ? RISK_LABELS[report.risk_level] || report.risk_level : 'N/A'}
           </p>
         </div>
 
-        {/* Total de correções */}
         <div className="glass-card p-6">
-          <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Total de Correções</p>
-          <p className="text-2xl font-bold text-white">{report.total_corrections}</p>
+          <p className="mb-2 text-[11px] uppercase tracking-widest text-content-subtle">Total de Correções</p>
+          <p className="tnum text-2xl font-semibold tracking-tight text-content-primary">
+            {report.total_corrections}
+          </p>
         </div>
 
-        {/* Data */}
         <div className="glass-card p-6">
-          <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">Data da Análise</p>
-          <p className="text-lg font-semibold text-white">
+          <p className="mb-2 text-[11px] uppercase tracking-widest text-content-subtle">Data da Análise</p>
+          <p className="tnum text-lg font-semibold text-content-primary">
             {report.analyzed_at
               ? new Date(report.analyzed_at).toLocaleDateString('pt-BR', {
-                  day: '2-digit', month: '2-digit', year: 'numeric',
-                  hour: '2-digit', minute: '2-digit',
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
                 })
               : 'N/A'}
           </p>
@@ -185,20 +196,20 @@ export default function ReportPage() {
       </div>
 
       {/* Distribuição por categoria e severidade */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="glass-card p-6">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4">Por Categoria</h3>
+          <h3 className="mb-4 text-sm font-semibold text-content-primary">Por Categoria</h3>
           <div className="space-y-3">
             {Object.entries(report.corrections_by_category).map(([cat, count]) => {
               const total = report.total_corrections || 1;
               const pct = Math.round((count / total) * 100);
               return (
                 <div key={cat}>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="mb-1 flex items-center justify-between">
                     <span className={`badge ${getCategoryBadge(cat)}`}>
                       {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS] || cat}
                     </span>
-                    <span className="text-sm text-gray-400">{count}</span>
+                    <span className="tnum text-sm text-content-muted">{count}</span>
                   </div>
                   <div className="progress-bar">
                     <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
@@ -210,18 +221,18 @@ export default function ReportPage() {
         </div>
 
         <div className="glass-card p-6">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4">Por Severidade</h3>
+          <h3 className="mb-4 text-sm font-semibold text-content-primary">Por Severidade</h3>
           <div className="space-y-3">
             {Object.entries(report.corrections_by_severity).map(([sev, count]) => {
               const total = report.total_corrections || 1;
               const pct = Math.round((count / total) * 100);
               return (
                 <div key={sev}>
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="mb-1 flex items-center justify-between">
                     <span className={`badge ${getSeverityBadge(sev)}`}>
                       {SEVERITY_LABELS[sev as keyof typeof SEVERITY_LABELS] || sev}
                     </span>
-                    <span className="text-sm text-gray-400">{count}</span>
+                    <span className="tnum text-sm text-content-muted">{count}</span>
                   </div>
                   <div className="progress-bar">
                     <div className="progress-bar-fill" style={{ width: `${pct}%` }} />
@@ -235,38 +246,30 @@ export default function ReportPage() {
 
       {/* Parecer final (com botão de copiar para o SEI) */}
       {report.final_opinion && (
-        <div className="glass-card p-6 glow">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <svg className="w-5 h-5 text-primary-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z" />
-              </svg>
+        <div className="glass-card border-accent-500/20 p-6">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-content-primary">
+              <FileText className="h-5 w-5 text-accent-400" aria-hidden />
               Parecer Final
             </h2>
             <button
               onClick={() => copy(report.final_opinion || '', 'final_opinion')}
-              className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-primary-600/20 hover:bg-primary-600/30 text-primary-300 border border-primary-500/30 flex items-center gap-1.5 transition-all"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-accent-500/30 bg-accent-500/15 px-3 py-1.5 text-xs font-medium text-accent-400 outline-none transition-colors hover:bg-accent-500/25 focus-visible:ring-2 focus-visible:ring-accent-500/60"
             >
               {isCopied('final_opinion') ? (
                 <>
-                  <svg className="w-3.5 h-3.5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </svg>
+                  <Check className="h-3.5 w-3.5 text-green-400" aria-hidden />
                   Parecer Copiado!
                 </>
               ) : (
                 <>
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.757c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184" />
-                  </svg>
+                  <ClipboardCopy className="h-3.5 w-3.5" aria-hidden />
                   Copiar Parecer para o SEI
                 </>
               )}
             </button>
           </div>
-          <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-            {report.final_opinion}
-          </p>
+          <p className="whitespace-pre-wrap leading-relaxed text-content-secondary">{report.final_opinion}</p>
         </div>
       )}
 
