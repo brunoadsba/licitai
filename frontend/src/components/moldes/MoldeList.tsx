@@ -1,5 +1,7 @@
 'use client';
 
+import { Copy, FlaskConical, Layers, Trash2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { Molde, MoldeConfig } from '@/types';
 
 interface MoldeListProps {
@@ -25,7 +27,7 @@ export default function MoldeList({
     return (
       <div className="space-y-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="skeleton h-20" />
+          <Skeleton key={i} className="h-20" />
         ))}
       </div>
     );
@@ -34,29 +36,37 @@ export default function MoldeList({
   if (moldes.length === 0) {
     return (
       <div className="glass-card p-8 text-center">
-        <p className="text-gray-500 text-sm">
-          Nenhum molde cadastrado. Crie o primeiro.
-        </p>
+        <p className="text-sm text-content-muted">Nenhum molde cadastrado. Crie o primeiro.</p>
       </div>
     );
   }
+
+  const iconButton =
+    'rounded-md p-1.5 text-content-subtle outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent-500/60';
 
   return (
     <div className="space-y-2">
       {moldes.map((m) => (
         <div
           key={m.id}
-          className={`glass-card-interactive p-4 cursor-pointer transition-all ${
-            editingId === m.id ? 'ring-1 ring-primary-500/50' : ''
-          }`}
+          role="button"
+          tabIndex={0}
           onClick={() => onSelect(m.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onSelect(m.id);
+            }
+          }}
+          className={`glass-card-interactive cursor-pointer p-4 outline-none focus-visible:ring-2 focus-visible:ring-accent-500/60 ${
+            editingId === m.id ? 'ring-1 ring-accent-500/50' : ''
+          }`}
         >
           <div className="flex items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-gray-200 truncate">
-                {m.nome}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="truncate text-sm font-semibold text-content-primary">{m.nome}</p>
+              <p className="tnum mt-0.5 flex items-center gap-1 text-xs text-content-subtle">
+                <Layers className="h-3 w-3" aria-hidden />
                 {(() => {
                   try {
                     const c = JSON.parse(m.config_json) as MoldeConfig;
@@ -67,42 +77,39 @@ export default function MoldeList({
                 })()}
               </p>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex shrink-0 items-center gap-0.5">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onDryRun(m);
                 }}
-                className="p-1 rounded text-gray-400 hover:text-amber-300 hover:bg-amber-500/10 transition-all"
+                aria-label={`Testar ${m.nome} contra TR (dry-run)`}
                 title="Testar/Validar contra TR (Dry-Run)"
+                className={`${iconButton} hover:bg-amber-500/10 hover:text-amber-300`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121 7.5z" />
-                </svg>
+                <FlaskConical className="h-4 w-4" aria-hidden />
               </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onDuplicate(m.id);
                 }}
-                className="p-1 rounded text-gray-400 hover:text-primary-300 hover:bg-primary-500/10 transition-all"
+                aria-label={`Duplicar ${m.nome}`}
                 title="Duplicar molde"
+                className={`${iconButton} hover:bg-accent-500/10 hover:text-accent-400`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25c0-.621.504-1.125 1.125-1.125h5.25c.621 0 1.125.504 1.125 1.125v9.25c0 .621-.504 1.125-1.125 1.125z" />
-                </svg>
+                <Copy className="h-4 w-4" aria-hidden />
               </button>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onRemove(m.id);
                 }}
-                className="p-1 rounded text-gray-400 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                aria-label={`Remover ${m.nome}`}
                 title="Remover molde"
+                className={`${iconButton} hover:bg-red-500/10 hover:text-red-400`}
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                </svg>
+                <Trash2 className="h-4 w-4" aria-hidden />
               </button>
             </div>
           </div>

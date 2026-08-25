@@ -215,12 +215,14 @@ export default function ComparacaoPage() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="animate-fade-in space-y-8">
       {/* Cabeçalho */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Auditoria TR × Propostas</h1>
-          <p className="text-gray-400 mt-1 text-sm">
+          <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
+            Auditoria TR × Propostas
+          </h1>
+          <p className="mt-1 text-sm text-content-muted">
             Compare as propostas dos fornecedores com o Termo de Referência
           </p>
         </div>
@@ -228,20 +230,22 @@ export default function ComparacaoPage() {
 
       {error && (
         <div className="glass-card border-red-500/20 p-4">
-          <p className="text-red-400 text-sm">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
       {feedbackMsg && (
-        <div className="glass-card border-primary-500/30 p-4">
-          <p className="text-sm text-gray-200">{feedbackMsg}</p>
+        <div className="glass-card border-accent-500/30 p-4">
+          <p className="text-sm text-content-secondary">{feedbackMsg}</p>
         </div>
       )}
 
       {/* Seção de criação */}
-      <div className="glass-card p-6">
-        <h2 className="text-lg font-semibold text-white mb-4">Nova Comparação</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="glass-card p-5 sm:p-6">
+        <h2 className="mb-4 text-lg font-semibold tracking-tight text-content-primary">
+          Nova Comparação
+        </h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <NovaComparacaoForm
             trs={trs}
             moldes={moldes}
@@ -284,7 +288,9 @@ export default function ComparacaoPage() {
 
       {/* Listagem de comparações */}
       <div>
-        <h2 className="text-lg font-semibold text-white mb-4">Comparações Realizadas</h2>
+        <h2 className="mb-4 text-lg font-semibold tracking-tight text-content-primary">
+          Comparações Realizadas
+        </h2>
         <ComparacaoList
           comparacoes={comparacoes}
           loading={loading}

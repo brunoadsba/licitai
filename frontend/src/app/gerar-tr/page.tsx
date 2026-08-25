@@ -1,10 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { generateTR , extractErrorMessage } from '@/lib/api';
+import { Check, Sparkles } from 'lucide-react';
+import { toast } from 'sonner';
+import { generateTR, extractErrorMessage } from '@/lib/api';
 import PassoDados from '@/components/gerar-tr/PassoDados';
 import PassoRequisitos from '@/components/gerar-tr/PassoRequisitos';
 import ResultadoTR from '@/components/gerar-tr/ResultadoTR';
+import { cn } from '@/lib/utils';
 
 const STEPS = [
   { num: 1, label: 'Dados da Contratação' },
@@ -28,7 +31,13 @@ export default function GerarTRPage() {
   const [criterioJulgamento, setCriterioJulgamento] = useState('menor_preco');
 
   // Resultado
-  const [resultado, setResultado] = useState<any | null>(null);
+  const [resultado, setResultado] = useState<{
+    filename_original: string;
+    total_itens: number;
+    document_id: string;
+    itens: { item_number: string; title: string; content: string }[];
+    html_completo?: string;
+  } | null>(null);
 
   async function handleGenerate() {
     if (!objeto.trim() || objeto.length < 10) {
@@ -66,50 +75,59 @@ export default function GerarTRPage() {
   function copyHtml() {
     if (resultado?.html_completo) {
       navigator.clipboard.writeText(resultado.html_completo);
-      alert('HTML do Termo de Referência copiado para a área de transferência! Pronto para colar no SEI.');
+      toast.success('HTML do Termo de Referência copiado', {
+        description: 'Pronto para colar no SEI.',
+      });
     }
   }
 
   return (
-    <div className="space-y-8 animate-fade-in max-w-4xl mx-auto">
+    <div className="animate-fade-in mx-auto max-w-4xl space-y-8">
       {/* Cabeçalho */}
       <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <span>🪄</span> Assistente de Geração de TRs
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-content-primary">
+          <Sparkles className="h-6 w-6 text-accent-400" aria-hidden />
+          Assistente de Geração de TRs
         </h1>
-        <p className="text-gray-400 mt-1 text-sm">
-          Gere um rascunho completo de Termo de Referência alinhado à Lei 14.133/2021, Lei 13.303/2016 e jurisprudência do TCU.
+        <p className="mt-1 text-sm text-content-muted">
+          Gere um rascunho completo de Termo de Referência alinhado à Lei 14.133/2021, Lei
+          13.303/2016 e jurisprudência do TCU.
         </p>
       </div>
 
       {error && (
         <div className="glass-card border-red-500/20 p-4">
-          <p className="text-red-400 text-sm">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
       {/* Indicador de Passos */}
-      <div className="grid grid-cols-3 gap-2">
+      <ol className="grid grid-cols-3 gap-2">
         {STEPS.map((s) => {
           const active = step === s.num;
           const done = s.num === 3 && !!resultado;
           return (
-            <div
+            <li
               key={s.num}
-              className={`p-3 rounded-xl border text-center transition-all ${
-                active || done
-                  ? done
-                    ? 'bg-green-500/20 border-green-500/50 text-green-300'
-                    : 'bg-primary-500/20 border-primary-500/50 text-white'
-                  : 'bg-surface-900/40 border-white/5 text-gray-500'
-              }`}
+              aria-current={active ? 'step' : undefined}
+              className={cn(
+                'rounded-xl border p-3 text-center transition-all',
+                done
+                  ? 'border-green-500/50 bg-green-500/15 text-green-300'
+                  : active
+                    ? 'border-accent-500/50 bg-accent-500/15 text-content-primary'
+                    : 'border-line-subtle bg-panel/40 text-content-subtle',
+              )}
             >
-              <span className="text-xs font-bold block">PASSO {s.num}</span>
-              <span className="text-xs">{s.label}</span>
-            </div>
+              <span className="tnum flex items-center justify-center gap-1 text-[11px] font-semibold uppercase tracking-wider">
+                {done && <Check className="h-3 w-3" aria-hidden />}
+                Passo {s.num}
+              </span>
+              <span className="mt-0.5 block text-xs">{s.label}</span>
+            </li>
           );
         })}
-      </div>
+      </ol>
 
       {/* PASSO 1 */}
       {step === 1 && (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { Plus } from 'lucide-react';
 import {
   createMolde,
   deleteMolde,
@@ -11,6 +12,7 @@ import {
   extractErrorMessage,
 } from '@/lib/api';
 import { Molde, MoldeConfig, RegraConfig } from '@/types';
+import { Button } from '@/components/ui/Button';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import DryRunModal from '@/components/moldes/DryRunModal';
 import MoldeForm from '@/components/moldes/MoldeForm';
@@ -158,28 +160,33 @@ export default function MoldesPage() {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex items-center justify-between">
+    <div className="animate-fade-in space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Moldes de Regras</h1>
-          <p className="text-gray-400 mt-1 text-sm">
+          <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
+            Moldes de Regras
+          </h1>
+          <p className="mt-1 text-sm text-content-muted">
             Editor visual das regras de conformidade para a auditoria TR × Propostas
           </p>
         </div>
-        <button onClick={startNew} className="btn-primary">
+        <Button onClick={startNew}>
+          <Plus className="h-4 w-4" aria-hidden />
           Novo Molde
-        </button>
+        </Button>
       </div>
 
       {error && (
         <div className="glass-card border-red-500/20 p-4">
-          <p className="text-red-400 text-sm">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div>
-          <h2 className="text-lg font-semibold text-white mb-4">Moldes Cadastrados</h2>
+          <h2 className="mb-4 text-lg font-semibold tracking-tight text-content-primary">
+            Moldes Cadastrados
+          </h2>
           <MoldeList
             moldes={moldes}
             loading={loading}

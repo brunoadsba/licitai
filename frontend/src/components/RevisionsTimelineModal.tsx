@@ -1,8 +1,13 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { listRevisions, createRevision, restoreRevision , extractErrorMessage } from '@/lib/api';
+import { History, Plus } from 'lucide-react';
+import { listRevisions, createRevision, restoreRevision, extractErrorMessage } from '@/lib/api';
 import type { DocumentRevision } from '@/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/Dialog';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Skeleton } from '@/components/ui/Skeleton';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 interface RevisionsTimelineModalProps {
@@ -82,113 +87,108 @@ export default function RevisionsTimelineModal({
     }
   }
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="glass-card max-w-2xl w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <span>🕒</span> Histórico de Edições (Versionamento Single-User)
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Linha do tempo de rascunhos e versões do documento
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white text-lg font-bold"
-          >
-            ✕
-          </button>
-        </div>
+    <Dialog open={isOpen} onOpenChange={(next) => (!next ? onClose() : undefined)}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <History className="h-5 w-5 text-accent-400" aria-hidden />
+            Histórico de Edições
+          </DialogTitle>
+          <DialogDescription>
+            Linha do tempo de rascunhos e versões do documento (versionamento single-user).
+          </DialogDescription>
+        </DialogHeader>
 
         {error && (
-          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400">
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-xs text-red-400">
             {error}
           </div>
         )}
 
         {/* Criar Novo Snapshot */}
-        <div className="bg-surface-900/60 p-4 rounded-xl border border-white/10 space-y-3">
-          <h4 className="text-xs font-semibold text-gray-200 uppercase tracking-wider">
-            ➕ Salvar Novo Snapshot / Rascunho Atual
+        <div className="space-y-3 rounded-xl border border-line-strong bg-canvas/60 p-4">
+          <h4 className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-widest text-content-subtle">
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Salvar novo snapshot do estado atual
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <input
               value={rotulo}
               onChange={(e) => setRotulo(e.target.value)}
-              placeholder="Rótulo da Versão (ex: Revisão Jurídica 1)"
-              className="input-field text-xs bg-surface-900"
+              placeholder="Rótulo da versão (ex: Revisão Jurídica 1)"
+              aria-label="Rótulo da versão"
+              className="input-field text-xs"
             />
             <input
               value={descricao}
               onChange={(e) => setDescricao(e.target.value)}
               placeholder="Descrição ou observações (opcional)"
-              className="input-field text-xs bg-surface-900"
+              aria-label="Descrição da versão"
+              className="input-field text-xs"
             />
           </div>
-          <button
-            onClick={handleCreateRevision}
-            disabled={saving || !rotulo.trim()}
-            className="btn-primary text-xs py-2 px-4"
-          >
-            {saving ? 'Salva...' : 'Salvar Snapshot'}
-          </button>
+          <Button onClick={handleCreateRevision} disabled={saving || !rotulo.trim()} loading={saving} size="sm">
+            {saving ? 'Salvando…' : 'Salvar Snapshot'}
+          </Button>
         </div>
 
         {/* Linha do Tempo de Versões */}
         <div className="space-y-3">
-          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">
-            Linha do Tempo de Versões Salvas
+          <h4 className="text-[11px] font-medium uppercase tracking-widest text-content-subtle">
+            Linha do tempo de versões salvas
           </h4>
 
           {loading ? (
-            <div className="skeleton h-20" />
+            <Skeleton className="h-20" />
           ) : revisions.length === 0 ? (
-            <div className="text-center p-6 bg-surface-900/40 rounded-xl border border-white/5">
-              <p className="text-xs text-gray-500">
-                Nenhum snapshot historizado ainda. Crie o primeiro acima para salvar o estado atual do documento.
+            <div className="rounded-xl border border-line-subtle bg-canvas/40 p-6 text-center">
+              <p className="text-xs text-content-muted">
+                Nenhum snapshot historizado ainda. Crie o primeiro acima para salvar o estado
+                atual do documento.
               </p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
               {revisions.map((rev) => (
                 <div
                   key={rev.id}
-                  className="p-4 bg-surface-900/60 rounded-xl border border-white/10 flex items-center justify-between gap-4"
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-subtle bg-canvas/60 p-4"
                 >
-                  <div className="space-y-1 min-w-0">
+                  <div className="min-w-0 flex-1 space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="badge badge-info text-[10px] uppercase font-mono">
+                      <Badge tone="info" className="tnum font-mono text-[10px]">
                         v{rev.versao}
-                      </span>
-                      <span className="text-sm font-semibold text-white truncate">
+                      </Badge>
+                      <span className="truncate text-sm font-semibold text-content-primary">
                         {rev.rotulo}
                       </span>
                     </div>
                     {rev.descricao && (
-                      <p className="text-xs text-gray-400 truncate">{rev.descricao}</p>
+                      <p className="truncate text-xs text-content-muted">{rev.descricao}</p>
                     )}
-                    <p className="text-[10px] text-gray-500">
-                      {new Date(rev.created_at).toLocaleString('pt-BR')} — {rev.items_snapshot.length} itens salvos
+                    <p className="tnum text-[10px] text-content-subtle">
+                      {new Date(rev.created_at).toLocaleString('pt-BR')} — {rev.items_snapshot.length}{' '}
+                      itens salvos
                     </p>
                   </div>
 
-                  <button
+                  <Button
+                    variant="secondary"
+                    size="sm"
                     onClick={() => setRestoreConfirm({ versao: rev.versao, rotulo: rev.rotulo })}
                     disabled={restoringVersao === rev.versao}
-                    className="btn-secondary text-xs shrink-0 py-1.5 px-3 hover:border-amber-500/50 hover:text-amber-300"
+                    loading={restoringVersao === rev.versao}
+                    className="shrink-0"
                   >
-                    {restoringVersao === rev.versao ? 'Restaurando...' : 'Restaurar esta Versão'}
-                  </button>
+                    {restoringVersao === rev.versao ? 'Restaurando…' : 'Restaurar esta Versão'}
+                  </Button>
                 </div>
               ))}
             </div>
           )}
         </div>
-      </div>
+      </DialogContent>
 
       <ConfirmDialog
         open={restoreConfirm !== null}
@@ -205,6 +205,6 @@ export default function RevisionsTimelineModal({
         }}
         onCancel={() => setRestoreConfirm(null)}
       />
-    </div>
+    </Dialog>
   );
 }

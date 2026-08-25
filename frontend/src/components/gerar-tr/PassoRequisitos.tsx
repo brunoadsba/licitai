@@ -1,3 +1,8 @@
+'use client';
+
+import { ArrowLeft, Sparkles } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+
 interface PassoRequisitosProps {
   valorEstimado: string;
   prazoMeses: number;
@@ -33,45 +38,48 @@ export default function PassoRequisitos({
   onGerar,
 }: PassoRequisitosProps) {
   return (
-    <div className="glass-card p-6 space-y-4">
-      <h2 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">
-        2. Requisitos Técnicos & Financeiros
+    <div className="glass-card space-y-4 p-5 sm:p-6">
+      <h2 className="text-[11px] font-medium uppercase tracking-widest text-content-subtle">
+        2. Requisitos Técnicos &amp; Financeiros
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-xs text-gray-300 font-medium mb-1">
-            Valor Estimado Global (R$):
+          <label htmlFor="tr-valor" className="mb-1 block text-xs font-medium text-content-secondary">
+            Valor Estimado Global (R$)
           </label>
           <input
+            id="tr-valor"
             type="number"
             value={valorEstimado}
             onChange={(e) => setValorEstimado(e.target.value)}
             placeholder="Ex.: 450000.00 (Opcional)"
-            className="input-field w-full text-sm bg-surface-900"
+            className="input-field tnum w-full text-sm"
           />
         </div>
 
         <div>
-          <label className="block text-xs text-gray-300 font-medium mb-1">
-            Prazo de Vigência (Meses):
+          <label htmlFor="tr-prazo" className="mb-1 block text-xs font-medium text-content-secondary">
+            Prazo de Vigência (Meses)
           </label>
           <input
+            id="tr-prazo"
             type="number"
             value={prazoMeses}
             onChange={(e) => setPrazoMeses(parseInt(e.target.value) || 12)}
-            className="input-field w-full text-sm bg-surface-900"
+            className="input-field tnum w-full text-sm"
           />
         </div>
 
         <div>
-          <label className="block text-xs text-gray-300 font-medium mb-1">
-            Critério de Julgamento:
+          <label htmlFor="tr-criterio" className="mb-1 block text-xs font-medium text-content-secondary">
+            Critério de Julgamento
           </label>
           <select
+            id="tr-criterio"
             value={criterioJulgamento}
             onChange={(e) => setCriterioJulgamento(e.target.value)}
-            className="input-field w-full text-sm bg-surface-900"
+            className="input-field w-full text-sm"
           >
             <option value="menor_preco">Menor Preço</option>
             <option value="maior_desconto">Maior Desconto</option>
@@ -79,37 +87,39 @@ export default function PassoRequisitos({
           </select>
         </div>
 
-        <div className="space-y-3 pt-4">
-          <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
+        <div className="space-y-3 pt-1 sm:pt-6">
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-content-secondary">
             <input
               type="checkbox"
               checked={garantiaExigida}
               onChange={(e) => setGarantiaExigida(e.target.checked)}
-              className="rounded border-white/20 bg-surface-900 text-primary-500"
+              className="h-4 w-4 rounded border-line-strong bg-canvas accent-accent-500"
             />
             Exigir Garantia Contratual (5%)
           </label>
 
-          <label className="flex items-center gap-2 cursor-pointer text-xs text-gray-300">
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-content-secondary">
             <input
               type="checkbox"
               checked={vistoriaExigida}
               onChange={(e) => setVistoriaExigida(e.target.checked)}
-              className="rounded border-white/20 bg-surface-900 text-primary-500"
+              className="h-4 w-4 rounded border-line-strong bg-canvas accent-accent-500"
             />
             Exigir Vistoria Técnica Prévia
           </label>
         </div>
       </div>
 
-      <div className="pt-4 flex items-center justify-between">
-        <button onClick={onVoltar} className="btn-secondary">
-          ⬅ Voltar ao Passo 1
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
+        <Button onClick={onVoltar} variant="secondary">
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Voltar ao Passo 1
+        </Button>
 
-        <button onClick={onGerar} disabled={loading} className="btn-primary">
-          {loading ? 'Gerando TR com IA...' : '🪄 Gerar Termo de Referência Completo'}
-        </button>
+        <Button onClick={onGerar} disabled={loading} loading={loading}>
+          {!loading && <Sparkles className="h-4 w-4" aria-hidden />}
+          {loading ? 'Gerando TR com IA…' : 'Gerar Termo de Referência Completo'}
+        </Button>
       </div>
     </div>
   );

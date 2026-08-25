@@ -1,8 +1,32 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { listDocuments, diffDocuments , extractErrorMessage } from '@/lib/api';
+import { ArrowRightLeft, FileText } from 'lucide-react';
+import { listDocuments, diffDocuments, extractErrorMessage } from '@/lib/api';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
 import type { DiffItemResponse, DocumentResponse } from '@/types';
+
+interface DiffResult {
+  total: number;
+  resumo?: { alterados?: number; adicionados?: number; removidos?: number };
+  itens: DiffItemResponse[];
+}
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case 'inalterado':
+      return 'badge-info';
+    case 'alterado':
+      return 'badge-medio';
+    case 'adicionado':
+      return 'badge-baixo';
+    case 'removido':
+      return 'badge-critico';
+    default:
+      return 'badge';
+  }
+}
 
 export default function DiffVersoesPage() {
   const [documents, setDocuments] = useState<DocumentResponse[]>([]);
@@ -12,7 +36,7 @@ export default function DiffVersoesPage() {
   const [docAntigoId, setDocAntigoId] = useState<string>('');
   const [docNovoId, setDocNovoId] = useState<string>('');
   const [diffing, setDiffing] = useState(false);
-  const [diffResult, setDiffResult] = useState<any | null>(null);
+  const [diffResult, setDiffResult] = useState<DiffResult | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -53,82 +77,82 @@ export default function DiffVersoesPage() {
     }
   }
 
-  function getStatusBadge(status: string) {
-    switch (status) {
-      case 'inalterado':
-        return 'badge-info';
-      case 'alterado':
-        return 'badge-warning';
-      case 'adicionado':
-        return 'badge-success';
-      case 'removido':
-        return 'badge-danger';
-      default:
-        return 'badge';
-    }
-  }
-
   return (
-    <div className="space-y-8 animate-fade-in max-w-6xl mx-auto">
+    <div className="animate-fade-in mx-auto max-w-6xl space-y-8">
       {/* Cabeçalho */}
       <div>
-        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-          <span>🔄</span> Comparador de Versões de TR
+        <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-content-primary">
+          <ArrowRightLeft className="h-6 w-6 text-accent-400" aria-hidden />
+          Comparador de Versões de TR
         </h1>
-        <p className="text-gray-400 mt-1 text-sm">
-          Alinhamento inteligente item por item para identificar acréscimos, exclusões e alterações de texto entre duas versões do Termo de Referência.
+        <p className="mt-1 text-sm text-content-muted">
+          Alinhamento inteligente item por item para identificar acréscimos, exclusões e
+          alterações de texto entre duas versões do Termo de Referência.
         </p>
       </div>
 
       {error && (
         <div className="glass-card border-red-500/20 p-4">
-          <p className="text-red-400 text-sm">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
       {/* Card de Seleção */}
-      <div className="glass-card p-6 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">
-          Selecione as Versões para Comparação
+      <div className="glass-card space-y-4 p-5 sm:p-6">
+        <h2 className="text-[11px] font-medium uppercase tracking-widest text-content-subtle">
+          Selecione as versões para comparação
         </h2>
 
         {loading ? (
-          <div className="skeleton h-12" />
+          <Skeleton className="h-12" />
         ) : documents.length < 2 ? (
-          <p className="text-amber-400 text-sm">
-            É necessário ter pelo menos 2 documentos TR cadastrados no sistema para comparar versões.
+          <p className="text-sm text-amber-400">
+            É necessário ter pelo menos 2 documentos TR cadastrados no sistema para comparar
+            versões.
           </p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
-              <label className="block text-xs text-gray-400 mb-1 font-medium">
-                📄 Versão Original (Antiga):
+              <label
+                htmlFor="versao-antiga"
+                className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-content-muted"
+              >
+                <FileText className="h-3.5 w-3.5 text-content-subtle" aria-hidden />
+                Versão Original (Antiga)
               </label>
               <select
+                id="versao-antiga"
                 value={docAntigoId}
                 onChange={(e) => setDocAntigoId(e.target.value)}
-                className="input-field w-full text-sm bg-surface-900"
+                className="input-field tnum w-full text-sm"
               >
                 {documents.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.filename_original} ({d.total_items} itens) — {new Date(d.created_at).toLocaleDateString('pt-BR')}
+                    {d.filename_original} ({d.total_items} itens) —{' '}
+                    {new Date(d.created_at).toLocaleDateString('pt-BR')}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs text-gray-400 mb-1 font-medium">
-                📄 Nova Versão (Revisada):
+              <label
+                htmlFor="versao-nova"
+                className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-content-muted"
+              >
+                <FileText className="h-3.5 w-3.5 text-accent-400" aria-hidden />
+                Nova Versão (Revisada)
               </label>
               <select
+                id="versao-nova"
                 value={docNovoId}
                 onChange={(e) => setDocNovoId(e.target.value)}
-                className="input-field w-full text-sm bg-surface-900"
+                className="input-field tnum w-full text-sm"
               >
                 {documents.map((d) => (
                   <option key={d.id} value={d.id}>
-                    {d.filename_original} ({d.total_items} itens) — {new Date(d.created_at).toLocaleDateString('pt-BR')}
+                    {d.filename_original} ({d.total_items} itens) —{' '}
+                    {new Date(d.created_at).toLocaleDateString('pt-BR')}
                   </option>
                 ))}
               </select>
@@ -137,13 +161,13 @@ export default function DiffVersoesPage() {
         )}
 
         <div className="pt-2">
-          <button
+          <Button
             onClick={handleCompare}
+            loading={diffing}
             disabled={diffing || documents.length < 2 || docAntigoId === docNovoId}
-            className="btn-primary"
           >
-            {diffing ? 'Comparando...' : 'Comparar Versões'}
-          </button>
+            {diffing ? 'Comparando…' : 'Comparar Versões'}
+          </Button>
         </div>
       </div>
 
@@ -151,43 +175,55 @@ export default function DiffVersoesPage() {
       {diffResult && (
         <div className="space-y-6">
           {/* Resumo da comparação */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <div className="glass-card p-4 text-center">
-              <p className="text-xs text-gray-400">Total de Itens</p>
-              <p className="text-2xl font-bold text-white mt-1">{diffResult.total}</p>
+              <p className="text-xs text-content-muted">Total de Itens</p>
+              <p className="tnum mt-1 text-2xl font-semibold tracking-tight text-content-primary">
+                {diffResult.total}
+              </p>
             </div>
             <div className="glass-card p-4 text-center">
-              <p className="text-xs text-amber-400 font-medium">Alterados</p>
-              <p className="text-2xl font-bold text-amber-400 mt-1">{diffResult.resumo?.alterados || 0}</p>
+              <p className="text-xs font-medium text-amber-400">Alterados</p>
+              <p className="tnum mt-1 text-2xl font-semibold tracking-tight text-amber-400">
+                {diffResult.resumo?.alterados || 0}
+              </p>
             </div>
             <div className="glass-card p-4 text-center">
-              <p className="text-xs text-green-400 font-medium">Adicionados</p>
-              <p className="text-2xl font-bold text-green-400 mt-1">{diffResult.resumo?.adicionados || 0}</p>
+              <p className="text-xs font-medium text-green-400">Adicionados</p>
+              <p className="tnum mt-1 text-2xl font-semibold tracking-tight text-green-400">
+                {diffResult.resumo?.adicionados || 0}
+              </p>
             </div>
             <div className="glass-card p-4 text-center">
-              <p className="text-xs text-red-400 font-medium">Removidos</p>
-              <p className="text-2xl font-bold text-red-400 mt-1">{diffResult.resumo?.removidos || 0}</p>
+              <p className="text-xs font-medium text-red-400">Removidos</p>
+              <p className="tnum mt-1 text-2xl font-semibold tracking-tight text-red-400">
+                {diffResult.resumo?.removidos || 0}
+              </p>
             </div>
           </div>
 
           {/* Lista de Itens comparados */}
           <div className="space-y-4">
-            <h2 className="text-lg font-semibold text-white">Detalhamento das Alterações</h2>
+            <h2 className="text-lg font-semibold tracking-tight text-content-primary">
+              Detalhamento das Alterações
+            </h2>
 
-            {diffResult.itens.map((item: DiffItemResponse) => (
-              <div key={item.item_number} className="glass-card p-5 space-y-3">
-                <div className="flex items-center justify-between">
+            {diffResult.itens.map((item) => (
+              <div key={item.item_number} className="glass-card space-y-3 p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm text-primary-400 font-bold">
+                    <span className="tnum font-mono text-sm font-semibold text-accent-400">
                       Item {item.item_number}
                     </span>
                     {item.titulo && (
-                      <h3 className="text-sm font-semibold text-white truncate max-w-md">
+                      <h3 className="max-w-md truncate text-sm font-semibold text-content-primary">
                         {item.titulo}
                       </h3>
                     )}
                   </div>
-                  <span className={`badge ${getStatusBadge(item.status)} uppercase text-[10px]`}>
+                  <span
+                    className={`badge uppercase text-[10px] ${getStatusBadge(item.status)}`}
+                  >
                     {item.status}
                   </span>
                 </div>
@@ -196,32 +232,50 @@ export default function DiffVersoesPage() {
                 {item.status === 'alterado' && (
                   <div className="space-y-2 pt-2">
                     <div className="diff-removed">
-                      <p className="text-xs text-red-400/70 font-semibold uppercase tracking-wider mb-1">Versão Anterior</p>
-                      <p className="text-sm text-red-300/90 whitespace-pre-wrap">{item.conteudo_antes}</p>
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-red-400/70">
+                        Versão Anterior
+                      </p>
+                      <p className="whitespace-pre-wrap text-sm text-red-300/90">
+                        {item.conteudo_antes}
+                      </p>
                     </div>
                     <div className="diff-added">
-                      <p className="text-xs text-green-400/70 font-semibold uppercase tracking-wider mb-1">Nova Versão</p>
-                      <p className="text-sm text-green-300/90 whitespace-pre-wrap">{item.conteudo_depois}</p>
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-green-400/70">
+                        Nova Versão
+                      </p>
+                      <p className="whitespace-pre-wrap text-sm text-green-300/90">
+                        {item.conteudo_depois}
+                      </p>
                     </div>
                   </div>
                 )}
 
                 {item.status === 'adicionado' && (
                   <div className="diff-added">
-                    <p className="text-xs text-green-400/70 font-semibold uppercase tracking-wider mb-1">Novo Item Adicionado</p>
-                    <p className="text-sm text-green-300/90 whitespace-pre-wrap">{item.conteudo_depois}</p>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-green-400/70">
+                      Novo Item Adicionado
+                    </p>
+                    <p className="whitespace-pre-wrap text-sm text-green-300/90">
+                      {item.conteudo_depois}
+                    </p>
                   </div>
                 )}
 
                 {item.status === 'removido' && (
                   <div className="diff-removed">
-                    <p className="text-xs text-red-400/70 font-semibold uppercase tracking-wider mb-1">Item Excluído</p>
-                    <p className="text-sm text-red-300/90 whitespace-pre-wrap">{item.conteudo_antes}</p>
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-red-400/70">
+                      Item Excluído
+                    </p>
+                    <p className="whitespace-pre-wrap text-sm text-red-300/90">
+                      {item.conteudo_antes}
+                    </p>
                   </div>
                 )}
 
                 {item.status === 'inalterado' && (
-                  <p className="text-xs text-gray-500 italic">Item idêntico em ambas as versões.</p>
+                  <p className="text-xs italic text-content-subtle">
+                    Item idêntico em ambas as versões.
+                  </p>
                 )}
               </div>
             ))}

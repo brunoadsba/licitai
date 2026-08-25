@@ -1,3 +1,8 @@
+'use client';
+
+import { ArrowRight } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+
 interface PassoDadosProps {
   tipoContratacao: string;
   objeto: string;
@@ -17,7 +22,6 @@ export default function PassoDados({
   tipoContratacao,
   objeto,
   justificativa,
-  error,
   setTipoContratacao,
   setObjeto,
   setJustificativa,
@@ -34,20 +38,21 @@ export default function PassoDados({
   }
 
   return (
-    <div className="glass-card p-6 space-y-4">
-      <h2 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">
+    <div className="glass-card space-y-4 p-5 sm:p-6">
+      <h2 className="text-[11px] font-medium uppercase tracking-widest text-content-subtle">
         1. Caracterização da Necessidade
       </h2>
 
       <div className="space-y-4">
         <div>
-          <label className="block text-xs text-gray-300 font-medium mb-1">
-            Tipo de Contratação:
+          <label htmlFor="tr-tipo" className="mb-1 block text-xs font-medium text-content-secondary">
+            Tipo de Contratação
           </label>
           <select
+            id="tr-tipo"
             value={tipoContratacao}
             onChange={(e) => setTipoContratacao(e.target.value)}
-            className="input-field w-full text-sm bg-surface-900"
+            className="input-field w-full text-sm"
           >
             <option value="servicos_continuados">Serviços Contínuos</option>
             <option value="obras_engenharia">Obras e Serviços de Engenharia</option>
@@ -57,36 +62,42 @@ export default function PassoDados({
         </div>
 
         <div>
-          <label className="block text-xs text-gray-300 font-medium mb-1">
-            Descrição Clara do Objeto:
+          <label htmlFor="tr-objeto" className="mb-1 block text-xs font-medium text-content-secondary">
+            Descrição Clara do Objeto
           </label>
           <textarea
+            id="tr-objeto"
             value={objeto}
             onChange={(e) => setObjeto(e.target.value)}
             rows={3}
-            placeholder="Ex.: Contratação de empresa especializada na prestação de serviços continuados de manutenção preventiva e corretiva de ar condicionado central..."
-            className="input-field w-full text-sm bg-surface-900"
+            placeholder="Ex.: Contratação de empresa especializada na prestação de serviços continuados de manutenção preventiva e corretiva de ar condicionado central…"
+            className="input-field w-full text-sm"
           />
         </div>
 
         <div>
-          <label className="block text-xs text-gray-300 font-medium mb-1">
-            Justificativa da Contratação:
+          <label
+            htmlFor="tr-justificativa"
+            className="mb-1 block text-xs font-medium text-content-secondary"
+          >
+            Justificativa da Contratação
           </label>
           <textarea
+            id="tr-justificativa"
             value={justificativa}
             onChange={(e) => setJustificativa(e.target.value)}
             rows={4}
-            placeholder="Ex.: A contratação faz-se necessária para manter a infraestrutura operacional da autoridade portuária em condições adequadas de uso, garantindo o conforto térmico..."
-            className="input-field w-full text-sm bg-surface-900"
+            placeholder="Ex.: A contratação faz-se necessária para manter a infraestrutura operacional da autoridade portuária em condições adequadas de uso, garantindo o conforto térmico…"
+            className="input-field w-full text-sm"
           />
         </div>
       </div>
 
-      <div className="pt-2 flex justify-end">
-        <button onClick={handleAvancar} className="btn-primary">
-          Avançar para Passo 2 ➔
-        </button>
+      <div className="flex justify-end pt-2">
+        <Button onClick={handleAvancar}>
+          Avançar para Passo 2
+          <ArrowRight className="h-4 w-4" aria-hidden />
+        </Button>
       </div>
     </div>
   );

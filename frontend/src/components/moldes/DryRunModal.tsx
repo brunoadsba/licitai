@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { listDocuments, validateMoldeDryRun , extractErrorMessage } from '@/lib/api';
+import { FlaskConical, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/Dialog';
+import { Button } from '@/components/ui/Button';
+import { listDocuments, validateMoldeDryRun, extractErrorMessage } from '@/lib/api';
 import { Molde, DocumentResponse, DryRunResultado } from '@/types';
 
 interface DryRunModalProps {
@@ -14,7 +17,11 @@ export default function DryRunModal({ molde, onClose, onError }: DryRunModalProp
   const [docsList, setDocsList] = useState<DocumentResponse[]>([]);
   const [selectedDocId, setSelectedDocId] = useState('');
   const [dryRunLoading, setDryRunLoading] = useState(false);
-  const [dryRunResult, setDryRunResult] = useState<any | null>(null);
+  const [dryRunResult, setDryRunResult] = useState<{
+    total_regras: number;
+    regras_encontradas: number;
+    resultados: DryRunResultado[];
+  } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -46,27 +53,21 @@ export default function DryRunModal({ molde, onClose, onError }: DryRunModalProp
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="glass-card max-w-2xl w-full p-6 space-y-4 max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
-              <span>🔑</span> Validar Molde contra TR (Dry-Run)
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Molde: <span className="text-primary-300 font-semibold">{molde.nome}</span>
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white text-lg font-bold"
-          >
-            ✕
-          </button>
-        </div>
+    <Dialog open onOpenChange={(next) => (!next ? onClose() : undefined)}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <FlaskConical className="h-5 w-5 text-amber-300" aria-hidden />
+            Validar Molde contra TR (Dry-Run)
+          </DialogTitle>
+          <DialogDescription>
+            Molde: <span className="font-semibold text-accent-400">{molde.nome}</span> — testa as
+            regras contra um TR real sem salvar nada.
+          </DialogDescription>
+        </DialogHeader>
 
         <div className="space-y-2">
-          <label className="block text-xs font-semibold text-gray-300">
+          <label htmlFor="dryrun-doc" className="block text-xs font-medium text-content-secondary">
             Selecione o Termo de Referência para teste:
           </label>
           {docsList.length === 0 ? (
@@ -74,11 +75,12 @@ export default function DryRunModal({ molde, onClose, onError }: DryRunModalProp
               Nenhum Termo de Referência encontrado. Envie um documento TR na tela de Upload.
             </p>
           ) : (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <select
+                id="dryrun-doc"
                 value={selectedDocId}
                 onChange={(e) => setSelectedDocId(e.target.value)}
-                className="input-field flex-1 text-sm bg-surface-900"
+                className="input-field tnum flex-1 text-sm"
               >
                 {docsList.map((doc) => (
                   <option key={doc.id} value={doc.id}>
@@ -86,54 +88,63 @@ export default function DryRunModal({ molde, onClose, onError }: DryRunModalProp
                   </option>
                 ))}
               </select>
-              <button
+              <Button
                 onClick={executeDryRun}
                 disabled={dryRunLoading || !selectedDocId}
-                className="btn-primary shrink-0"
+                loading={dryRunLoading}
+                className="shrink-0"
               >
-                {dryRunLoading ? 'Executando...' : 'Testar Extração'}
-              </button>
+                {dryRunLoading ? 'Executando…' : 'Testar Extração'}
+              </Button>
             </div>
           )}
         </div>
 
         {dryRunResult && (
           <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between bg-surface-900/60 p-3 rounded-lg border border-white/10">
-              <div>
-                <span className="text-xs text-gray-400">Total de regras: </span>
-                <span className="text-xs font-bold text-white">{dryRunResult.total_regras}</span>
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-strong bg-canvas/60 p-3">
+              <div className="text-xs text-content-muted">
+                Total de regras:{' '}
+                <span className="tnum font-semibold text-content-primary">
+                  {dryRunResult.total_regras}
+                </span>
               </div>
-              <div>
-                <span className="text-xs text-gray-400">Correspondências no TR: </span>
-                <span className="text-xs font-bold text-green-400">{dryRunResult.regras_encontradas} / {dryRunResult.total_regras}</span>
+              <div className="text-xs text-content-muted">
+                Correspondências no TR:{' '}
+                <span className="tnum font-semibold text-green-400">
+                  {dryRunResult.regras_encontradas} / {dryRunResult.total_regras}
+                </span>
               </div>
             </div>
 
-            <div className="space-y-2 max-h-60 overflow-y-auto">
-              {dryRunResult.resultados.map((r: DryRunResultado) => (
+            <div className="max-h-60 space-y-2 overflow-y-auto pr-1">
+              {dryRunResult.resultados.map((r) => (
                 <div
                   key={r.regra_id}
-                  className={`p-3 rounded-lg border text-xs flex items-center justify-between ${
+                  className={`flex items-center justify-between rounded-lg border p-3 text-xs ${
                     r.encontrado
-                      ? 'bg-green-500/10 border-green-500/30 text-green-300'
-                      : 'bg-surface-900/40 border-white/5 text-gray-400'
+                      ? 'border-green-500/30 bg-green-500/10 text-green-300'
+                      : 'border-line-subtle bg-canvas/40 text-content-muted'
                   }`}
                 >
                   <div>
-                    <span className="font-semibold text-gray-200">{r.rotulo}</span>
-                    <span className="text-[10px] text-gray-500 ml-2 font-mono">({r.tipo})</span>
+                    <span className="font-semibold text-content-primary">{r.rotulo}</span>
+                    <span className="tnum ml-2 font-mono text-[10px] text-content-subtle">
+                      ({r.tipo})
+                    </span>
                     {r.ancora && (
-                      <p className="text-[11px] text-gray-400 mt-0.5">Âncora: &quot;{r.ancora}&quot;</p>
+                      <p className="mt-0.5 text-[11px] text-content-muted">
+                        Âncora: &quot;{r.ancora}&quot;
+                      </p>
                     )}
                   </div>
                   <div className="text-right">
                     {r.encontrado ? (
-                      <span className="font-bold text-green-300 bg-green-500/20 px-2 py-0.5 rounded border border-green-500/30">
+                      <span className="tnum rounded border border-green-500/30 bg-green-500/20 px-2 py-0.5 font-semibold text-green-300">
                         {r.valor_extraido}
                       </span>
                     ) : (
-                      <span className="text-gray-500 italic">Não encontrado</span>
+                      <span className="italic text-content-subtle">Não encontrado</span>
                     )}
                   </div>
                 </div>
@@ -141,7 +152,7 @@ export default function DryRunModal({ molde, onClose, onError }: DryRunModalProp
             </div>
           </div>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

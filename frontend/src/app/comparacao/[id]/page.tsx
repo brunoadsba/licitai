@@ -3,8 +3,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getComparacao, getMatriz } from '@/lib/api';
-import { extractErrorMessage } from '@/lib/api';
+import { ChevronLeft, LoaderCircle } from 'lucide-react';
+import { getComparacao, getMatriz, extractErrorMessage } from '@/lib/api';
+import { Skeleton } from '@/components/ui/Skeleton';
 import {
   COMPARACAO_STATUS_LABELS,
   CONFORMIDADE_LABELS,
@@ -70,7 +71,7 @@ export default function MatrizPage() {
         falhasConsecutivas.current += 1;
         if (falhasConsecutivas.current >= 2) {
           setPollingError(
-            `${extractErrorMessage(err, 'Falha ao atualizar status.')} Verificando novamente...`
+            `${extractErrorMessage(err, 'Falha ao atualizar status.')} Verificando novamente…`
           );
         }
       }
@@ -104,7 +105,7 @@ export default function MatrizPage() {
       falha: 'bg-red-500/10 text-red-300 border-red-500/30',
       atencao: 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30',
     };
-    return classes[status] || 'bg-gray-500/10 text-gray-300 border-gray-500/30';
+    return classes[status] || 'bg-white/[0.04] text-content-secondary border-line-subtle';
   }
 
   function formatDate(dateStr: string | null): string {
@@ -117,9 +118,9 @@ export default function MatrizPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4 animate-fade-in">
-        <div className="skeleton h-12 w-72" />
-        <div className="skeleton h-96" />
+      <div className="animate-fade-in space-y-4">
+        <Skeleton className="h-12 w-72" />
+        <Skeleton className="h-96" />
       </div>
     );
   }
@@ -127,7 +128,7 @@ export default function MatrizPage() {
   if (!comparacao) {
     return (
       <div className="glass-card p-12 text-center">
-        <p className="text-gray-400">Comparação não encontrada.</p>
+        <p className="text-content-muted">Comparação não encontrada.</p>
         <Link href="/comparacao" className="btn-primary mt-4 inline-flex">
           Voltar
         </Link>
@@ -136,21 +137,32 @@ export default function MatrizPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="animate-fade-in space-y-6">
       {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
-            <Link href="/" className="hover:text-gray-300 transition-colors">Painel</Link>
-            <span>›</span>
-            <Link href="/comparacao" className="hover:text-gray-300 transition-colors">
+          <div className="mb-1 flex items-center gap-1.5 text-xs text-content-subtle">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-0.5 outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+              Painel
+            </Link>
+            <span aria-hidden>/</span>
+            <Link
+              href="/comparacao"
+              className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
+            >
               Comparações
             </Link>
-            <span>›</span>
-            <span className="text-gray-400">Matriz de Conformidade</span>
+            <span aria-hidden>/</span>
+            <span className="text-content-muted">Matriz de Conformidade</span>
           </div>
-          <h1 className="text-xl font-bold text-white">Matriz de Conformidade</h1>
-          <p className="text-gray-500 text-sm mt-1">
+          <h1 className="text-xl font-semibold tracking-tight text-content-primary sm:text-2xl">
+            Matriz de Conformidade
+          </h1>
+          <p className="tnum mt-1 text-sm text-content-muted">
             Criada em {formatDate(comparacao.created_at)}
           </p>
         </div>
@@ -161,7 +173,7 @@ export default function MatrizPage() {
 
       {comparacao.status === 'error' && (
         <div className="glass-card border-red-500/20 p-4">
-          <p className="text-red-400 text-sm">
+          <p className="text-sm text-red-400">
             {comparacao.error_message || 'Erro durante a comparação.'}
           </p>
         </div>
@@ -169,60 +181,60 @@ export default function MatrizPage() {
 
       {pollingError && (
         <div className="glass-card border-yellow-500/20 p-4">
-          <p className="text-yellow-400 text-sm">{pollingError}</p>
+          <p className="text-sm text-yellow-400">{pollingError}</p>
         </div>
       )}
 
       {error && (
         <div className="glass-card border-red-500/20 p-4">
-          <p className="text-red-400 text-sm">{error}</p>
+          <p className="text-sm text-red-400">{error}</p>
         </div>
       )}
 
       {/* Em execução */}
       {['pending', 'running'].includes(comparacao.status) && (
         <div className="glass-card p-8 text-center">
-          <svg className="w-10 h-10 mx-auto text-primary-400 animate-spin mb-4" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
-          <p className="text-gray-300 font-medium">
+          <LoaderCircle
+            className="mx-auto mb-4 h-10 w-10 animate-spin text-accent-400"
+            aria-hidden
+          />
+          <p className="font-medium text-content-primary">
             {COMPARACAO_STATUS_LABELS[comparacao.status]}
           </p>
-          <p className="text-gray-500 text-sm mt-1">
-            Comparando as propostas com o Termo de Referência...
+          <p className="mt-1 text-sm text-content-muted">
+            Comparando as propostas com o Termo de Referência…
           </p>
         </div>
       )}
 
       {/* Matriz */}
       {matriz && matriz.status === 'completed' && (
-        <div className="glass-card p-6 overflow-x-auto">
-          <div className="flex items-center gap-4 mb-6 flex-wrap">
+        <div className="glass-card overflow-x-auto p-4 sm:p-6">
+          <div className="mb-6 flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-green-500" />
-              <span className="text-xs text-gray-400">OK</span>
+              <span className="h-3 w-3 rounded-full bg-green-500" aria-hidden />
+              <span className="text-xs text-content-muted">OK</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-yellow-500" />
-              <span className="text-xs text-gray-400">ATENÇÃO</span>
+              <span className="h-3 w-3 rounded-full bg-yellow-500" aria-hidden />
+              <span className="text-xs text-content-muted">ATENÇÃO</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-red-500" />
-              <span className="text-xs text-gray-400">FALHA</span>
+              <span className="h-3 w-3 rounded-full bg-red-500" aria-hidden />
+              <span className="text-xs text-content-muted">FALHA</span>
             </div>
           </div>
 
           <table className="w-full text-sm">
             <thead>
               <tr>
-                <th className="text-left p-3 text-xs text-gray-500 uppercase tracking-wider border-b border-white/[0.06] min-w-[220px]">
+                <th className="min-w-[200px] border-b border-line-subtle p-3 text-left text-[11px] uppercase tracking-widest text-content-subtle">
                   Regra
                 </th>
                 {matriz.fornecedores.map((f) => (
                   <th
                     key={f.id}
-                    className="text-center p-3 text-xs text-gray-400 uppercase tracking-wider border-b border-white/[0.06] min-w-[140px]"
+                    className="min-w-[140px] border-b border-line-subtle p-3 text-center text-[11px] uppercase tracking-widest text-content-muted"
                   >
                     {f.nome}
                   </th>
@@ -232,29 +244,34 @@ export default function MatrizPage() {
             <tbody>
               {matriz.linhas.map((linha) => (
                 <tr key={linha.regra_id} className="hover:bg-white/[0.02]">
-                  <td className="p-3 border-b border-white/[0.04] align-top">
-                    <p className="font-medium text-gray-200">{linha.rotulo}</p>
-                    <p className="text-[11px] text-gray-600 font-mono mt-0.5">
+                  <td className="border-b border-line-subtle p-3 align-top">
+                    <p className="font-medium text-content-primary">{linha.rotulo}</p>
+                    <p className="tnum mt-0.5 font-mono text-[11px] text-content-subtle">
                       {linha.regra_id}
                     </p>
                   </td>
                   {linha.celulas.map((celula) => (
                     <td
                       key={celula.fornecedor_id}
-                      className={`p-3 border-b border-white/[0.04] text-center align-top border ${getCellColors(celula.status)} rounded-xl`}
+                      className={`rounded-xl border p-3 text-center align-top border-b border-b-white/[0.04] ${getCellColors(celula.status)}`}
                     >
                       <span className={`badge ${getCellBadge(celula.status)}`}>
                         {CONFORMIDADE_LABELS[celula.status] || celula.status}
                       </span>
                       {celula.motivo && (
-                        <p className="text-[11px] mt-2 leading-snug text-gray-400">
+                        <p className="mt-2 text-[11px] leading-snug text-content-muted">
                           {celula.motivo}
                         </p>
                       )}
                       {(celula.valor_tr || celula.valor_proposta) && (
-                        <div className="mt-2 text-[11px] text-gray-500">
-                          <p>TR: <span className="text-gray-300">{celula.valor_tr || '—'}</span></p>
-                          <p>Proposta: <span className="text-gray-300">{celula.valor_proposta || '—'}</span></p>
+                        <div className="tnum mt-2 space-y-0.5 text-[11px] text-content-subtle">
+                          <p>
+                            TR: <span className="text-content-secondary">{celula.valor_tr || '—'}</span>
+                          </p>
+                          <p>
+                            Proposta:{' '}
+                            <span className="text-content-secondary">{celula.valor_proposta || '—'}</span>
+                          </p>
                         </div>
                       )}
                     </td>

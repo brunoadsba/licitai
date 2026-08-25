@@ -1,4 +1,9 @@
+'use client';
+
 import Link from 'next/link';
+import { GitCompareArrows, MailCheck } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { COMPARACAO_STATUS_LABELS } from '@/types';
 
 interface Comparacao {
@@ -26,14 +31,14 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function getStatusBadge(status: string) {
-  const classes: Record<string, string> = {
-    pending: 'badge-medio',
-    running: 'badge-medio',
-    completed: 'badge-baixo',
-    error: 'badge-critico',
+function getStatusTone(status: string): 'medium' | 'low' | 'critical' | 'info' {
+  const tones: Record<string, 'medium' | 'low' | 'critical' | 'info'> = {
+    pending: 'medium',
+    running: 'medium',
+    completed: 'low',
+    error: 'critical',
   };
-  return classes[status] || 'badge-info';
+  return tones[status] || 'info';
 }
 
 /**
@@ -50,7 +55,7 @@ export default function ComparacaoList({
     return (
       <div className="space-y-3">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="skeleton h-20" />
+          <Skeleton key={i} className="h-20" />
         ))}
       </div>
     );
@@ -59,62 +64,68 @@ export default function ComparacaoList({
   if (comparacoes.length === 0) {
     return (
       <div className="glass-card p-12 text-center">
-        <p className="text-gray-500">Nenhuma comparação realizada ainda.</p>
+        <p className="text-content-muted">Nenhuma comparação realizada ainda.</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      {comparacoes.map((cmp) => (
-        <div key={cmp.id} className="glass-card-interactive p-5">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-3">
-                <span className={`badge ${getStatusBadge(cmp.status)}`}>
-                  {COMPARACAO_STATUS_LABELS[cmp.status as keyof typeof COMPARACAO_STATUS_LABELS] || cmp.status}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {formatDate(cmp.created_at)}
-                </span>
+      {comparacoes.map((cmp) => {
+        const enviado = feedbackEnviadosIds.includes(cmp.id);
+        return (
+          <div key={cmp.id} className="glass-card-interactive p-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span
+                    className={`badge ${
+                      { medium: 'badge-medio', low: 'badge-baixo', critical: 'badge-critico', info: 'badge-info' }[
+                        getStatusTone(cmp.status)
+                      ]
+                    }`}
+                  >
+                    {COMPARACAO_STATUS_LABELS[cmp.status as keyof typeof COMPARACAO_STATUS_LABELS] || cmp.status}
+                  </span>
+                  <span className="tnum text-xs text-content-subtle">{formatDate(cmp.created_at)}</span>
+                </div>
+                <div className="tnum mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-content-subtle">
+                  <span>{cmp.total_resultados} resultados</span>
+                  {cmp.fornecedores.length > 0 && (
+                    <>
+                      <span aria-hidden>·</span>
+                      <span>Fornecedores: {cmp.fornecedores.map((f) => f.nome).join(', ')}</span>
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="flex flex-wrap items-center gap-2 mt-2 text-xs text-gray-500">
-                <span>{cmp.total_resultados} resultados</span>
-                {cmp.fornecedores.length > 0 && (
-                  <>
-                    <span>•</span>
-                    <span>
-                      Fornecedores:{' '}
-                      {cmp.fornecedores.map((f) => f.nome).join(', ')}
-                    </span>
-                  </>
-                )}
-              </div>
+              {cmp.status === 'completed' && (
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => onFeedback(cmp.id)}
+                    disabled={sendingFeedbackId === cmp.id || enviado}
+                  >
+                    <MailCheck className="h-3.5 w-3.5" aria-hidden />
+                    {sendingFeedbackId === cmp.id
+                      ? 'Enviando…'
+                      : enviado
+                        ? 'Pendências Enviadas'
+                        : 'Enviar Pendências'}
+                  </Button>
+                  <Link href={`/comparacao/${cmp.id}`}>
+                    <Button variant="secondary" size="sm">
+                      <GitCompareArrows className="h-3.5 w-3.5" aria-hidden />
+                      Ver Matriz
+                    </Button>
+                  </Link>
+                </div>
+              )}
             </div>
-            {cmp.status === 'completed' && (
-              <div className="flex items-center gap-2 shrink-0 ml-4">
-                <button
-                  onClick={() => onFeedback(cmp.id)}
-                  disabled={sendingFeedbackId === cmp.id || feedbackEnviadosIds.includes(cmp.id)}
-                  className="btn-secondary text-xs px-4 py-2"
-                >
-                  {sendingFeedbackId === cmp.id
-                    ? 'Enviando...'
-                    : feedbackEnviadosIds.includes(cmp.id)
-                      ? 'Pendências Enviadas'
-                      : 'Enviar Pendências'}
-                </button>
-                <Link
-                  href={`/comparacao/${cmp.id}`}
-                  className="btn-secondary text-xs px-4 py-2"
-                >
-                  Ver Matriz
-                </Link>
-              </div>
-            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

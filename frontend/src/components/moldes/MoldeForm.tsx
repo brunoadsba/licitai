@@ -1,6 +1,8 @@
 'use client';
 
+import { Plus } from 'lucide-react';
 import { MoldeConfig, RegraConfig } from '@/types';
+import { Button } from '@/components/ui/Button';
 import RegraEditor from './RegraEditor';
 
 interface MoldeFormProps {
@@ -37,17 +39,18 @@ export default function MoldeForm({
   montarConfig,
 }: MoldeFormProps) {
   return (
-    <div className="glass-card p-6">
-      <h2 className="text-lg font-semibold text-white mb-4">
+    <div className="glass-card p-5 sm:p-6">
+      <h2 className="mb-4 text-lg font-semibold tracking-tight text-content-primary">
         {editingId ? 'Editar Molde' : 'Novo Molde'}
       </h2>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
-          <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
+          <label htmlFor="molde-nome" className="mb-2 block text-[11px] uppercase tracking-widest text-content-subtle">
             Nome do molde
           </label>
           <input
+            id="molde-nome"
             value={nome}
             onChange={(e) => onNomeChange(e.target.value)}
             placeholder="Ex.: Molde Padrão de TR"
@@ -55,10 +58,11 @@ export default function MoldeForm({
           />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">
+          <label htmlFor="molde-descricao" className="mb-2 block text-[11px] uppercase tracking-widest text-content-subtle">
             Descrição
           </label>
           <input
+            id="molde-descricao"
             value={descricao}
             onChange={(e) => onDescricaoChange(e.target.value)}
             placeholder="Descrição opcional"
@@ -67,22 +71,18 @@ export default function MoldeForm({
         </div>
       </div>
 
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-gray-300">
-          Regras ({regras.length})
-        </h3>
-        <button
-          onClick={onAddRegra}
-          className="btn-secondary text-xs"
-        >
-          + Adicionar Regra
-        </button>
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="tnum text-sm font-semibold text-content-secondary">Regras ({regras.length})</h3>
+        <Button onClick={onAddRegra} variant="secondary" size="sm">
+          <Plus className="h-3.5 w-3.5" aria-hidden />
+          Adicionar Regra
+        </Button>
       </div>
 
       {regras.length === 0 ? (
         <div className="glass-card p-8 text-center">
-          <p className="text-gray-500 text-sm">
-            Nenhuma regra. Clique em &quot;+ Adicionar Regra&quot;.
+          <p className="text-sm text-content-muted">
+            Nenhuma regra. Clique em &quot;Adicionar Regra&quot;.
           </p>
         </div>
       ) : (
@@ -99,24 +99,17 @@ export default function MoldeForm({
         </div>
       )}
 
-      <div className="flex items-center gap-3 mt-6">
-        <button
-          onClick={onSave}
-          disabled={saving || regras.length === 0}
-          className="btn-primary"
-        >
-          {saving ? 'Salvando...' : editingId ? 'Salvar Alterações' : 'Criar Molde'}
-        </button>
-        <button
-          onClick={onToggleJson}
-          className="btn-secondary"
-        >
+      <div className="mt-6 flex items-center gap-3">
+        <Button onClick={onSave} disabled={saving || regras.length === 0} loading={saving}>
+          {saving ? 'Salvando…' : editingId ? 'Salvar Alterações' : 'Criar Molde'}
+        </Button>
+        <Button onClick={onToggleJson} variant="secondary">
           {showJson ? 'Ocultar JSON' : 'Ver JSON'}
-        </button>
+        </Button>
       </div>
 
       {showJson && (
-        <pre className="mt-4 p-4 bg-black/40 border border-white/10 rounded-xl text-xs text-green-400 overflow-x-auto whitespace-pre-wrap">
+        <pre className="mt-4 overflow-x-auto whitespace-pre-wrap rounded-xl border border-line-strong bg-black/40 p-4 font-mono text-xs leading-relaxed text-green-400">
           {JSON.stringify(montarConfig(), null, 2)}
         </pre>
       )}

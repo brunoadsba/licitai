@@ -1,5 +1,6 @@
 'use client';
 
+import { X } from 'lucide-react';
 import { AnchorTipo, ANCHOR_TIPO_LABELS, RegraConfig } from '@/types';
 
 const TIPOS: AnchorTipo[] = [
@@ -32,34 +33,39 @@ export default function RegraEditor({ regra, index, onChange, onRemove }: RegraE
   }
 
   return (
-    <div className="glass-card p-4 space-y-4">
+    <div className="glass-card space-y-4 p-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-500 uppercase tracking-wider">
+        <span className="tnum text-[11px] uppercase tracking-widest text-content-subtle">
           Regra {index + 1}
         </span>
         <button
           onClick={() => onRemove(index)}
-          className="text-gray-600 hover:text-red-400 transition-colors"
+          aria-label={`Remover regra ${index + 1}`}
+          className="rounded-md p-1 text-content-subtle outline-none transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:ring-2 focus-visible:ring-red-500/60"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <X className="h-4 w-4" aria-hidden />
         </button>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Id</label>
+          <label htmlFor={`regra-${index}-id`} className="mb-1 block text-xs text-content-muted">
+            Id
+          </label>
           <input
+            id={`regra-${index}-id`}
             value={regra.id}
             onChange={(e) => onChange(index, 'id', e.target.value)}
             placeholder="ex.: vigencia_dias"
-            className="input-field w-full"
+            className="input-field w-full font-mono text-xs"
           />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Rótulo</label>
+          <label htmlFor={`regra-${index}-rotulo`} className="mb-1 block text-xs text-content-muted">
+            Rótulo
+          </label>
           <input
+            id={`regra-${index}-rotulo`}
             value={regra.rotulo}
             onChange={(e) => onChange(index, 'rotulo', e.target.value)}
             placeholder="ex.: Vigência mínima"
@@ -67,8 +73,11 @@ export default function RegraEditor({ regra, index, onChange, onRemove }: RegraE
           />
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">Tipo de âncora</label>
+          <label htmlFor={`regra-${index}-tipo`} className="mb-1 block text-xs text-content-muted">
+            Tipo de âncora
+          </label>
           <select
+            id={`regra-${index}-tipo`}
             value={regra.tipo}
             onChange={(e) => onChange(index, 'tipo', e.target.value as AnchorTipo)}
             className="input-field w-full"
@@ -81,10 +90,11 @@ export default function RegraEditor({ regra, index, onChange, onRemove }: RegraE
           </select>
         </div>
         <div>
-          <label className="block text-xs text-gray-500 mb-1">
+          <label htmlFor={`regra-${index}-ancora`} className="mb-1 block text-xs text-content-muted">
             Âncora (texto ou item, ex.: &quot;vigência&quot;)
           </label>
           <input
+            id={`regra-${index}-ancora`}
             value={regra.ancora || ''}
             onChange={(e) => onChange(index, 'ancora', e.target.value)}
             placeholder="Opcional — busca no documento todo"
@@ -94,10 +104,11 @@ export default function RegraEditor({ regra, index, onChange, onRemove }: RegraE
 
         {regra.tipo === 'booleano' && (
           <div className="sm:col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">
+            <label htmlFor={`regra-${index}-palavras`} className="mb-1 block text-xs text-content-muted">
               Palavras-chave (separadas por vírgula)
             </label>
             <input
+              id={`regra-${index}-palavras`}
               value={(regra.palavras_chave || []).join(', ')}
               onChange={(e) => handlePalavras(e.target.value)}
               placeholder="ex.: garantia, caução"
@@ -108,22 +119,26 @@ export default function RegraEditor({ regra, index, onChange, onRemove }: RegraE
 
         {regra.tipo === 'legal' && (
           <div className="sm:col-span-2">
-            <label className="block text-xs text-gray-500 mb-1">
+            <label htmlFor={`regra-${index}-regex`} className="mb-1 block text-xs text-content-muted">
               Regex da referência legal
             </label>
             <input
+              id={`regra-${index}-regex`}
               value={regra.regex || ''}
               onChange={(e) => onChange(index, 'regex', e.target.value)}
               placeholder="ex.: 14\.133/2021"
-              className="input-field w-full"
+              className="input-field w-full font-mono text-xs"
             />
           </div>
         )}
 
         {['numero_inteiro', 'numero_extenso'].includes(regra.tipo) && (
           <div>
-            <label className="block text-xs text-gray-500 mb-1">Unidade</label>
+            <label htmlFor={`regra-${index}-unidade`} className="mb-1 block text-xs text-content-muted">
+              Unidade
+            </label>
             <input
+              id={`regra-${index}-unidade`}
               value={regra.unidade || ''}
               onChange={(e) => onChange(index, 'unidade', e.target.value)}
               placeholder="ex.: dias, meses"
