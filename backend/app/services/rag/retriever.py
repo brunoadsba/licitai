@@ -39,6 +39,11 @@ _CACHE_TTL_SECONDS = 3600
 _legal_context_cache: dict[str, tuple[float, list["RetrievedChunk"]]] = {}
 
 
+def _clear_legal_context_cache() -> None:
+    """Limpa o cache de contexto jurídico (usado em testes)."""
+    _legal_context_cache.clear()
+
+
 @dataclass
 class RetrievedChunk:
     """Chunk recuperado do corpus jurídico."""

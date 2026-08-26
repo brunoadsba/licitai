@@ -16,6 +16,8 @@ from app.database import Base
 from app.models.legal import LegalChunk, LegalDocument
 from app.services.rag.loader import build_fts_index
 from app.services.rag.retriever import (
+    _clear_legal_context_cache,
+    _clear_query_embedding_cache,
     _cosseno,
     _para_chunks,
     retrieve,
@@ -138,6 +140,7 @@ def test_para_chunks_converte_linhas():
 
 
 def test_retrieve_semantico_ranqueia_por_similaridade(monkeypatch):
+    _clear_legal_context_cache()
     monkeypatch.setattr(
         "app.services.rag.retriever.get_embeddings_provider",
         lambda: FakeEmbeddingsProvider(),
@@ -205,9 +208,8 @@ def test_fts_sem_acento_retorna_chunk_acentuado():
 
 
 def test_retrieve_usa_cache_de_embedding(monkeypatch):
-    from app.services.rag.retriever import _clear_query_embedding_cache
-
     _clear_query_embedding_cache()
+    _clear_legal_context_cache()
 
     calls = {"n": 0}
 

@@ -5,7 +5,6 @@ Consulta embeddings pré-computados (coluna `legal_chunks.embedding`) com
 cache LRU de vetores de consulta e similaridade de cosseno.
 """
 
-import asyncio
 import json
 import logging
 from collections import OrderedDict
@@ -19,7 +18,6 @@ logger = logging.getLogger(__name__)
 
 _QUERY_EMBEDDING_CACHE: OrderedDict[tuple[str, str], tuple[float, ...]] = OrderedDict()
 _QUERY_EMBEDDING_CACHE_MAX = 256
-_QUERY_EMBEDDING_LOCK = asyncio.Lock()
 
 
 def _clear_query_embedding_cache() -> None:
@@ -31,10 +29,10 @@ async def _query_embedding_cached(query: str, provider_name: str) -> list[float]
     """Retorna embedding da query com cache limitado (LRU simples)."""
     key = (query, provider_name)
 
-    async with _QUERY_EMBEDDING_LOCK:
-        if key in _QUERY_EMBEDDING_CACHE:
-            _QUERY_EMBEDDING_CACHE.move_to_end(key)
-            return list(_QUERY_EMBEDDING_CACHE[key])
+    cached = _QUERY_EMBEDDING_CACHE.get(key)
+    if cached is not None:
+        _QUERY_EMBEDDING_CACHE.move_to_end(key)
+        return list(cached)
 
     # Resolve via módulo retriever em runtime: testes patcheiam
     # "app.services.rag.retriever.get_embeddings_provider" via monkeypatch.
@@ -43,11 +41,10 @@ async def _query_embedding_cached(query: str, provider_name: str) -> list[float]
     provider = retriever_module.get_embeddings_provider()
     vector = await provider.embed(query)
 
-    async with _QUERY_EMBEDDING_LOCK:
-        _QUERY_EMBEDDING_CACHE[key] = tuple(vector)
-        _QUERY_EMBEDDING_CACHE.move_to_end(key)
-        while len(_QUERY_EMBEDDING_CACHE) > _QUERY_EMBEDDING_CACHE_MAX:
-            _QUERY_EMBEDDING_CACHE.popitem(last=False)
+    _QUERY_EMBEDDING_CACHE[key] = tuple(vector)
+    _QUERY_EMBEDDING_CACHE.move_to_end(key)
+    while len(_QUERY_EMBEDDING_CACHE) > _QUERY_EMBEDDING_CACHE_MAX:
+        _QUERY_EMBEDDING_CACHE.popitem(last=False)
 
     return list(vector)
 
