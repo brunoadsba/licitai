@@ -27,8 +27,9 @@ logging.basicConfig(level=logging.WARNING)
 class FakeLLM(LLMProvider):
     """Provider fake que responde conforme o prompt (item/revisão/pontuação)."""
 
-    def __init__(self, falhar_pontuacao: bool = False):
+    def __init__(self, falhar_pontuacao: bool = False, pontuacao_invalida: bool = False):
         self._falhar_pontuacao = falhar_pontuacao
+        self._pontuacao_invalida = pontuacao_invalida
 
     async def health_check(self) -> bool:
         return True
@@ -61,6 +62,16 @@ class FakeLLM(LLMProvider):
             })
         if self._falhar_pontuacao:
             return "resposta inválida sem json"
+        if self._pontuacao_invalida:
+            return json.dumps({
+                "score_overall": "12",
+                "score_juridical": True,
+                "score_technical": 7.0,
+                "score_writing": 7.5,
+                "score_structural": 7.5,
+                "risk_level": "medio",
+                "final_opinion": "Parecer final de teste.",
+            })
         return json.dumps({
             "score_overall": 7.5,
             "score_juridical": 8.0,
@@ -74,6 +85,7 @@ class FakeLLM(LLMProvider):
 
 async def _montar_e_analisar(
     falhar_pontuacao: bool = False,
+    pontuacao_invalida: bool = False,
     documento_inexistente: bool = False,
 ) -> tuple[Analysis, Document | None, int]:
     """Cria banco em memória, roda run_analysis com mocks e devolve estado final."""
@@ -86,7 +98,10 @@ async def _montar_e_analisar(
         await conn.run_sync(Base.metadata.create_all)
 
     Session = async_sessionmaker(engine, expire_on_commit=False)
-    llm = FakeLLM(falhar_pontuacao=falhar_pontuacao)
+    llm = FakeLLM(
+        falhar_pontuacao=falhar_pontuacao,
+        pontuacao_invalida=pontuacao_invalida,
+    )
 
     async def fake_retrieve(db, query, top_k):
         return []
@@ -144,6 +159,44 @@ def _fluxo(**kwargs):
     return asyncio.run(_montar_e_analisar(**kwargs))
 
 
+def test_sanitize_scores_clampa_e_valida():
+    from app.services.analyzer.scoring import sanitize_scores
+
+    scores = sanitize_scores({
+        "score_overall": 11,
+        "score_juridical": -1.4,
+        "score_technical": 7.0,
+        "score_writing": 7.55,
+        "score_structural": 8,
+        "risk_level": "ALTO ",
+        "final_opinion": "Ok.",
+    })
+
+    assert scores["score_overall"] == 10.0
+    assert scores["score_juridical"] == 0.0
+    assert scores["score_writing"] == 7.5
+    assert scores["score_structural"] == 8.0
+    assert scores["risk_level"] == "alto"
+
+
+def test_sanitize_scores_rejeita_nao_numericas():
+    import pytest
+
+    from app.services.analyzer.scoring import sanitize_scores
+
+    with pytest.raises(ValueError):
+        sanitize_scores({
+            "score_overall": "12",
+            "score_juridical": True,
+            "score_technical": 7.0,
+            "score_writing": 7.5,
+            "score_structural": 7.5,
+        })
+
+    with pytest.raises(ValueError):
+        sanitize_scores({"score_overall": None})
+
+
 def test_run_analysis_completa_fluxo_single_agent():
     """Fluxo completo: item analisado, revisado, pontuado e análise concluída."""
     analysis, doc, n_corrections = _fluxo()
@@ -167,6 +220,17 @@ def test_run_analysis_usa_fallback_quando_llm_falha_pontuacao():
     assert analysis.status == "completed"
     assert analysis.score_overall is not None
     assert analysis.risk_level in {"baixo", "medio", "alto", "critico"}
+    assert "Pontuação consolidada" in analysis.final_opinion
+    assert n_corrections == 2
+
+
+def test_run_analysis_usa_fallback_quando_llm_devolve_notas_invalidas():
+    """Notas não numéricas vindas do LLM não são persistidas; fallback assume."""
+    analysis, doc, n_corrections = _fluxo(pontuacao_invalida=True)
+
+    assert analysis.status == "completed"
+    assert isinstance(float(analysis.score_overall), float)
+    assert 0.0 <= float(analysis.score_overall) <= 10.0
     assert "Pontuação consolidada" in analysis.final_opinion
     assert n_corrections == 2
 

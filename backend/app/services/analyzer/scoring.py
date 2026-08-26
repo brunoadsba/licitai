@@ -8,6 +8,44 @@ não pertence à orquestração.
 from app.services.analyzer.json_utils import parse_json_response
 from app.services.analyzer.prompts import SCORING_PROMPT, SYSTEM_PROMPT
 
+VALID_RISK_LEVELS = {"baixo", "medio", "alto", "critico"}
+_SCORE_KEYS = (
+    "score_overall",
+    "score_juridical",
+    "score_technical",
+    "score_writing",
+    "score_structural",
+)
+
+
+def sanitize_scores(scores: dict) -> dict:
+    """Valida e normaliza as notas vindas do LLM antes de persistir.
+
+    Regras:
+    - Cada nota deve ser numérica (bool não conta) e é clampada a [0, 10],
+      arredondada para 1 casa decimal.
+    - Qualquer nota ausente ou não numérica levanta ValueError — o chamador
+      (engine) trata isso aplicando o cálculo determinístico de fallback.
+    - risk_level inválido é substituído por "medio" (default histórico).
+    """
+    sanitized: dict = {}
+    for key in _SCORE_KEYS:
+        value = scores.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ValueError(f"Nota '{key}' inválida vinda do LLM: {value!r}")
+        sanitized[key] = round(max(0.0, min(10.0, float(value))), 1)
+
+    risk_level = scores.get("risk_level")
+    if isinstance(risk_level, str) and risk_level.strip().lower() in VALID_RISK_LEVELS:
+        sanitized["risk_level"] = risk_level.strip().lower()
+    else:
+        sanitized["risk_level"] = "medio"
+
+    opinion = scores.get("final_opinion", "")
+    sanitized["final_opinion"] = opinion if isinstance(opinion, str) else ""
+
+    return sanitized
+
 
 async def generate_scores(llm, corrections: list[dict], total_items: int) -> dict:
     """Gera pontuação consolidada via LLM."""

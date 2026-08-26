@@ -31,6 +31,7 @@ from app.services.analyzer.review import (
 from app.services.analyzer.scoring import (
     calculate_fallback_scores,
     generate_scores,
+    sanitize_scores,
 )
 from app.services.llm import get_llm_provider
 from app.services.rag.retriever import retrieve
@@ -166,13 +167,14 @@ async def run_analysis(
 
     # Gerar pontuação consolidada
     try:
-        scores = await generate_scores(llm, all_corrections, len(document.items))
+        raw_scores = await generate_scores(llm, all_corrections, len(document.items))
+        scores = sanitize_scores(raw_scores)
 
-        analysis.score_overall = scores.get("score_overall")
-        analysis.score_juridical = scores.get("score_juridical")
-        analysis.score_technical = scores.get("score_technical")
-        analysis.score_writing = scores.get("score_writing")
-        analysis.score_structural = scores.get("score_structural")
+        analysis.score_overall = scores["score_overall"]
+        analysis.score_juridical = scores["score_juridical"]
+        analysis.score_technical = scores["score_technical"]
+        analysis.score_writing = scores["score_writing"]
+        analysis.score_structural = scores["score_structural"]
         analysis.risk_level = scores.get("risk_level", "medio")
         analysis.final_opinion = scores.get("final_opinion", "")
 
