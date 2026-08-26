@@ -54,6 +54,7 @@ class DocumentResponse(BaseModel):
     status: str
     created_at: AwareDatetime
     updated_at: AwareDatetime
+    tokens_estimated: int | None = None
 
 
 class DocumentListResponse(BaseModel):

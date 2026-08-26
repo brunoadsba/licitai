@@ -93,6 +93,7 @@ class AnalysisDetailResponse(BaseModel):
     completed_at: AwareDatetime | None = None
     created_at: AwareDatetime
     corrections: list[CorrectionResponse] = []
+    tokens_estimated: int | None = None
 
 
 class ScoreDetail(BaseModel):
@@ -116,3 +117,4 @@ class ReportResponse(BaseModel):
     corrections: list[CorrectionResponse] = []
     final_opinion: str | None = None
     analyzed_at: AwareDatetime | None = None
+    tokens_estimated: int | None = None
