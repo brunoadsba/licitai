@@ -71,11 +71,50 @@ export default function MoldesPage() {
     }
   }
 
+  const TEMPLATES: { nome: string; descricao: string; regras: RegraConfig[] }[] = [
+    {
+      nome: 'TR Geral',
+      descricao: 'Vigência, garantia e base legal — ponto de partida para qualquer TR.',
+      regras: [
+        { id: 'vigencia_dias', rotulo: 'Vigência mínima', tipo: 'numero_inteiro', ancora: 'vigência', unidade: 'dias', expectativa: 90, palavras_chave: [], regex: '' },
+        { id: 'garantia_exigida', rotulo: 'Garantia exigida', tipo: 'booleano', ancora: 'garantia', unidade: '', expectativa: null, palavras_chave: ['garantia', 'caução'], regex: '' },
+        { id: 'lei_14133', rotulo: 'Lei 14.133/2021 citada', tipo: 'legal', ancora: 'lei', unidade: '', expectativa: null, palavras_chave: [], regex: '14\\.133/2021' },
+      ],
+    },
+    {
+      nome: 'Serviços Continuados',
+      descricao: 'Vigência em meses, prazo de pagamento e reajuste anual.',
+      regras: [
+        { id: 'vigencia_meses', rotulo: 'Vigência do contrato', tipo: 'numero_inteiro', ancora: 'vigência', unidade: 'meses', expectativa: 12, palavras_chave: [], regex: '' },
+        { id: 'prazo_pagamento', rotulo: 'Prazo de pagamento', tipo: 'numero_inteiro', ancora: 'pagamento', unidade: 'dias', expectativa: 30, palavras_chave: [], regex: '' },
+        { id: 'reajuste_percentual', rotulo: 'Reajuste anual', tipo: 'percentual', ancora: 'reajuste', unidade: '%', expectativa: null, palavras_chave: [], regex: '' },
+      ],
+    },
+    {
+      nome: 'Obras Públicas',
+      descricao: 'Valor estimado, prazo, data de entrega e cronograma físico-financeiro.',
+      regras: [
+        { id: 'valor_estimado', rotulo: 'Valor estimado da obra', tipo: 'monetario', ancora: 'valor estimado', unidade: '', expectativa: null, palavras_chave: [], regex: '' },
+        { id: 'prazo_execucao', rotulo: 'Prazo de execução', tipo: 'numero_inteiro', ancora: 'prazo', unidade: 'dias', expectativa: 180, palavras_chave: [], regex: '' },
+        { id: 'cronograma', rotulo: 'Cronograma físico-financeiro', tipo: 'booleano', ancora: 'cronograma', unidade: '', expectativa: null, palavras_chave: ['cronograma'], regex: '' },
+      ],
+    },
+  ];
+
   function startNew() {
     setEditingId(null);
     setNome('');
     setDescricao('');
     setRegras([novaRegra()]);
+    setError(null);
+  }
+
+  function aplicarTemplate(idx: number) {
+    const t = TEMPLATES[idx];
+    setEditingId(null);
+    setNome(t.nome);
+    setDescricao(t.descricao);
+    setRegras(t.regras.map((r) => ({ ...novaRegra(), ...r })));
     setError(null);
   }
 
@@ -174,6 +213,17 @@ export default function MoldesPage() {
           <Plus className="h-4 w-4" aria-hidden />
           Novo Molde
         </Button>
+      </div>
+
+      <div className="glass-card p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-content-subtle">Começar com template</p>
+        <div className="flex flex-wrap gap-2">
+          {TEMPLATES.map((t, idx) => (
+            <Button key={t.nome} variant="secondary" size="sm" onClick={() => aplicarTemplate(idx)}>
+              {t.nome}
+            </Button>
+          ))}
+        </div>
       </div>
 
       {error && (
