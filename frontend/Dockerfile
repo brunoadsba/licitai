@@ -4,7 +4,8 @@ FROM node:20-alpine AS base
 FROM base AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm install
+# npm ci garante build reprodutível a partir do lockfile
+RUN npm ci
 
 # Build
 FROM base AS builder
