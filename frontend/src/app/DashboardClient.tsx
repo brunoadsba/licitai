@@ -80,9 +80,8 @@ export default function DashboardClient({
 
   const stats = [
     { label: 'Total', value: documents.length },
-    { label: 'Analisados', value: documents.filter((d) => d.status === 'completed').length },
-    { label: 'Pendentes', value: documents.filter((d) => d.status === 'parsed').length },
-    { label: 'Erros', value: documents.filter((d) => d.status === 'error').length },
+    { label: 'Em análise', value: documents.filter((d) => d.status === 'analyzing' || d.status === 'parsing').length },
+    { label: 'Concluídos', value: documents.filter((d) => d.status === 'completed').length },
   ];
 
   const showLoading = refreshing && documents.length === 0;
@@ -108,7 +107,7 @@ export default function DashboardClient({
         )}
       </div>
 
-      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         {stats.map((stat) => (
           <div key={stat.label} className="glass-card p-5">
             <dt className="text-[11px] uppercase tracking-widest text-content-subtle">
