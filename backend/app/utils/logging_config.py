@@ -13,6 +13,8 @@ import json
 import logging
 from datetime import datetime, timezone
 
+from app.utils.request_context import RequestIdFilter
+
 
 class JsonFormatter(logging.Formatter):
     """Formatter que serializa cada registro em uma linha JSON."""
@@ -23,6 +25,7 @@ class JsonFormatter(logging.Formatter):
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
+            "request_id": getattr(record, "request_id", "-"),
         }
         if record.exc_info:
             payload["exception"] = self.formatException(record.exc_info)
@@ -33,6 +36,7 @@ def setup_logging(level: int = logging.INFO) -> None:
     """Configura o logging raiz com formatter JSON."""
     handler = logging.StreamHandler()
     handler.setFormatter(JsonFormatter())
+    handler.addFilter(RequestIdFilter())
 
     root = logging.getLogger()
     root.handlers[:] = [handler]

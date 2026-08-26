@@ -20,6 +20,7 @@ from app.api.router import router
 from app.config import settings
 from app.database import Base, async_session_factory, engine
 from app.utils.logging_config import setup_logging
+from app.utils.request_context import RequestIdMiddleware
 from app.utils.security import RateLimitMiddleware, SecurityHeadersMiddleware
 
 # Configurar logging estruturado (JSON) — sem dados sensíveis
@@ -89,13 +90,17 @@ app.add_middleware(RateLimitMiddleware, max_requests=settings.rate_limit_max, wi
 # Security headers (CSP, X-Frame-Options, etc.)
 app.add_middleware(SecurityHeadersMiddleware)
 
+# Por último = primeiro a executar: assim os logs dos middlewares acima também
+# carregam o request_id.
+app.add_middleware(RequestIdMiddleware)
+
 # CORS — allowlist de origens
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins_list,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Content-Type", "Accept"],
+    allow_headers=["Content-Type", "Accept", "X-API-Token"],
     expose_headers=["Content-Disposition"],
 )
 
