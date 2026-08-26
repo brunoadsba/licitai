@@ -27,10 +27,6 @@ httpx==0.28.1
 python-magic==0.4.27
 pydantic-settings==2.9.1
 
-# --- Geração de Relatórios ---
-markdown==3.8
-weasyprint==65.0
-
 # --- Utilidades ---
 aiofiles==24.1.0
 

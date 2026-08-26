@@ -49,6 +49,8 @@ frontend/dev-server.log
 
 # Documentos reais (CODEBA)
 tr_modelo.pdf
+# Duplicata da logo (a oficial vive em frontend/public/logo-codeba.png)
+Logo CODEBA.png
 
 # Temporary scratch files
 scratch/
