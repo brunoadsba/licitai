@@ -20,8 +20,10 @@ if "sqlite" in settings.database_url:
     @event.listens_for(engine.sync_engine, "connect")
     def _set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
+        # Sem isto, os ondelete CASCADE/SET NULL dos models são ignorados no SQLite.
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA busy_timeout=5000")
+        cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 else:
     engine = create_async_engine(
