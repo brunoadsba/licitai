@@ -90,17 +90,19 @@ async def create_conversation(
 async def list_conversations(
     limit: int = 50,
     offset: int = 0,
+    document_id: str | None = None,
+    analysis_id: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista conversas (paginado por updated_at desc)."""
+    """Lista conversas (paginado por updated_at desc), com filtros opcionais."""
     limit = max(1, min(limit, 200))
     offset = max(0, offset)
-    result = await db.execute(
-        select(ChatConversation)
-        .order_by(ChatConversation.updated_at.desc())
-        .limit(limit)
-        .offset(offset)
-    )
+    stmt = select(ChatConversation).order_by(ChatConversation.updated_at.desc())
+    if document_id is not None:
+        stmt = stmt.where(ChatConversation.document_id == document_id)
+    if analysis_id is not None:
+        stmt = stmt.where(ChatConversation.analysis_id == analysis_id)
+    result = await db.execute(stmt.limit(limit).offset(offset))
     return result.scalars().all()
 
 

@@ -19,6 +19,7 @@ import type {
   DryRunResponse,
   DocumentDetailResponse,
   DocumentListResponse,
+  DocumentResponse,
   DocumentRevision,
   DocumentRevisionListResponse,
   Fornecedor,
@@ -29,6 +30,7 @@ import type {
 } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
+const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || '';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -98,6 +100,7 @@ async function fetchAPI<T>(endpoint: string, options: FetchAPIOptions = {}): Pro
       signal: options.signal ?? AbortSignal.timeout(timeoutMs),
       headers: {
         'Accept': 'application/json',
+        ...(API_TOKEN ? { 'X-API-Token': API_TOKEN } : {}),
         ...options.headers,
       },
     });
@@ -151,7 +154,7 @@ function jsonBody(data: unknown): BodyInit {
 export async function uploadDocument(
   file: File,
   options?: { documentType?: 'tr' | 'proposta'; fornecedorId?: string }
-): Promise<DocumentDetailResponse> {
+): Promise<DocumentResponse> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('document_type', options?.documentType || 'tr');
@@ -159,7 +162,7 @@ export async function uploadDocument(
     formData.append('fornecedor_id', options.fornecedorId);
   }
 
-  return fetchAPI<DocumentDetailResponse>('/documents/upload', {
+  return fetchAPI<DocumentResponse>('/documents/upload', {
     method: 'POST',
     body: formData,
     // Upload inclui parsing síncrono (OCR pode demorar minutos).
@@ -427,8 +430,15 @@ export async function createChatConversation(data: {
   });
 }
 
-export async function listChatConversations(limit = 50, offset = 0): Promise<ChatConversation[]> {
-  return fetchAPI<ChatConversation[]>(`/chat/conversations?limit=${limit}&offset=${offset}`);
+export async function listChatConversations(
+  limit = 50,
+  offset = 0,
+  filters?: { documentId?: string; analysisId?: string }
+): Promise<ChatConversation[]> {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+  if (filters?.documentId) params.set('document_id', filters.documentId);
+  if (filters?.analysisId) params.set('analysis_id', filters.analysisId);
+  return fetchAPI<ChatConversation[]>(`/chat/conversations?${params.toString()}`);
 }
 
 export async function getChatMessages(conversationId: number): Promise<ChatMessage[]> {

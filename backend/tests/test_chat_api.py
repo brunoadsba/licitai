@@ -182,6 +182,34 @@ class TestConversas:
         assert response.status_code == 200
         assert len(response.json()) == 2
 
+    def test_listar_conversas_filtra_por_document_id(self):
+        Session = _montar_session()
+        transport = _cliente(Session)
+
+        doc_alvo = str(uuid.uuid4())
+
+        async def _cenario():
+            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+                await ac.post(
+                    "/api/v1/chat/conversations",
+                    json={"document_id": doc_alvo, "title": "Alvo"},
+                )
+                await ac.post(
+                    "/api/v1/chat/conversations",
+                    json={"document_id": str(uuid.uuid4()), "title": "Outra"},
+                )
+                return await ac.get(
+                    f"/api/v1/chat/conversations?document_id={doc_alvo}"
+                )
+
+        response = _run(_cenario())
+        _limpar_overrides()
+        assert response.status_code == 200
+        corpo = response.json()
+        assert len(corpo) == 1
+        assert corpo[0]["title"] == "Alvo"
+        assert corpo[0]["document_id"] == doc_alvo
+
 
 class TestMensagens:
     def test_mensagem_em_conversa_inexistente_404(self):

@@ -5,11 +5,12 @@ import {
   chatHealth,
   createChatConversation,
   getChatMessages,
+  listChatConversations,
   sendChatFeedback,
   sendChatMessage,
   extractErrorMessage,
 } from '@/lib/api';
-import type { ChatMessage } from '@/types';
+import type { ChatConversation, ChatMessage } from '@/types';
 
 interface UseChatOptions {
   documentId?: string;
@@ -48,12 +49,25 @@ export function useChat(options: UseChatOptions = {}) {
         setError('O Copiloto está desabilitado no momento.');
         return;
       }
-      const conversation = await createChatConversation({
-        document_id: options.documentId,
-        analysis_id: options.analysisId,
-        context,
-        title: options.title,
-      });
+
+      // Reaproveita a conversa existente em vez de criar uma nova a cada visita.
+      let conversation: ChatConversation | null = null;
+      if (options.documentId || options.analysisId) {
+        const existentes = await listChatConversations(1, 0, {
+          documentId: options.documentId,
+          analysisId: options.analysisId,
+        });
+        conversation = existentes[0] ?? null;
+      }
+      if (!conversation) {
+        conversation = await createChatConversation({
+          document_id: options.documentId,
+          analysis_id: options.analysisId,
+          context,
+          title: options.title,
+        });
+      }
+
       setConversationId(conversation.id);
       const history = await getChatMessages(conversation.id);
       setMessages(history);
