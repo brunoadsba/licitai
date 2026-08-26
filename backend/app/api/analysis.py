@@ -9,6 +9,7 @@ from collections import Counter
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -109,7 +110,15 @@ async def start_analysis(
         total_items=document.total_items,
     )
     db.add(analysis)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        await db.rollback()
+        # Perdeu corrida com outro start: o índice parcial único rejeitou.
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe uma análise em andamento para este documento.",
+        ) from exc
 
     analysis_id = analysis.id
 

@@ -5,10 +5,13 @@ Modelos SQLAlchemy para análises e correções.
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import text
+
 from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -24,6 +27,15 @@ class Analysis(Base):
     """Registro de uma análise executada sobre um documento."""
 
     __tablename__ = "analyses"
+    __table_args__ = (
+        Index(
+            "uq_analyses_active_per_document",
+            "document_id",
+            unique=True,
+            sqlite_where=text("status IN ('pending', 'running')"),
+            postgresql_where=text("status IN ('pending', 'running')"),
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
