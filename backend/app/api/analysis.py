@@ -34,6 +34,12 @@ router = APIRouter(prefix="/analysis", tags=["Análise"])
 _ANALYSIS_SLOTS = asyncio.Semaphore(max(1, settings.max_concurrent_analyses))
 
 
+def estimate_tokens(analysis: Analysis) -> int:
+    base = (analysis.total_items or 0) * 900 + (analysis.analyzed_items or 0) * 100
+    corr = len(getattr(analysis, "corrections", []) or [])
+    return base + corr * 350 + 800
+
+
 def _score_details(analysis: Analysis) -> list[ScoreDetail]:
     """Mapeia as notas da análise preservando zero legítimo (0.0 ≠ ausente)."""
     def _score(value) -> float | None:
@@ -185,7 +191,9 @@ async def get_analysis(
     if not analysis:
         raise HTTPException(status_code=404, detail="Análise não encontrada.")
 
-    return AnalysisDetailResponse.model_validate(analysis)
+    resp = AnalysisDetailResponse.model_validate(analysis)
+    resp.tokens_estimated = estimate_tokens(analysis)
+    return resp
 
 
 @router.get(
@@ -231,6 +239,7 @@ async def get_report(
         corrections=corrections,
         final_opinion=analysis.final_opinion,
         analyzed_at=analysis.completed_at,
+        tokens_estimated=estimate_tokens(analysis),
     )
 
 
@@ -253,7 +262,12 @@ async def list_document_analyses(
     )
     analyses = result.scalars().all()
 
-    return [AnalysisDetailResponse.model_validate(a) for a in analyses]
+    out: list[AnalysisDetailResponse] = []
+    for a in analyses:
+        resp = AnalysisDetailResponse.model_validate(a)
+        resp.tokens_estimated = estimate_tokens(a)
+        out.append(resp)
+    return out
 
 
 def _get_current_model() -> str:

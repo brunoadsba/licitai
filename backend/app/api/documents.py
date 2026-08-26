@@ -17,8 +17,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.api.analysis import estimate_tokens
 from app.config import settings
 from app.database import get_db
+from app.models.analysis import Analysis
 from app.models.document import Document
 from app.schemas.document import (
     DiffItemResponse,
@@ -150,10 +152,36 @@ async def list_documents(
     )
     documents = result.scalars().all()
 
+    responses = [DocumentResponse.model_validate(d) for d in documents]
+    await _attach_token_estimates(db, responses)
+
     return DocumentListResponse(
-        documents=[DocumentResponse.model_validate(d) for d in documents],
+        documents=responses,
         total=total,
     )
+
+
+async def _attach_token_estimates(
+    db: AsyncSession, responses: list[DocumentResponse]
+) -> None:
+    """Anexa a estimativa de tokens da análise mais recente concluída de cada documento."""
+    doc_ids = [r.id for r in responses if r.status == "completed"]
+    if not doc_ids:
+        return
+
+    result = await db.execute(
+        select(Analysis)
+        .options(selectinload(Analysis.corrections))
+        .where(Analysis.document_id.in_(doc_ids), Analysis.status == "completed")
+        .order_by(Analysis.created_at.desc())
+    )
+    estimates: dict[uuid.UUID, int] = {}
+    for analysis in result.scalars():
+        if analysis.document_id is not None:
+            estimates.setdefault(analysis.document_id, estimate_tokens(analysis))
+
+    for resp in responses:
+        resp.tokens_estimated = estimates.get(resp.id)
 
 
 @router.post(
