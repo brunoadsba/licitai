@@ -117,8 +117,18 @@ async def start_comparacao(
         raise HTTPException(
             status_code=400, detail="Informe ao menos uma proposta."
         )
+
+    # Dedupe preservando ordem: duplicatas violariam uq_comparacao_fornecedor_regra.
+    propostas_ids_unicas = list(dict.fromkeys(data.propostas_ids))
+    if len(propostas_ids_unicas) < len(data.propostas_ids):
+        logger.warning(
+            "comparison.start.propostas_duplicadas total_informado=%d unico=%d",
+            len(data.propostas_ids), len(propostas_ids_unicas),
+        )
+
     propostas = []
-    for pid in data.propostas_ids:
+    fornecedores_vistos: set[uuid.UUID] = set()
+    for pid in propostas_ids_unicas:
         doc = await db.get(Document, pid)
         if not doc or doc.document_type != "proposta":
             raise HTTPException(
@@ -130,6 +140,16 @@ async def start_comparacao(
                 status_code=400,
                 detail=f"Proposta {pid} não está vinculada a um fornecedor.",
             )
+        if doc.fornecedor_id in fornecedores_vistos:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Cada fornecedor pode ter apenas uma proposta por "
+                    "comparação (fornecedor "
+                    f"{doc.fornecedor_id} possui mais de uma proposta selecionada)."
+                ),
+            )
+        fornecedores_vistos.add(doc.fornecedor_id)
         propostas.append(doc)
 
     comparacao = Comparacao(
@@ -147,7 +167,7 @@ async def start_comparacao(
         comparacao_id,
         data.tr_document_id,
         data.molde_id,
-        data.propostas_ids,
+        propostas_ids_unicas,
     )
 
     return ComparacaoStartResponse(

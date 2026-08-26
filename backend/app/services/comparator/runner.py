@@ -78,6 +78,11 @@ async def executar_comparacao_background(
                         "fornecedor_id": doc.fornecedor_id,
                         "itens": itens_para_dict(doc),
                     })
+                else:
+                    logger.warning(
+                        "Proposta %s não encontrada durante a comparação %s; ignorada.",
+                        pid, comparacao_id,
+                    )
 
             resultados = await comparar(regras, itens_tr, propostas)
 
