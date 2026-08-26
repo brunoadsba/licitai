@@ -7,11 +7,12 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
-from app.models.document import Document
+from app.models.document import Document, DocumentItem
 from app.models.document_revision import DocumentRevision
 from app.schemas.document import (
     DocumentRevisionCreate,
@@ -75,7 +76,17 @@ async def create_revision(
     )
 
     db.add(revision)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Conflito ao gerar a versão do snapshot "
+                "(outra criação simultânea venceu). Tente novamente."
+            ),
+        ) from exc
     await db.refresh(revision)
     return DocumentRevisionResponse.model_validate(revision)
 
@@ -157,16 +168,75 @@ async def restore_revision(
     if not doc:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
-    # Atualizar itens existentes com os dados do snapshot
-    snapshot_map = {item["item_number"]: item["content"] for item in revision.items_snapshot}
+    # Backup do estado atual para permitir desfazer o restauro.
+    max_v = await db.execute(
+        select(func.coalesce(func.max(DocumentRevision.versao), 0))
+        .where(DocumentRevision.document_id == document_id)
+    )
+    backup_versao = (max_v.scalar() or 0) + 1
+    db.add(DocumentRevision(
+        document_id=document_id,
+        versao=backup_versao,
+        rotulo=f"Backup automático (pré-restauro v{versao})",
+        descricao=(
+            f"Estado do documento capturado antes de restaurar a versão {versao} "
+            f"('{revision.rotulo}')."
+        ),
+        items_snapshot=[
+            {
+                "item_number": i.item_number,
+                "title": i.title or "",
+                "content": i.content or "",
+                "page_number": i.page_number,
+                "item_order": i.item_order,
+                "item_type": i.item_type,
+            }
+            for i in sorted(doc.items, key=lambda x: x.item_order)
+        ],
+    ))
 
-    for item in doc.items:
-        if item.item_number in snapshot_map:
-            item.content = snapshot_map[item.item_number]
+    snapshot_by_number = {
+        item["item_number"]: item for item in revision.items_snapshot
+    }
+
+    # Itens removidos via delete-orphan apagam junto suas correções.
+    for item in list(doc.items):
+        data = snapshot_by_number.get(item.item_number)
+        if data is None:
+            doc.items.remove(item)
+            continue
+        item.title = data.get("title") or ""
+        item.content = data["content"]
+        item.page_number = data.get("page_number")
+        item.item_order = data.get("item_order", 0)
+        item.item_type = data.get("item_type", "item")
+
+    numeros_restantes = {i.item_number for i in doc.items}
+    faltantes = [
+        data for number, data in snapshot_by_number.items()
+        if number not in numeros_restantes
+    ]
+    for data in sorted(faltantes, key=lambda d: d.get("item_order", 0)):
+        db.add(DocumentItem(
+            document_id=document_id,
+            item_number=data["item_number"],
+            title=data.get("title") or "",
+            content=data["content"],
+            page_number=data.get("page_number"),
+            item_order=data.get("item_order", 0),
+            item_type=data.get("item_type", "item"),
+        ))
+
+    doc.total_items = len(snapshot_by_number)
 
     await db.commit()
     return {
-        "message": f"Documento restaurado com sucesso para a versão {versao} ('{revision.rotulo}').",
+        "message": (
+            f"Documento restaurado fielmente para a versão {versao} "
+            f"('{revision.rotulo}'). Estado anterior salvo como versão "
+            f"{backup_versao}."
+        ),
         "document_id": document_id,
         "versao_restaurada": versao,
+        "versao_backup": backup_versao,
     }
