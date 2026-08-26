@@ -28,6 +28,11 @@ from app.services.analyzer.review import (
     correction_to_dict,
     review_item_corrections,
 )
+from app.services.analyzer.grounding import (
+    get_valid_legal_refs,
+    is_legal_basis_valid,
+    is_original_text_grounded,
+)
 from app.services.analyzer.scoring import (
     calculate_fallback_scores,
     generate_scores,
@@ -98,6 +103,8 @@ async def run_analysis(
     # --- Fase 2: análise LLM concorrente (sem acesso ao DB) ---
     results = await _analyze_items_concurrent(llm, orchestrator, items_context)
 
+    valid_refs = await get_valid_legal_refs(db)
+
     # --- Fase 3: persistência sequencial + progresso por item ---
     analyzed_count = 0
     pending_reviews: list[tuple[DocumentItem, str, list[Correction]]] = []
@@ -113,6 +120,18 @@ async def run_analysis(
 
         correction_objs = []
         for correction_data in outcome:
+            grounded = is_original_text_grounded(
+                correction_data.get("original_text", ""), item.content or ""
+            )
+            legal_valid = is_legal_basis_valid(
+                correction_data.get("legal_basis"), valid_refs
+            )
+            importance = correction_data.get("importance", "media")
+            legal_basis = correction_data.get("legal_basis")
+            if legal_valid is False:
+                legal_basis = None
+                if importance in ("alta", "critica"):
+                    importance = "media"
             correction = Correction(
                 analysis_id=analysis.id,
                 document_item_id=item.id,
@@ -124,15 +143,27 @@ async def run_analysis(
                 original_text=correction_data.get("original_text", ""),
                 suggested_text=correction_data.get("suggested_text", ""),
                 justification=correction_data.get("justification", ""),
-                legal_basis=correction_data.get("legal_basis"),
-                importance=correction_data.get("importance", "media"),
+                legal_basis=legal_basis,
+                importance=importance,
                 agent_origin=correction_data.get("agent_origin"),
             )
+            if not grounded:
+                correction.review_status = "rejeitada"
+                correction.review_note = "original_text não encontrado no item (possível alucinação)"
+                correction.reviewed_at = datetime.now(timezone.utc)
             db.add(correction)
             correction_objs.append(correction)
-            all_corrections.append(correction_data)
+            if grounded:
+                all_corrections.append(correction_data)
+            else:
+                logger.warning(
+                    "Correção rejeitada por falta de grounding no item %s: %s",
+                    item.item_number,
+                    correction_data.get("original_text", "")[:80],
+                )
 
-        pending_reviews.append((item, legal_context, correction_objs, outcome))
+        corrigiveis = [c for c in correction_objs if c.review_status != "rejeitada"]
+        pending_reviews.append((item, legal_context, corrigiveis, outcome))
         analyzed_count += 1
         analysis.analyzed_items = analyzed_count
         await db.commit()
