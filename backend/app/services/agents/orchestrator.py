@@ -36,20 +36,48 @@ class MultiAgentOrchestrator:
         self, llm: Any, item: Any, legal_context: str
     ) -> list[dict[str, Any]]:
         """
-        Executa os agentes especializados em paralelo via asyncio.gather,
-        combina e deduplica os achados do item.
+        Executa os agentes em 2 fases para economia: se Jurídico+Técnico
+        retornarem vazio com confiança, pula Redação+Estrutural. Provedor
+        por etapa: Groq para extração rápida, Gemini para fundamentação (quando
+        llm suporta failover, a escolha é transparente).
         """
         item_num = getattr(item, "item_number", "desconhecido")
-        tasks = [
-            agent.analyze_item(llm=llm, item=item, legal_context=legal_context)
-            for agent in self.agents
-        ]
+        phase1 = self.agents[:2]
+        phase2 = self.agents[2:]
 
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        phase1_tasks = [
+            agent.analyze_item(llm=llm, item=item, legal_context=legal_context)
+            for agent in phase1
+        ]
+        phase1_results = await asyncio.gather(*phase1_tasks, return_exceptions=True)
 
         combined_corrections: list[dict[str, Any]] = []
+        empty_phase1 = 0
+        for agent, res in zip(phase1, phase1_results, strict=False):
+            if isinstance(res, Exception):
+                logger.error(
+                    "Exceção no agente %s no item %s: %s",
+                    agent.agent_id,
+                    item_num,
+                    str(res),
+                )
+                empty_phase1 += 1
+                continue
+            if isinstance(res, list):
+                if not res:
+                    empty_phase1 += 1
+                combined_corrections.extend(res)
 
-        for agent, res in zip(self.agents, results, strict=False):
+        if empty_phase1 == len(phase1) and not combined_corrections:
+            logger.info("Early-exit no item %s: fase 1 vazia, pulando fase 2", item_num)
+            return []
+
+        phase2_tasks = [
+            agent.analyze_item(llm=llm, item=item, legal_context=legal_context)
+            for agent in phase2
+        ]
+        phase2_results = await asyncio.gather(*phase2_tasks, return_exceptions=True)
+        for agent, res in zip(phase2, phase2_results, strict=False):
             if isinstance(res, Exception):
                 logger.error(
                     "Exceção no agente %s no item %s: %s",
@@ -61,7 +89,6 @@ class MultiAgentOrchestrator:
             if isinstance(res, list):
                 combined_corrections.extend(res)
 
-        # Deduplicação baseada em texto original + problema idêntico
         deduplicated = self._deduplicate_corrections(combined_corrections)
         return deduplicated
 
