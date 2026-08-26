@@ -5,7 +5,7 @@ Modelos SQLAlchemy para análises e correções.
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import text
+from sqlalchemy import JSON, text
 
 from sqlalchemy import (
     CheckConstraint,
@@ -164,6 +164,7 @@ class Correction(Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    evidence: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

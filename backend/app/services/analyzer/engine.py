@@ -11,6 +11,7 @@ Orquestra a análise item a item usando LLM em fases:
 """
 
 import asyncio
+import hashlib
 import logging
 from datetime import datetime, timezone
 
@@ -132,11 +133,25 @@ async def run_analysis(
                 legal_basis = None
                 if importance in ("alta", "critica"):
                     importance = "media"
+            severity = correction_data.get("severity", "medio")
+            if severity == "critico":
+                if correction_data.get("category") != "juridica" or not grounded or legal_valid is not True:
+                    severity = "alto"
+            excerpt = correction_data.get("original_text", "") or ""
+            excerpt_hash = hashlib.sha256(excerpt.encode("utf-8")).hexdigest()[:16] if excerpt else None
+            evidence = {
+                "excerpt_hash": excerpt_hash,
+                "prompt_version": "v1",
+                "corpus_version": str(len(valid_refs)),
+                "grounded": grounded,
+                "legal_valid": legal_valid,
+                "item_number": item.item_number,
+            }
             correction = Correction(
                 analysis_id=analysis.id,
                 document_item_id=item.id,
                 category=correction_data.get("category", "tecnica"),
-                severity=correction_data.get("severity", "medio"),
+                severity=severity,
                 situation=correction_data.get("situation", ""),
                 problem=correction_data.get("problem", ""),
                 risk=correction_data.get("risk", ""),
@@ -146,6 +161,7 @@ async def run_analysis(
                 legal_basis=legal_basis,
                 importance=importance,
                 agent_origin=correction_data.get("agent_origin"),
+                evidence=evidence,
             )
             if not grounded:
                 correction.review_status = "rejeitada"

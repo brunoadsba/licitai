@@ -118,6 +118,7 @@ Gere o JSON com todas as 10 seções completas, com linguagem jurídica formal, 
     doc_id = uuid.uuid4()
     nome_arquivo = f"TR_Gerado_{request.tipo_contratacao}_{doc_id.hex[:6]}.html"
 
+    valid_refs_count = len(chunks)
     doc = Document(
         id=doc_id,
         filename_original=f"Termo de Referência — {tipo_nome}",
@@ -127,6 +128,13 @@ Gere o JSON com todas as 10 seções completas, com linguagem jurídica formal, 
         document_type="tr",
         total_items=len(secoes_json),
         status="parsed",
+        generation_manifest={
+            "prompt_version": "v1",
+            "corpus_version": str(valid_refs_count),
+            "tipo_contratacao": request.tipo_contratacao,
+            "rag_chunk_ids": [str(c.id) for c in chunks],
+            "llm_provider": provider.__class__.__name__,
+        },
     )
     db.add(doc)
 
