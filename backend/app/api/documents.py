@@ -17,6 +17,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.database import get_db
 from app.models.document import Document
 from app.schemas.document import (
@@ -65,6 +66,17 @@ async def upload_document(
         raise HTTPException(
             status_code=400,
             detail=f"document_type inválido. Use um de: {sorted(TIPOS_DOCUMENTO)}",
+        )
+
+    # Pré-checagem além do validar_upload: rejeita antes de alocar o corpo em memória.
+    if file.size is not None and file.size > settings.max_upload_size_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Arquivo muito grande: "
+                f"{round(file.size / (1024 * 1024), 2)}MB. "
+                f"Limite máximo: {settings.max_upload_size_mb}MB."
+            ),
         )
 
     file_bytes = await file.read()
