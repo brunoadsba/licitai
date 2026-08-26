@@ -1,0 +1,16 @@
+{
+  "id": "tr_002",
+  "descricao": "TR incompleto - faltam garantia e sanções, deve ser detectado",
+  "itens": [
+    {"item_number": "1.0", "title": "DO OBJETO", "content": "Aquisição de material de escritório."},
+    {"item_number": "2.0", "title": "DA JUSTIFICATIVA DA CONTRATAÇÃO", "content": "Reposição de estoque."},
+    {"item_number": "3.0", "title": "DAS ESPECIFICAÇÕES TÉCNICAS", "content": "Papel A4 75g, 500 folhas."},
+    {"item_number": "4.0", "title": "DO MODELO DE EXECUÇÃO", "content": "Entrega em 15 dias."},
+    {"item_number": "5.0", "title": "DO MODELO DE GESTÃO", "content": "Fiscalização pela área demandante."},
+    {"item_number": "6.0", "title": "DOS CRITÉRIOS DE MEDIÇÃO E PAGAMENTO", "content": "Pagamento à vista."},
+    {"item_number": "7.0", "title": "DA ESTIMATIVA DE PREÇOS", "content": "R$ 10.000,00."},
+    {"item_number": "10.0", "title": "DA FORMA DE SELEÇÃO", "content": "Dispensa, menor preço."}
+  ],
+  "expected_checklist": ["garantia", "infracoes_sancoes"],
+  "expected_correcoes": []
+}

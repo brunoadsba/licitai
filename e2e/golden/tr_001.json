@@ -1,0 +1,18 @@
+{
+  "id": "tr_001",
+  "descricao": "TR completo - deve passar 100% no checklist dos 10 elementos",
+  "itens": [
+    {"item_number": "1.0", "title": "DO OBJETO", "content": "Contratação de serviços de limpeza predial para atender demanda institucional."},
+    {"item_number": "2.0", "title": "DA JUSTIFICATIVA DA CONTRATAÇÃO", "content": "Necessidade de manter higiene das instalações conforme art. 6º."},
+    {"item_number": "3.0", "title": "DAS ESPECIFICAÇÕES TÉCNICAS E REQUISITOS DA CONTRATAÇÃO", "content": "Equipe mínima de 5 profissionais, carga horária 40h."},
+    {"item_number": "4.0", "title": "DO MODELO DE EXECUÇÃO DO CONTRATO", "content": "Vigência de 12 meses, execução parcelada mensal."},
+    {"item_number": "5.0", "title": "DO MODELO DE GESTÃO E FISCALIZAÇÃO CONTRATUAL", "content": "Fiscal designado pela CODEBA, conforme art. 117 da Lei 14.133/2021."},
+    {"item_number": "6.0", "title": "DOS CRITÉRIOS DE MEDIÇÃO E PAGAMENTO", "content": "Medição mensal por produtividade, pagamento em 30 dias."},
+    {"item_number": "7.0", "title": "DA ESTIMATIVA DE PREÇOS E ADEQUAÇÃO ORÇAMENTÁRIA", "content": "Valor estimado R$ 150.000,00, dotação orçamentária 339037."},
+    {"item_number": "8.0", "title": "DA GARANTIA CONTRATUAL E ASSISTÊNCIA TÉCNICA", "content": "Garantia de 5% do valor contratual, art. 96."},
+    {"item_number": "9.0", "title": "DAS INFRAÇÕES E SANÇÕES ADMINISTRATIVAS", "content": "Sanções dos arts. 155 e 156 da Lei 14.133/2021."},
+    {"item_number": "10.0", "title": "DA FORMA DE SELEÇÃO E CRITÉRIO DE JULGAMENTO", "content": "Pregão eletrônico, critério menor preço."}
+  ],
+  "expected_checklist": [],
+  "expected_correcoes": []
+}

@@ -1,0 +1,23 @@
+{
+  "id": "tr_003",
+  "descricao": "TR para teste de grounding - uma correção grounded e uma alucinada",
+  "itens": [
+    {"item_number": "1.0", "title": "DO OBJETO", "content": "Contratação de serviços de vigilância armada para as instalações da CODEBA, com carga horária 12x36."},
+    {"item_number": "2.0", "title": "DA JUSTIFICATIVA", "content": "Necessidade de segurança patrimonial conforme art. 6º da Lei 14.133/2021."}
+  ],
+  "expected_checklist": ["especificacoes_tecnicas", "modelo_execucao", "modelo_gestao", "criterios_medicao", "estimativa_precos", "garantia", "infracoes_sancoes", "forma_selecao"],
+  "expected_correcoes": [
+    {
+      "original_text": "vigilância armada",
+      "grounded": true,
+      "legal_basis": "Lei 14.133/2021, art. 6º",
+      "severity": "medio"
+    },
+    {
+      "original_text": "texto inventado que não existe no documento e nunca foi escrito",
+      "grounded": false,
+      "legal_basis": "Lei 9.999/2099 inventada",
+      "severity": "critico"
+    }
+  ]
+}
