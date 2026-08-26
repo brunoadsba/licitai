@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # --- Google Gemini ---
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.0-flash"
+    gemini_model: str = "gemini-1.5-flash"
 
     # --- Ollama ---
     ollama_base_url: str = "http://ollama:11434"
