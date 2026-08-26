@@ -8,7 +8,9 @@ Fusion, com fallback textual automático quando a semântica falha.
 Retorna chunks com a lei, o artigo e o texto integral para o LLM.
 """
 
+import hashlib
 import logging
+import time
 from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -32,6 +34,9 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TOP_K = 5
 MAX_QUERY_CHARS = 500
+_CACHE_TTL_SECONDS = 3600
+
+_legal_context_cache: dict[str, tuple[float, list["RetrievedChunk"]]] = {}
 
 
 @dataclass
@@ -66,6 +71,12 @@ async def retrieve(
     if not cleaned:
         return []
 
+    cache_key = hashlib.sha256(f"{cleaned}|{top_k}|{law_numbers}|{use_semantic}".encode()).hexdigest()
+    cached = _legal_context_cache.get(cache_key)
+    if cached and time.time() - cached[0] < _CACHE_TTL_SECONDS:
+        logger.debug("rag_cache_hit query_hash=%s", cache_key[:12])
+        return cached[1]
+
     if use_semantic is None:
         use_semantic = await _tem_embeddings(db)
 
@@ -84,11 +95,15 @@ async def retrieve(
 
         rows = _rrf(sem_rows, text_rows, top_k)
         if rows:
-            return _para_chunks(rows)
+            result = _para_chunks(rows)
+            _legal_context_cache[cache_key] = (time.time(), result)
+            return result
 
-    return _para_chunks(
+    result = _para_chunks(
         await _search_textual(db, cleaned, top_k, law_numbers)
     )
+    _legal_context_cache[cache_key] = (time.time(), result)
+    return result
 
 
 def _rrf(
