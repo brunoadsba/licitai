@@ -43,11 +43,18 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
+      API_TOKEN: ${API_TOKEN:-}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./backend/app:/app/app:ro
       - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
     depends_on:
       db:
         condition: service_healthy
@@ -69,8 +76,15 @@ services:
       BACKEND_URL: http://backend:8000
       # Vazio = browser usa caminhos relativos /api/v1 via proxy do Next.
       NEXT_PUBLIC_API_URL: ""
+      NEXT_PUBLIC_API_TOKEN: ${NEXT_PUBLIC_API_TOKEN:-}
     ports:
       - "127.0.0.1:3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     depends_on:
       - backend
     networks:

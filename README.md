@@ -210,16 +210,39 @@ licitacao/
 
 ## 🔒 Segurança
 
-- Validação de uploads (allowlist de extensões + magic bytes)
+- Validação de uploads (allowlist de extensões + magic bytes + checagem de tamanho pré-leitura)
 - Renomeação de arquivos para UUID (nunca usa nome original)
 - Prevenção de path traversal
-- CSP strict + X-Frame-Options DENY
+- CSP strict + X-Frame-Options DENY (API **e** páginas do frontend)
+- Token opcional de API: defina `API_TOKEN` (backend) e `NEXT_PUBLIC_API_TOKEN` (frontend) para exigir o header `X-API-Token` em todas as rotas `/api/v1`; vazio = sem autenticação (piloto local)
 - Rate limiting configurável via env `RATE_LIMIT_MAX` (padrão 600 req/min)
 - CORS com allowlist de origens
 - SQL via ORM (sem string concatenation)
 - Secrets via variáveis de ambiente (nunca hardcoded)
 - XXE prevention no parsing de DOCX
 - Portas bind em 127.0.0.1
+- `PRAGMA foreign_keys=ON` no SQLite: os `ondelete CASCADE/SET NULL` dos models valem também no SQLite, alinhado ao PostgreSQL
+
+## 💾 Backup do banco (SQLite)
+
+```bash
+cd backend
+PYTHONPATH=. .venv/bin/python scripts/backup_db.py                 # ./licitacao.db -> ./backups/
+PYTHONPATH=. .venv/bin/python scripts/backup_db.py --origem ../licitacao.db --destino /caminho/backups
+```
+
+Usa a API de backup nativa do SQLite (segura com WAL ativo). Agende via cron/Agendador de Tarefas para execução diária. Para PostgreSQL use `pg_dump`.
+
+## 🧬 Migrações manuais de schema
+
+O `Base.metadata.create_all` do startup não altera tabelas existentes. Após atualizar o código, rode os scripts idempotentes conforme a versão de origem:
+
+```bash
+cd backend
+PYTHONPATH=. .venv/bin/python scripts/migrate_unique_constraints.py   # índices únicos de revisões e análises ativas
+```
+
+(Outros: `scripts/migrate_agent_columns.py`, `scripts/migrate_review_columns.py`.)
 
 ## 🧪 Testes E2E
 
