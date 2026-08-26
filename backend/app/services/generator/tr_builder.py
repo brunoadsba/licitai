@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.document import Document, DocumentItem
 from app.schemas.generator import TRGeneratorItemResponse, TRGeneratorRequest, TRGeneratorResponse
 from app.services.analyzer.json_utils import parse_json_response
+from app.services.generator.validator import FALLBACK_POR_ELEMENTO, validate_tr_completeness
 from app.services.llm.provider import get_llm_provider
 from app.services.rag.retriever import retrieve
 
@@ -113,6 +114,14 @@ Gere o JSON com todas as 10 seções completas, com linguagem jurídica formal, 
             {"item_number": "9.0", "title": "DAS INFRAÇÕES E SANÇÕES ADMINISTRATIVAS", "content": "Aplica-se ao presente contrato o regime de sanções previsto nos Arts. 155 e seguintes da Lei 14.133/2021."},
             {"item_number": "10.0", "title": "DA FORMA DE SELEÇÃO E CRITÉRIO DE JULGAMENTO", "content": f"A seleção do fornecedor dar-se-á por licitação na modalidade Pregão/Concorrência pelo critério de {criterio_nome}."},
         ]
+
+    faltantes = validate_tr_completeness(secoes_json)
+    if faltantes:
+        logger.warning("TR gerado incompleto, faltantes: %s", faltantes)
+        for key in faltantes:
+            fb = FALLBACK_POR_ELEMENTO.get(key)
+            if fb:
+                secoes_json.append(fb.copy())
 
     # 2. Persistir no banco de dados como um novo Document
     doc_id = uuid.uuid4()
