@@ -155,6 +155,9 @@ export default function ReportPage() {
               {severidade}
               {recomendacoes}
             </span>
+            {report.tokens_estimated && (
+              <span className="ml-2 text-xs text-content-subtle">· ~{report.tokens_estimated.toLocaleString('pt-BR')} tokens</span>
+            )}
           </p>
         ) : (
           <p className="mt-6 border-t border-line-subtle pt-4 text-center text-sm text-content-muted">

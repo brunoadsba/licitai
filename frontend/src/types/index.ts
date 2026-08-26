@@ -14,6 +14,7 @@ export interface DocumentResponse {
   status: DocumentStatus;
   created_at: string;
   updated_at: string;
+  tokens_estimated?: number | null;
 }
 
 export interface DocumentItemResponse {
@@ -84,6 +85,7 @@ export interface AnalysisDetailResponse {
   completed_at: string | null;
   created_at: string;
   corrections: CorrectionResponse[];
+  tokens_estimated?: number | null;
 }
 
 export interface ScoreDetail {
@@ -105,6 +107,7 @@ export interface ReportResponse {
   corrections: CorrectionResponse[];
   final_opinion: string | null;
   analyzed_at: string | null;
+  tokens_estimated?: number | null;
 }
 
 // ---- Auditoria TR × Propostas ----

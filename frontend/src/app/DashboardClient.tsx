@@ -186,6 +186,14 @@ export default function DashboardClient({
                           <span>{formatFileSize(doc.file_size_bytes)}</span>
                           <span aria-hidden>·</span>
                           <span>{doc.total_items} itens</span>
+                          {doc.status === 'completed' && doc.tokens_estimated ? (
+                            <>
+                              <span aria-hidden>·</span>
+                              <span className="text-content-muted">
+                                ~{doc.tokens_estimated.toLocaleString('pt-BR')} tokens
+                              </span>
+                            </>
+                          ) : null}
                           <span aria-hidden>·</span>
                           <span>{formatDate(doc.created_at)}</span>
                         </div>
