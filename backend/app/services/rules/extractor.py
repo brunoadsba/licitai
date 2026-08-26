@@ -281,3 +281,32 @@ def _extrair_cep(texto: str) -> str | None:
         if len(raw) == 8:
             return f"{raw[:5]}-{raw[5:]}"
     return None
+
+
+def extrair_com_evidencia(regra: dict, itens: list[dict]) -> dict:
+    valor = extrair_valor(regra, itens)
+    ancora = regra.get("ancora")
+    texto_ancora = _texto_por_ancora(ancora, itens)
+    if not texto_ancora:
+        return {
+            "valor": valor,
+            "confidence": 0.0,
+            "reason": f"âncora '{ancora}' não localizada" if ancora else "sem âncora e documento vazio",
+            "metodo": "ancora",
+        }
+    if valor is None:
+        return {
+            "valor": None,
+            "confidence": 0.4,
+            "reason": f"âncora '{ancora}' localizada mas padrão não encontrado para tipo {regra.get('tipo')}",
+            "metodo": "ancora",
+        }
+    confidence = 1.0 if ancora and LEGAL_RE.match(str(ancora).strip()) else 0.9
+    if not ancora:
+        confidence = 0.85
+    return {
+        "valor": valor,
+        "confidence": confidence,
+        "reason": f"âncora '{ancora}' a {len(texto_ancora)} chars do trecho" if ancora else "extração sem âncora em documento inteiro",
+        "metodo": "ancora",
+    }

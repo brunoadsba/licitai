@@ -18,7 +18,7 @@ Classificação:
 
 import logging
 
-from app.services.rules.extractor import extrair_valor
+from app.services.rules.extractor import extrair_com_evidencia, extrair_valor
 
 logger = logging.getLogger(__name__)
 
@@ -81,11 +81,10 @@ def comparar_regra(
     }
 
     if valor_tr is None:
-        base.update({
-            "status": STATUS_ATENCAO,
-            "motivo": "Valor esperado não encontrado no Termo de Referência; "
-                      "não é possível validar a conformidade.",
-        })
+        motivo = "Valor esperado não encontrado no Termo de Referência; não é possível validar a conformidade."
+        if isinstance(regra.get("_evidencia_tr"), dict) and regra["_evidencia_tr"].get("confidence", 1.0) < 0.7:
+            motivo = f"Extração incerta: {regra['_evidencia_tr'].get('reason')} — tratado como atenção."
+        base.update({"status": STATUS_ATENCAO, "motivo": motivo})
         return base
 
     tipo = regra.get("tipo")
@@ -181,11 +180,13 @@ async def comparar(
     """
     resultados = []
     for regra in regras:
-        valor_tr = extrair_valor(regra, itens_tr)
+        ev_tr = extrair_com_evidencia(regra, itens_tr)
+        valor_tr = ev_tr["valor"]
+        regra_com_evidencia = {**regra, "_evidencia_tr": ev_tr}
         for proposta in propostas:
             fornecedor_id = proposta["fornecedor_id"]
             valor_proposta = extrair_valor(regra, proposta["itens"])
-            resultado = comparar_regra(regra, valor_tr, valor_proposta)
+            resultado = comparar_regra(regra_com_evidencia, valor_tr, valor_proposta)
             resultados.append({
                 "fornecedor_id": fornecedor_id,
                 "regra_id": regra["id"],
