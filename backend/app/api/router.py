@@ -2,7 +2,7 @@
 Router principal — agrega todas as rotas da API.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.analysis import router as analysis_router
 from app.api.chat import router as chat_router
@@ -12,8 +12,9 @@ from app.api.fornecedores import router as fornecedores_router
 from app.api.generator import router as generator_router
 from app.api.revisions import router as revisions_router
 from app.api.rules import router as rules_router
+from app.utils.security import require_api_token
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter(prefix="/api/v1", dependencies=[Depends(require_api_token)])
 
 router.include_router(documents_router)
 router.include_router(analysis_router)

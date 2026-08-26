@@ -5,7 +5,6 @@ Nenhum secret é hardcoded — todos vêm de variáveis de ambiente.
 """
 
 import logging
-import secrets
 from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -82,18 +81,8 @@ class Settings(BaseSettings):
     smtp_from: str = ""
 
     # --- Segurança ---
-    # TODO(security): Em produção, usar secret management (KMS, Vault, etc.)
-    # Para o MVP single-user, geramos um token efêmero por instância.
-    @property
-    def csrf_secret(self) -> str:
-        """Gera secret efêmero para CSRF. Seguro para single-instance."""
-        if not hasattr(self, "_csrf_secret"):
-            self._csrf_secret = secrets.token_hex(32)
-            logger.warning(
-                "CSRF secret gerado efêmeramente. "
-                "Em produção, configure via variável de ambiente."
-            )
-        return self._csrf_secret
+    # Vazio desabilita o token (piloto local); definido, /api/v1 exige X-API-Token.
+    api_token: str = ""
 
     @property
     def max_upload_size_bytes(self) -> int:

@@ -8,13 +8,30 @@ Implementa:
 """
 
 import logging
+import secrets
 import time
 from collections import defaultdict
 
-from fastapi import Request, Response
+from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
+
+
+async def require_api_token(request: Request) -> None:
+    """Dependency de autenticação opcional para todas as rotas /api/v1."""
+    expected = settings.api_token
+    if not expected:
+        return
+    provided = request.headers.get("X-API-Token", "")
+    if not secrets.compare_digest(provided.encode(), expected.encode()):
+        logger.warning("Requisição sem token válido: %s %s", request.method, request.url.path)
+        raise HTTPException(
+            status_code=401,
+            detail="Token de API ausente ou inválido.",
+        )
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
