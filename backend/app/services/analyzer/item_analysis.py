@@ -16,7 +16,8 @@ from app.services.analyzer.prompts import ITEM_ANALYSIS_PROMPT, SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)
 
-ITEM_CONTENT_MAX_CHARS = 8000
+ITEM_CONTENT_MAX_CHARS = 4000
+ITEM_SUMMARY_CHARS = 800
 
 
 async def analyze_item_llm(llm, item, legal_context: str) -> list[dict]:
@@ -26,11 +27,15 @@ async def analyze_item_llm(llm, item, legal_context: str) -> list[dict]:
     """
     content = item.content or ""
     if len(content) > ITEM_CONTENT_MAX_CHARS:
+        head = content[: ITEM_CONTENT_MAX_CHARS - ITEM_SUMMARY_CHARS]
+        tail = content[-ITEM_SUMMARY_CHARS:]
+        content = f"{head}\n[...conteúdo resumido: {len(content) - ITEM_CONTENT_MAX_CHARS} chars omitidos...]\n{tail}"
         logger.warning(
-            "Item %s truncado de %d para %d chars no prompt",
-            item.item_number, len(content), ITEM_CONTENT_MAX_CHARS,
+            "Item %s comprimido de %d para ~%d chars no prompt",
+            item.item_number,
+            len(item.content or ""),
+            len(content),
         )
-        content = content[:ITEM_CONTENT_MAX_CHARS]
 
     user_prompt = ITEM_ANALYSIS_PROMPT.format(
         item_number=item.item_number,
