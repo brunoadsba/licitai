@@ -20,10 +20,9 @@ Sistema especialista para análise automatizada de Termos de Referência (TR) de
   - **Retrieval híbrido RRF**: combina busca semântica + textual com fusão por rank recíproco
   - **Comparador Visual de Versões de TR** (`/comparacao/versoes`): Alinhamento por item com identificação de `alterado`, `adicionado` e `removido`
 - **Correções no formato DE → PARA** com fundamentação legal
-- **Fluxo SEI Otimizado (Cópia em 1-clique)**:
-  - 📋 **Copiar Texto Corrigido (PARA)**: Copia o trecho pronto para colar na cláusula do SEI
-  - 📄 **Copiar Item Inteiro**: Copia a cláusula inteira com as correções aplicadas
-  - 📝 **Copiar Parecer & Justificativa**: Copia o fundamento legal para o despacho/parecer do SEI
+- **Fluxo SEI (cópia filtrada)**:
+  - Cópia para o SEI **somente** com correções `aprovada` ou `ajustada` (revisão cruzada)
+  - **Copiar Texto Corrigido (PARA)** / **Item Inteiro** / **Parecer & Justificativa**
 - **Relatório** com pontuação (0-10), nível de risco e parecer final
 - **3 provedores de IA**: Groq (free tier), Google Gemini (free tier), Ollama (local) — com failover automático
 - **Auditoria TR × Propostas** (módulo aditivo de conformidade):
@@ -180,36 +179,42 @@ Remove-Item e2e-test.db-wal, e2e-test.db-shm -Force -ErrorAction SilentlyContinu
 
 ```
 licitacao/
-├── docker-compose.yml       # Orquestração
-├── .env.example             # Template de configuração
-├── db/init.sql              # Schema do banco (PostgreSQL)
-├── memory.md                # Memória contínua do projeto (contexto p/ agentes de IA)
+├── docker-compose.yml       # db + backend + worker + frontend
+├── .env.example             # Template (API_TOKEN server-side; sem NEXT_PUBLIC_*)
+├── db/init.sql              # Schema PostgreSQL (alinhado ao Alembic)
+├── memory.md                # Memória contínua (contexto p/ agentes)
+├── docs/ops/                # Deploy, restore drill, SLOs
+├── scripts/                 # apply_reliability_schema.sql, smoke_readyz.sh
 ├── backend/
 │   ├── Dockerfile
+│   ├── alembic/             # Migrações (head 20260908_003)
 │   ├── requirements.txt
 │   └── app/
-│       ├── main.py          # FastAPI + middlewares
+│       ├── main.py          # FastAPI + /livez /readyz /metrics
+│       ├── worker.py        # Processa fila jobs (obrigatório)
 │       ├── config.py        # Settings (env vars)
 │       ├── database.py      # SQLAlchemy async
 │       ├── models/          # ORM models
 │       ├── schemas/         # Pydantic validation
-│       ├── api/             # REST endpoints
+│       ├── api/             # REST (start = enqueue-only)
 │       ├── services/
 │       │   ├── parser/      # PDF, DOCX, OCR, estruturador
-│       │   ├── llm/         # Groq, Gemini, Ollama providers
-│       │   ├── analyzer/    # Motor de análise + prompts
-│       │   ├── rules/       # Moldes de regras (loader, extractor, fallback LLM)
-│       │   └── comparator/  # Comparação TR × Propostas (comparator, matrix)
+│       │   ├── llm/         # Groq, Gemini, Ollama + limiter
+│       │   ├── analyzer/    # Motor + review fail-closed
+│       │   ├── jobs/        # Fila durável
+│       │   ├── legal/       # Checklist Art. 6 XXIII a–j
+│       │   ├── rules/       # Moldes de regras
+│       │   └── comparator/  # TR × Propostas
 │       └── utils/           # Segurança, validação de uploads
 ├── frontend/
 │   ├── Dockerfile
 │   ├── package.json
 │   └── src/
-│       ├── app/             # Pages (Dashboard, Upload, Análise, Relatório, Comparações)
-│       ├── components/      # Layout (Sidebar, Header)
-│       ├── lib/api.ts       # Cliente API
+│       ├── app/             # Pages + api/proxy (BFF)
+│       ├── components/      # Layout + UI
+│       ├── lib/api.ts       # Cliente via BFF
 │       └── types/           # TypeScript types
-└── e2e/                     # Testes End-to-End
+└── e2e/                     # E2E + golden/ (FakeLLM)
     ├── .env.test            # Config para testes
     ├── run_e2e.ps1          # Script automatizado
     ├── fixtures/            # Documentos de exemplo

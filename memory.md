@@ -33,12 +33,12 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 
 ## 2. Arquitetura e Decisões de Design
 
-- **Frontend**: Next.js 14 (App Router), React 18, Tailwind CSS v3 (Tema escuro premium com Glassmorphism, badges de risco/categoria/agentes e animações), TypeScript.
-  - **Proxy Rewrites (`next.config.js`)**: Redirecionamento dinâmico de `/api/*` via `BACKEND_URL` (padrão `http://127.0.0.1:8000` no modo nativo e `http://backend:8000` no Docker).
-- **Backend**: FastAPI (Python 3.12), SQLAlchemy 2.0 (Async com `asyncpg` e `aiosqlite`), Pydantic v2.
+- **Frontend**: Next.js 14 (App Router), React 18, Tailwind CSS v3 (tema dark + design system teal `#2AAFA0`), TypeScript.
+  - **BFF**: Route Handler `/api/proxy/*` injeta `API_TOKEN`; rewrites em `next.config.js` para `/api/v1`, `/livez`, `/readyz`, `/health`.
+- **Backend**: FastAPI (Python 3.12), SQLAlchemy 2.0 (Async), Pydantic v2, Alembic, worker asyncio (`python -m app.worker`).
 - **Banco de Dados (Duplo Suporte)**:
-  - **Produção/Docker**: PostgreSQL 16 com extensão `pgvector` e `uuid-ossp` (preparado para RAG).
-  - **Modo Nativo (Windows sem Docker)**: SQLite Async com `aiosqlite` (`licitacao.db` criado automaticamente sem dependência da BIOS/Docker).
+  - **Produção/Docker**: PostgreSQL 16 + `pgvector`; schema via Alembic / `db/init.sql`.
+  - **Development**: SQLite Async (`create_all` só neste modo); fora de `APP_ENV=development` exige Postgres + `API_TOKEN`.
 - **Arquitetura de Múltiplos Agentes Especializados (`services/agents/`)**:
   - `BaseSpecializedAgent`: Interface comum para os agentes `LegalAgent`, `TechnicalAgent`, `WritingAgent`, `StructuralAgent`.
   - `MultiAgentOrchestrator`: Dispara chamadas paralelas aos agentes especializados e deduplica os achados idênticos.
@@ -75,12 +75,25 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - Settings em `config.py`: `chat_enabled`, `chat_require_grounding`, `chat_top_k_sources`, `chat_max_message_length`, `chat_max_sources_stored`, `chat_force_fake_provider`.
   - Tabelas `chat_conversations`/`chat_messages` em `db/init.sql` + migração `db/migrations/20260806_add_chat.sql`; contrato validado no `test_init_sql.py` (+4 testes).
 - **Qualidade da análise (Fase 2)**:
-  - Checklist dos 10 elementos obrigatórios do Art. 6º, XXIII embutido no `SYSTEM_PROMPT`; o `ITEM_ANALYSIS_PROMPT` instrui a sinalizar ausência como correção `juridica`/`estrutural` sem reescrever por conta própria.
-  - Revisão cruzada das correções pelo LLM (`services/analyzer/review.py`): segunda passagem aprova/rejeita/ajusta; rejeitadas saem do conjunto de pontuação; ajustadas recebem texto/fundamento novos; falha de revisão mantém correções como `pendente`. Status persistido em `corrections` (`review_status`/`review_note`/`reviewed_at`) e exposto na API.
+  - Checklist canônico das **alíneas a–j** do Art. 6º, XXIII (`services/legal/art6_xxiii.py`) — **não** inventar garantia/sanções/cronograma como se fossem o inciso XXIII; prompts/agentes/validador/gerador compartilham a mesma fonte.
+  - Revisão cruzada fail-closed das correções (`services/analyzer/review.py`): status/índice inválido não aprova; achados jurídicos altos sem review válida ficam `pendente` e fora do score/cópia SEI.
   - Benchmark de qualidade (`scripts/benchmark.py` + `scripts/benchmark_fixtures.py`): análise + revisão reais com retry/backoff para rate limit; métricas recall/precisão/F1 por TR e por item; relatório em `backend/benchmark_report.json`.
+  - Golden set local (`e2e/golden/tr_001`…`tr_010`) + FakeLLM determinístico (`analyzer/fake_llm_golden.py`): precision ≥ 0.88 / recall ≥ 0.80 (TP/FP/FN reais; FP deliberado em `tr_010`).
+- **Confiabilidade LicitAI — plano mestre implementado (08/09/2026, branch `feat/confiabilidade-master`)**:
+  - **Premissas**: single-user; cópia SEI só com `review_status ∈ {aprovada, ajustada}`; auth = BFF Next (`/api/proxy/*`) + `API_TOKEN` server-side (nunca `NEXT_PUBLIC_API_TOKEN`); migrações **Alembic**; jobs = tabela `jobs` no Postgres + worker asyncio (sem Redis).
+  - **Schema**: Alembic `20260908_001`…`_003` (`generation_manifest`, `evidence`, `archived_at`, `classification`, `jobs`, `schema_meta`, CHECKs `completed_with_errors` + `file_type=html`); script `scripts/apply_reliability_schema.sql` para Postgres já provisionado; `expected_schema_version` em `config.py` alinhado ao head.
+  - **Health**: `/livez` (processo vivo), `/readyz` (DB + schema_version), `/metrics` (in-memory); Compose e Header usam readiness.
+  - **Agentes tipados**: `AgentResult` (`ok_empty|findings|failed|parse_error|skipped`); early-exit da fase 2 **somente** se fase 1 concluiu `ok_empty`; cobertura incompleta → status `completed_with_errors` (UI com banner).
+  - **Jobs**: `POST .../start` só **enfileira** (sem kick `BackgroundTasks`); processar com `python -m app.worker` ou serviço Compose `worker`. Snapshots em `run_snapshot` / `propostas_ids`.
+  - **Restore seguro**: arquiva itens (`archived_at`) e cria novo conjunto — correções não somem por cascade.
+  - **Gerador/RAG**: `RetrievedChunk.id` persistido em `rag_chunk_ids`; artefato `file_type=html`.
+  - **Privacidade**: `LLM_ALLOW_CLOUD` + classificação `sigiloso` recusam cloud; prompts com `<DOCUMENT_DATA>`; OCR em subprocesso + hard timeout.
+  - **Ops docs**: `docs/ops/{deploy,restore-drill,slos}.md`, `backend/scripts/backup.sh`, `scripts/smoke_readyz.sh`, `backend/scripts/promote_feedback.py` (thumbs-down → stub em `e2e/golden/feedback/`).
+  - **Testes**: suíte backend **215+** verdes (golden, jobs, OCR, privacy, grounding, reliability P0). CI GitHub permanece **desabilitado** (`ci.yml.disabled`) a pedido do usuário.
+  - **Pendência manual (Bruno)**: rotacionar chaves LLM/`POSTGRES_PASSWORD` **depois** (MVP); smoke Compose com worker; backup drill.
 - **RF04 — Feedback/e-mail por fornecedor (Fase 3)**:
   - `services/comparator/feedback.py`: `montar_pendencias` (agrega `falha`/`atencao` por fornecedor, ignora `ok`) + `formatar_email_pendencias` (texto PT-BR com regra, rótulo, esperado/proposto).
-  - `services/email/sender.py`: `enviar_email` via smtplib em `asyncio.to_thread` (não bloqueia o loop), `smtp_configurado()` (exige `SMTP_HOST` + `SMTP_FROM`), `EmailConfigError`.
+  - `services/email/sender.py`: `enviar_email` via smtplib em `asyncio.to_thread` (não bloqueia o loop), `smtp_configurado()` (exige `SMTP_HOST` + `SMTP_FROM`), TLS obrigatório quando `smtp_require_tls`, `EmailConfigError`.
   - Endpoint `POST /comparison/{comparacao_id}/feedback`: 404 se comparação não encontrada; 400 se status ≠ `completed` ou SMTP ausente; retorna `{enviados, falhas[{fornecedor_id, nome, email?, motivo}], fornecedores_sem_pendencias, fornecedores_sem_email}`. Falhas de envio não propagam erro.
   - Config SMTP por env (`config.py` + `.env.example`): `SMTP_HOST`, `SMTP_PORT` (587), `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`.
   - Frontend: formulário de fornecedor com CNPJ/e-mail + edição/exclusão (`comparacao/page.tsx`); botão **Enviar Pendências** nas comparações concluídas; `api.ts` com `updateFornecedor`/`deleteFornecedor`/`enviarFeedback`.
@@ -88,26 +101,23 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **Backend — extração de módulos de serviço** (commit `047f0ff`): `structurer.py` → `parser/detection.py` + `parser/pagemap.py`; `engine.py` → `analyzer/item_analysis.py` + `analyzer/scoring.py`; `app/api/comparison.py` → `comparator/runner.py` + `comparator/serializers.py` (e-mail movido para `comparator/feedback.py`); `retriever.py` → `rag/backends.py` + `rag/semantic.py`; upload orquestrado por `services/upload_service.py`. Revisão ampla de tratamento de exceções em `generator.py`, `review.py`, `comparison.py`, `documents.py`, `feedback.py` e `schemas/comparison.py`. **+3 testes** (`test_engine.py`); suíte total: **159 testes**.
   - **Frontend — extração de componentes de páginas grandes** (commit `032a890`): páginas reduzidas de 300–600 para < 280 LOC, com componentes por domínio em `src/components/{moldes,analysis,report,comparacao,upload,gerar-tr}/` e módulos compartilhados `src/lib/badges.tsx` (badges de categoria/severidade/agente) e `src/lib/useCopy.ts` (feedback de copiar/colar). `tsc --noEmit` limpo após cada extração e no estado final.
 - **Auditoria técnica + correções (24/08/2026)**:
-  - **Resiliência LLM (`services/llm/provider.py` reescrito)**: `get_llm_provider()` virou **singleton** (`reset_llm_provider()` p/ testes) — estado de failover persiste entre chamadas; retry único com backoff (1s) para erros transitórios; **timeout não é re-tentado**; **circuit breaker** em 429/quota (cooldown 30s por provedor, `_is_rate_limit_error` detecta 429/RESOURCE_EXHAUSTED/quota/TPM/TPD). Fix: `engine.py` capturava `ValueError` mas a factory levanta `RuntimeError`.
+  - **Resiliência LLM (`services/llm/provider.py` reescrito)**: `get_llm_provider()` virou **singleton** (`reset_llm_provider()` p/ testes) — estado de failover persiste entre chamadas; retry único com backoff (1s) para erros transitórios; **timeout não é re-tentado**; **circuit breaker** em 429/quota (cooldown 30s por provedor, `_is_rate_limit_error` detecta 429/RESOURCE_EXHAUSTED/quota/TPM/TPD). Fix: `engine.py` capturava `ValueError` mas a factory levanta `RuntimeError`. Limiter global adicional em `services/llm/limiter.py` (Fase 3 confiabilidade).
   - **Análise paralela (`analyzer/engine.py`)**: pipeline em fases — RAG sequencial (sessão DB única) → análise LLM concorrente com `asyncio.Semaphore(settings.analysis_concurrency, padrão 3)` via `gather(return_exceptions=True)` → persistência sequencial com commit por item → revisão cruzada concorrente (LLM-only) + aplicação sequencial. TR de N itens ≈ 5N+1 chamadas agora com concorrência 3×. Itens com erro não derrubam o lote.
-  - **Parsing fora do event loop (`parser/__init__.py`)**: `parse_pdf/docx/odt` (sync, CPU-bound) offloadados via `asyncio.to_thread` — OCR de PDF escaneado não congela mais o backend inteiro durante upload.
-  - **Docker/env corrigidos**: `docker-compose.yml` frontend recebe `BACKEND_URL=http://backend:8000` (rewrites server-side estavam apontando para 127.0.0.1 dentro do container) e `NEXT_PUBLIC_API_URL=""` (browser usa proxy relativo); default `GROQ_MODEL` alinhado a `llama-3.1-8b-instant` no compose e `.env.example` (o 3.3-70b estoura TPD free tier).
-  - **Bug de score zero (falsy)**: `api/analysis.py` extraiu `_score_details()` — `float(x) if x is not None` (nota 0.0 legítima não vira mais null); `engine.py` idem (`if analysis.score_overall is None`).
+  - **Parsing fora do event loop (`parser/__init__.py`)**: `parse_pdf/docx/odt` (sync, CPU-bound) offloadados via `asyncio.to_thread` — OCR de PDF escaneado não congela mais o backend inteiro durante upload; OCR hard-timeout em subprocesso (`parser/ocr_subprocess.py`).
+  - **Docker/env corrigidos**: `docker-compose.yml` com serviços `db`, `backend`, **`worker`**, `frontend`; frontend recebe `BACKEND_URL=http://backend:8000` e `API_TOKEN` (BFF); default `GROQ_MODEL` alinhado a `llama-3.1-8b-instant`.
+  - **Bug de score zero (falsy)**: `api/analysis.py` extraiu `_score_details()` — `float(x) if x is not None` (nota 0.0 legítima não vira mais null); `engine.py` idem (`if analysis.score_overall is None`). Scoring determinístico primário em `analyzer/scoring.py`.
   - **TOCTOU**: `start_analysis` usa `with_for_update()` no Document (serializa starts concorrentes no Postgres; no-op SQLite); `start_comparacao` idem via `db.get(..., with_for_update=True)`.
   - **N+1 eliminado**: `list_comparacoes` pré-carrega fornecedores da página em 1 query (`montar_comparacao_response(c, db, fornecedores_precarregados)`).
-  - **Concorrência de análises limitada**: semáforo global `max_concurrent_analyses` (padrão 2) em `_run_analysis_background` protege cota free tier.
-  - **Observabilidade**: providers Groq/Gemini/Ollama logam `llm_usage` (prompt/completion/total tokens + latência) e o FailoverProvider loga `llm_call` por chamada.
-  - **Frontend**: `api.ts` 100% tipado (**zero `any`** no src; tipos novos `DiffResponse`, `DocumentRevision`, `DryRunResponse`; `ApiError` com status; `extractErrorMessage(err)` substituiu todos os `catch (err: any)`); timeout default 30s via `AbortSignal.timeout` (uploads/geração 300s, chat 120s); polling da matriz pausa em aba oculta (`document.hidden`) e mostra banner amarelo após 2 falhas consecutivas; botão Enviar Pendências fica desabilitado após sucesso (idempotência visual); `FornecedorPanel` usa o tipo compartilhado `Fornecedor`.
-  - **Quick wins**: `main.py` migrou `@on_event` (deprecado) para `lifespan`; `/health` faz ping no banco (`database: ok|error`); warning quando item >8000 chars é truncado; `pydantic ValidationError` específico no teste do gerador.
-  - **Tooling novo**: `backend/pyproject.toml` (ruff: E4/E7/E9/F/I/B, B008 ignorado, scripts com I/F401 relaxados) — `ruff check app tests` **limpo** (~100 autofixes de imports/ordenação + B904 `raise from` + B905 `zip(strict=)` + F821 via TYPE_CHECKING em models/document.py + E731 lambda→def); **CI GitHub Actions** (`.github/workflows/ci.yml`): backend (libmagic+tesseract, ruff, pytest) + frontend (npm ci, tsc, build) — **DESABILITADO em 25/08/2026** (`ci.yml` → `ci.yml.disabled` a pedido do usuário; workflow não roda em push/PR até ser reabilitado).
-  - **Testes**: **+8 novos** em `tests/test_llm_resilience.py` (retry transitório, timeout sem retry, circuit breaker 429, quota total → RuntimeError, singleton/reset, detecção rate-limit, regressão score-zero). Suíte: **167 unitários passando**; `tsc --noEmit` limpo.
-  - **Validação E2E pós-auditoria (24/08/2026)**: backend local sem chaves API (`RATE_LIMIT_MAX=6000`), rodados os **11 testes E2E não-LLM** — **11/11 verdes em 3 execuções consecutivas**. A 1ª execução expôs uma **corrida latente no upload**: resposta 201 saía antes do commit pós-resposta do `get_db`, e um DELETE imediato do cliente dava 404 (mesma classe do bug "Background Task não commitava", seção 7; o timing do `to_thread` do parsing expôs a janela). **Corrigido** com commit explícito no fim de `upload_document` (mesmo padrão já usado por `start_analysis` e `delete_document`). Os 6 testes com `analyzed_document` seguem pendentes de chaves LLM/cota.
-  - **Pendências da auditoria deliberadamente NÃO feitas** (migração/decisão de produto): Alembic (substituir create_all+migrações manuais), pgvector/tsvector no Postgres (ILIKE sem índice/ranking; embeddings em TEXT JSON com cosseno em Python), autenticação/RBAC.
-- **Modernização UX/UI do frontend CONCLUÍDA (25/08/2026 — branch `feat/ux-modernization`, 5 commits, pronta para PR)**: 
+  - **Observabilidade**: providers Groq/Gemini/Ollama logam `llm_usage` (prompt/completion/total tokens + latência) e o FailoverProvider loga `llm_call` por chamada; `/metrics` in-memory.
+  - **Frontend**: `api.ts` tipado via BFF `/api/proxy/v1`; polling com `skipCache`, backoff e pausa em aba oculta (`lib/polling.ts`); cópia SEI só `aprovada|ajustada` (`CorrectionCard`/`ItemDetail`).
+  - **Quick wins**: `main.py` lifespan; `/livez`/`/readyz`/`/health`; warning quando item >8000 chars é truncado.
+  - **Tooling**: `backend/pyproject.toml` (ruff); **CI GitHub Actions permanece DESABILITADO** (`ci.yml.disabled`) — não reabilitar sem pedido explícito.
+  - **Pendências da auditoria que FORAM feitas na confiabilidade (08/09)**: Alembic (substitui create_all em staging/prod; create_all só SQLite development), fila durável, filtro SEI, checklist Art. 6 correto, agentes tipados. Ainda fora de escopo: multi-tenant/RBAC, LangGraph, fine-tune, K8s.
+- **Modernização UX/UI do frontend CONCLUÍDA (25/08/2026 — branch `feat/ux-modernization`)**: 
   - **Plano aprovado pelo usuário** (`.omo/plans/frontend-ux-modernization.md`): dark premium refinado (nível Linear/Supabase), responsivo completo, stack moderna. Auditoria prévia identificou P0s: zero mobile (sidebar fixa 256px), status fake "IA Ativa"/"Sistema operacional" hardcoded, sem toasts, Inter via `@import`, ~30 emojis como ícones + SVGs Heroicons inline duplicados, estética AI-gradient (indigo #6366f1 + glow), botões sem `focus-visible`, breadcrumb quebrado em `/gerar-tr` e `/comparacao/versoes`, sem error boundary.
   - **Fase 0 (concluída)**: `frontend/DESIGN.md` (contrato: tokens semânticos em CSS vars — canvas #0B0E13/panel #11151C/surface #171C25, texto #F2F5F7/#C3CBD4/#8A93A0, **accent único teal-petróleo #2AAFA0 substituindo o indigo**, risco mantido); fonte **Geist Sans/Mono** via pacote `geist` + `next/font` (removido @import); `tailwind.config.js` com tokens semânticos (`accent`, `canvas`, `panel`, `elevated`, `content.*`, `line.*`) **mantendo aliases legados** `primary`/`surface` (agora apontando para o teal) até migração total; deps novas: @radix-ui/*, lucide-react, sonner, framer-motion, clsx, tailwind-merge.
   - **Fase 1 (concluída)**: biblioteca de primitivos `src/components/ui/` — Button (variants/sizes/loading/focus-visible), Input, Textarea, Card, Badge (11 tons), Skeleton, EmptyState, Spinner, Dialog/DropdownMenu/Tooltip/Tabs/Select (Radix), Toaster (sonner montado no layout), ConfirmDialog **migrado para Radix com assinatura pública preservada**; showcase dev-only em `/design` (gate de QA visual 375/768/1280 aprovado).
-  - **Fase 2 (concluída)**: shell responsivo — Sidebar com **drawer mobile** (<1024px, hamburger no Header, fecha em navegação/Escape/overlay, `ShellContext`), desktop fixa; Header honesto com **status real do backend** (polling `/health` 30s → badge "Backend ativo/offline"; rewrite `/health` adicionado ao `next.config.js`) e breadcrumb completo; card fake "Sistema operacional" removido; `error.tsx`/`not-found.tsx` estilizados; skip-to-content; `100dvh`; container `max-w-[1440px]`.
+  - **Fase 2 (concluída)**: shell responsivo — Sidebar com **drawer mobile** (<1024px, hamburger no Header, fecha em navegação/Escape/overlay, `ShellContext`), desktop fixa; Header honesto com **status real do backend** (polling `/readyz` → badge "Backend ativo/offline"; rewrites `/livez`/`/readyz`/`/health` no `next.config.js`) e breadcrumb completo; card fake "Sistema operacional" removido; `error.tsx`/`not-found.tsx` estilizados; skip-to-content; `100dvh`; container `max-w-[1440px]`.
   - **Fase 3a–3d (concluídas)**: Dashboard (stats tabular-nums, EmptyState, toasts sonner), Analysis (grid empilhável `lg:grid-cols-12`, botões Button com loading, Lucide), AnalysisProgress (emojis → ícones Lucide Bot/Scale/Wrench/PenLine/Ruler, aria-progressbar), ItemList/ItemDetail/CorrectionCard (tokens, foco visível, `lib/badges.tsx` com `AGENT_ORIGIN_CONFIG` usando LucideIcon), ChatPanel/ChatInput (altura responsiva `h-[480px] lg:calc`, Button/textarea com tokens), Report (gauges mantidos, parecer com borda accent em vez de glow, tnum), Upload (Radix Select para tipo/fornecedor, DropZone com Lucide, toasts). `tsc --noEmit` limpo após cada fase; commits por fase.
   - **Fase 3e (concluída, `af6dd94`)**: `comparacao/{page, [id]/page, versoes/page}`, `moldes/page` + `MoldeList/MoldeForm/RegraEditor/DryRunModal`, `gerar-tr/{page, PassoDados, PassoRequisitos, ResultadoTR}`, `RevisionsTimelineModal` (migrado para Radix Dialog) e `chat/{ChatMessage, CitationList}` — todos com emojis/SVGs inline → Lucide + primitivos `ui/`, grids empilháveis, toasts em ações; `versoes` e `ResultadoTR` com bug pré-existente `badge-success/warning/danger` corrigido para `badge-baixo/medio/critico`; `gerar-tr` com `alert()` → `toast.success`.
   - **Fase 4 (concluída, `59a4ebd`)**: motion com intenção — `Dialog`/`DropdownMenu`/`Tooltip` com keyframes `overlayIn/contentIn/menuIn` (sem `tailwindcss-animate`), `Dashboard` com stagger `framer-motion` (`MotionConfig reducedMotion="user"`), `Sidebar` drawer com spring (`stiffness 400, damping 40`, `AnimatePresence`); **aliases legados `primary`/`surface` removidos** do `tailwind.config.js` (grep provou zero uso em `.tsx`+`.ts`; único `surface-hover` remanescente é var semântica própria); `.glow` removido do `globals.css`; contraste do botão primário corrigido (`accent-600` 3.99:1 → `accent-700` 5.8:1, Lighthouse `color-contrast` resolvido); ordem de headings corrigida (`EmptyState h3→h2`, `Dashboard li h3→p`, `ItemDetail h3→h2`, `ChatPanel h3→h2`, `Upload h3→h2`, `RevisionsTimelineModal h4→h3`); `tsc` limpo, `next build` ok, **Lighthouse mobile 100/96/100** (a11y 100, best-practices 96 — único falho restante é 8× `Failed to load resource: 500` do proxy com backend offline, ambiental), QA visual **375/768/1280 sem overflow** (7 rotas + 404) e interações (dialog focus trap/Escape, drawer overlay/spring/Escape) verificados; dev server reiniciado (`100dvh`, `.next` preservado).
@@ -118,13 +128,15 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 ## 3. Mapeamento de Arquivos da Aplicação
 
 ### Raiz
-- `docker-compose.yml`: Orquestração de 3 containers (`db`, `backend`, `frontend`).
-- `.env`: Configurações de ambiente (`DATABASE_URL`, `LLM_PROVIDER`, `GROQ_API_KEY`, `POSTGRES_PASSWORD`).
-- `.env.example`: Template de configuração.
+- `docker-compose.yml`: Orquestração de 4 containers (`db`, `backend`, `worker`, `frontend`).
+- `.env`: Configurações de ambiente (`DATABASE_URL`, `LLM_PROVIDER`, `GROQ_API_KEY`, `POSTGRES_PASSWORD`, `API_TOKEN`).
+- `.env.example`: Template de configuração (BFF usa `API_TOKEN`; sem `NEXT_PUBLIC_API_TOKEN`).
 - `README.md`: Guia completo de instalação, segurança e arquitetura.
 - `memory.md`: Memória contínua do projeto.
 - `PLANO.md`: Plano do backlog pendente — fases priorizadas (hardening, qualidade, RF04, RAG v1.0, polimentos, v2.0) com tarefas, esforço e critérios de aceite.
-- `db/init.sql`: Script de criação das extensões, tabelas (`documents`, `document_items`, `analyses`, `corrections`, `fornecedores`, `moldes`, `comparacoes`, `comparacao_resultados`), índices e triggers no PostgreSQL.
+- `docs/ops/`: Deploy imutável, restore drill, SLOs.
+- `scripts/apply_reliability_schema.sql` + `scripts/smoke_readyz.sh`: migrate/smoke Postgres local.
+- `db/init.sql`: Script de criação das extensões, tabelas (`documents`, `document_items`, `analyses`, `corrections`, `jobs`, `schema_meta`, `fornecedores`, `moldes`, `comparacoes`, `comparacao_resultados`, chat), índices e triggers no PostgreSQL.
 - `e2e/`: Diretório de testes End-to-End com fixtures, scripts e testes.
   - `fixtures/sample-tr.docx`: DOCX de exemplo gerado manualmente (estrutura OPC) para testes.
   - `scripts/generate_fixture.py`: Gera o fixture DOCX (cria ZIP com estrutura OPC válida).
@@ -133,23 +145,30 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `run_e2e.ps1`: Script automatizado para execução dos testes E2E.
   - `tests/test_e2e_full_flow.py`: 17 testes E2E cobrindo health check, upload, CRUD, análise e relatório.
   - `tests/conftest.py`: Fixtures Pytest (client HTTP, fixture DOCX, documento com análise).
+  - `golden/`: Régua de confiabilidade (≥10 TRs sintéticos + FakeLLM).
 
 ### Backend (`/backend`)
 - `Dockerfile`: Imagem Python 3.12-slim com `tesseract-ocr`, `tesseract-ocr-por` e `libmagic1`.
-- `requirements.txt`: Dependências do Python (FastAPI, SQLAlchemy, PyMuPDF, pdfplumber, python-docx, groq, google-genai, aiosqlite, python-magic-bin, etc.).
+- `alembic.ini` + `alembic/versions/`: Migrações de schema (head atual `20260908_003`).
+- `requirements.txt` / `requirements-dev.txt`: Dependências runtime e teste (inclui Alembic).
+- `app/worker.py`: Worker da fila `jobs` (`python -m app.worker`).
 - `scripts/seed_moldes.py`: Seed idempotente de moldes padrão (TR geral, serviços continuados, obras públicas).
 - `scripts/download_laws.py` e `scripts/ingest_laws.py`: Corpus jurídico (Lei 14.133 + 13.303).
-- `scripts/migrate_review_columns.py`: Migração idempotente (SQLite/PostgreSQL) das colunas `review_status`/`review_note`/`reviewed_at` na tabela `corrections`.
+- `scripts/backup.sh` + `scripts/promote_feedback.py`: Backup Postgres/uploads e promoção de stubs golden.
+- `scripts/migrate_review_columns.py`: Migração idempotente (SQLite/PostgreSQL) das colunas `review_status`/`review_note`/`reviewed_at` na tabela `corrections` (legado; preferir Alembic).
 - `scripts/benchmark.py` + `scripts/benchmark_fixtures.py`: Benchmark de qualidade da análise (recall/precisão/F1) com TRs fixture e LLM real; grava `benchmark_report.json`.
-- `tests/`: Testes unitários (loader, extractor, comparator, matrix, llm_timeout, `test_analyzer.py` — checklist Art. 6º + revisão cruzada com providers fake; `test_feedback.py` — agregação de pendências, formatação e guarda SMTP; `test_feedback_api.py` — integração do endpoint com banco SQLite em memória + `enviar_email` mockado; `test_chat_validator.py` — grounding/recusa/JSON do Copiloto; `test_chat_api.py` — integração `/api/v1/chat` com fake LLM).
-- `app/main.py`: Aplicação FastAPI, middlewares de segurança (CSP, CORS allowlist, Rate Limit) e health check.
-- `app/config.py`: Validação de variáveis de ambiente com Pydantic Settings (`extra="ignore"` habilitado). Inclui campos SMTP (`SMTP_HOST`/`SMTP_PORT`/`SMTP_USER`/`SMTP_PASSWORD`/`SMTP_FROM`) da RF04.
+- `tests/`: Testes unitários (loader, extractor, comparator, matrix, llm_timeout, golden, jobs, OCR, privacy, grounding, reliability P0, chat, feedback).
+- `app/main.py`: Aplicação FastAPI, middlewares de segurança (CSP, CORS allowlist, Rate Limit), `/livez`, `/readyz`, `/metrics`, `/health`.
+- `app/config.py`: Validação de variáveis de ambiente com Pydantic Settings (`extra="ignore"`, strip CRLF, `APP_ENV` exige `API_TOKEN`+Postgres fora de development).
 - `app/database.py`: Conexão assíncrona SQLAlchemy (suporta `postgresql+asyncpg` e `sqlite+aiosqlite`).
 - `app/models/`:
-  - `document.py`: Modelos ORM `Document` e `DocumentItem` (com `document_type` e `fornecedor_id`).
-  - `analysis.py`: Modelos ORM `Analysis` e `Correction` (com colunas de revisão `review_status`/`review_note`/`reviewed_at`).
+  - `document.py`: Modelos ORM `Document` e `DocumentItem` (com `document_type`, `fornecedor_id`, `generation_manifest`, `classification`, `archived_at`).
+  - `analysis.py`: Modelos ORM `Analysis` e `Correction` (revisão + `evidence`; status inclui `completed_with_errors`).
+  - `job.py`: Fila durável.
   - `comparison.py`: Modelos ORM `Fornecedor`, `Molde`, `Comparacao` e `ComparacaoResultado`.
   - `chat.py`: Modelos ORM `ChatConversation` e `ChatMessage` (PK `int` autoincrement, `sources`/`context_json` JSON, `grounded`/`confidence`/`provider`/`latency_ms`, `feedback_rating`/`feedback_comment`).
+- `app/services/legal/art6_xxiii.py`: Checklist canônico Art. 6º XXIII a–j.
+- `app/services/jobs/`: enqueue/claim/complete/fail/reclaim.
 - `app/schemas/`:
   - `document.py`: Schemas Pydantic de requisição e resposta de documentos.
   - `analysis.py`: Schemas Pydantic de análises, correções e relatórios (`CorrectionResponse` expõe `review_status`/`review_note`/`reviewed_at`).
@@ -158,11 +177,12 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `app/api/`:
   - `router.py`: Router `/api/v1`.
   - `documents.py`: Endpoints `/documents/upload`, `/documents/`, `/documents/{id}` e DELETE (upload aceita `document_type` + `fornecedor_id`).
-  - `analysis.py`: Endpoints `/analysis/{document_id}/start` (Background Task), `/analysis/{analysis_id}`, `/analysis/{analysis_id}/report`.
+  - `analysis.py`: `/analysis/{document_id}/start` **só enfileira** job (worker processa); `/sei-corrections`; report; restore arquiva itens.
   - `rules.py`: CRUD de moldes (`/moldes` POST/GET/PUT/DELETE) com validação do `config_json` e delete protegido por integridade (409 se houver comparações).
   - `fornecedores.py`: CRUD de fornecedores (`/fornecedores`) com delete protegido (409 se houver propostas).
-  - `comparison.py`: `/comparison/start` (Background Task), `/comparison` (lista), `/comparison/{id}`, `/comparison/{id}/matrix`.
+  - `comparison.py`: `/comparison/start` **só enfileira**; lista/matrix; feedback SMTP.
   - `chat.py`: Endpoints `/chat/health`, `/chat/conversations`, `/chat/conversations/{id}/messages`, `/chat/messages/{id}/feedback`.
+- BFF (token): `frontend/src/app/api/proxy/[...path]/route.ts` — não existe proxy no backend.
 - `app/services/parser/`:
   - `pdf_parser.py`: PyMuPDF primário -> pdfplumber fallback (tabelas) -> Tesseract OCR.
   - `docx_parser.py`: Extração via `python-docx` com detecção de estilos e tabelas.
@@ -209,16 +229,18 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 
 ### Frontend (`/frontend`)
 - `DESIGN.md`: **Contrato de design (fonte da verdade visual, 25/08)** — tokens semânticos (canvas/panel/surface, accent teal `#2AAFA0`, content.*, line.*), tipografia Geist, motion, estados, acessibilidade, dívida aceita.
-- `next.config.js`: Proxy rewrites dinâmicos apontando para `BACKEND_URL` (`http://127.0.0.1:8000`) + rewrite `/health` para o badge de status real do Header.
-- `package.json`: Next.js 14, React 18, Tailwind CSS v3 + **stack UI moderna (25/08)**: @radix-ui/*, lucide-react, sonner, framer-motion, geist, clsx, tailwind-merge.
-- `tailwind.config.js`: cores semânticas novas (`accent`, `canvas`, `panel`, `elevated`, `content.*`, `line.*`) **com aliases legados** `primary`/`surface` (agora mapeados ao teal) até o fim da migração das páginas.
-- `src/types/index.ts`: Mapeamento TypeScript dos schemas da API, tipos de âncora (`AnchorTipo`, `RegraConfig`, `MoldeConfig`) e rótulos amigáveis em PT-BR.
+- `next.config.js`: Proxy rewrites `/api/v1`, `/health`, `/livez`, `/readyz` via `BACKEND_URL`; BFF Route Handler em `/api/proxy/*` injeta `API_TOKEN`.
+- `package.json`: Next.js 14, React 18, Tailwind CSS v3 + stack UI (@radix-ui/*, lucide-react, sonner, framer-motion, geist, clsx, tailwind-merge) + Playwright (dev).
+- `tailwind.config.js`: tokens semânticos (`accent`, `canvas`, `panel`, `elevated`, `content.*`, `line.*`).
+- `src/types/index.ts`: Mapeamento TypeScript dos schemas da API e tipos de âncora.
 - `src/lib/utils.ts`: `cn()` (clsx + tailwind-merge).
-- `src/lib/api.ts`: Cliente HTTP para chamadas assíncronas ao backend (inclui `getMolde`, `updateMolde`, `deleteMolde`, `updateFornecedor`, `deleteFornecedor`, `enviarFeedback`).
-- `src/lib/badges.tsx`: Badges de categoria/severidade/agente (`AGENT_ORIGIN_CONFIG` com **ícones Lucide** desde 25/08, `getCategoryBadge`, `getSeverityBadge`).
-- `src/lib/useCopy.ts`: Hook `useCopy()` com estado `copiedKey` compartilhado para feedback de cópia (2s).
-- `src/components/ui/` (**primitivos do design system, 25/08**): `Button` (primary/secondary/ghost/danger × sm/md/lg × loading, focus-visible), `Input`, `Textarea`, `Card`, `Badge` (11 tons), `Skeleton`, `EmptyState`, `Spinner`, `Dialog`/`DropdownMenu`/`Tooltip`/`Tabs`/`Select` (Radix), `Toaster` (sonner, montado no layout), `ConfirmDialog` (Radix, assinatura legada preservada).
-- `src/components/Layout/`: `Sidebar.tsx` (**responsiva: fixa lg+ / drawer mobile via `ShellContext`**, nav Lucide, card fake de status removido), `Header.tsx` (**honesto: polling `/health` 30s → badge Backend ativo/offline, breadcrumb completo, hamburger mobile**), `ShellContext.tsx`.
+- `src/lib/api.ts`: Cliente HTTP via **BFF** `/api/proxy/v1` (token só no servidor); `skipCache` em polling.
+- `src/lib/polling.ts`: Polling com deadline, backoff, limite de falhas, pausa em aba oculta.
+- `src/lib/badges.tsx`: Badges de categoria/severidade/agente (`AGENT_ORIGIN_CONFIG` com Lucide).
+- `src/lib/useCopy.ts`: Hook `useCopy()` com feedback de cópia (2s).
+- `src/components/ui/`: primitivos do design system (Button, Input, Card, Badge, Dialog, Toaster, etc.).
+- `src/components/Layout/`: `Sidebar.tsx` (drawer mobile), `Header.tsx` (polling `/readyz`), `ShellContext.tsx`.
+- `src/app/api/proxy/[...path]/route.ts`: BFF que encaminha ao backend com `X-API-Token`.
 - Rota dev-only `/design`: showcase dos primitivos (gate de QA visual do design system).
 - `src/components/` (extração de páginas grandes, 13/08 — páginas < ~280 LOC; **analysis/, report/, upload/ e chat/ migrados para primitivos+Lucide em 25/08**):
   - `moldes/`: `DryRunModal.tsx`, `RegraEditor.tsx`, `MoldeForm.tsx`, `MoldeList.tsx` (pendente migrar 25/08).
@@ -234,10 +256,10 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `layout.tsx`: Layout raiz com `Sidebar` e `Header`.
   - `page.tsx`: Dashboard (resumo de métricas, lista de documentos enviados, status e ações).
   - `upload/page.tsx`: Tela de upload com drag-and-drop (via `DropZone`), indicador de progresso e validação client-side (361→204 LOC).
-  - `analysis/[id]/page.tsx`: Tela principal de análise (538→242 LOC, via `components/analysis/`):
-    - `Copiar Texto Corrigido (PARA)`
-    - `Copiar Item Inteiro para o SEI` (substituição automática do texto original pelo corrigido)
-    - `Copiar Justificativa & Fundamentação Legal`
+  - `analysis/[id]/page.tsx`: Tela principal de análise:
+    - Cópia SEI **somente** com correções `aprovada`/`ajustada` (badge de `review_status`)
+    - Status `completed_with_errors` com banner de cobertura incompleta
+    - `Copiar Texto Corrigido (PARA)` / `Copiar Item Inteiro` / justificativa
   - `report/[id]/page.tsx`: Relatório consolidado com gauges SVG de nota (0-10), gráficos de barras de distribuição por categoria/severidade, botão `Copiar Parecer para o SEI` e acordeão de correções com atalhos de cópia (419→258 LOC, via `ScoreGauge`/`CorrectionAccordion`).
   - `comparacao/page.tsx`: Listagem de comparações + criação (seleção de TR, molde e propostas) + cadastro de fornecedor + upload de proposta vinculado (542→279 LOC, via `components/comparacao/`).
   - `comparacao/[id]/page.tsx`: Matriz de conformidade regras × fornecedores com polling a cada 3s durante execução.
@@ -266,23 +288,18 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
+- **Branch ativa de confiabilidade (08/09/2026)**: `feat/confiabilidade-master` (baseada em `feat/ux-modernization`). Plano mestre de confiabilidade implementado em código; CI permanece desabilitado. Suíte backend **215+ testes** verdes; Alembic head `20260908_003`; Compose com `worker`.
 - **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
   - **Fase A (Parsing)**: títulos de seção determinísticos via sha256+NFC (`T-{digest%100000}` — sem `hash()`); alíneas (`a)`, `b)`) detectadas como subitem e itens romanos (`I.`, `II.`) como seção. **+3 testes**.
   - **Fase B (Extração por regras)**: `_texto_por_ancora` usa a partir da 1ª ocorrência; regex de inteiro ignora número de item e milhar monetário; monetário sem `_para_decimal`; datas inválidas rejeitadas (`datetime.date`); CNPJ valida dígitos verificadores (módulo 11); números por extenso compostos ("vinte e um"→21). **+10 testes**; fixture `test_fase4_fase5` corrigida para CNPJ com DV válido (`-95`).
   - **Fase C (RAG)**: FTS5 com `remove_diacritics 2` (busca sem acento); retrieval híbrido RRF (semântico + textual com try/except); warn de dimensão de embedding; cache LRU 256 de query-embeddings. **+2 testes**.
-  - **Fase D (Banco)**: `db/init.sql` sincronizado com os models (corrigido `);` faltante em `document_items`, `items_snapshot JSON`, `analysis_mode`, `agent_origin`, `embedding TEXT`, removido ivfflat); constraint `uq_comparacao_fornecedor_regra`; script `dedupe_comparacao_resultados.py`; paginação `page`/`page_size` em documents/fornecedores/comparison (backward-compatible; `analysis.py` sem paginação — frontend espera lista crua).
+  - **Fase D (Banco)**: `db/init.sql` sincronizado com os models (corrigido `);` faltante em `document_items`, `items_snapshot JSON`, `analysis_mode`, `agent_origin`, `embedding TEXT`, removido ivfflat); constraint `uq_comparacao_fornecedor_regra`; script `dedupe_comparacao_resultados.py`; paginação `page`/`page_size` em documents/fornecedores/comparison (backward-compatible; `analysis.py` sem paginação — frontend espera lista crua). Evolução 08/09: Alembic + `jobs`/`schema_meta`/`archived_at`/CHECKs.
   - **Fase E (Validação)**: corpus reingerido no banco real (**7 documentos, 315 chunks, 100% com embedding**); benchmark sem regressão; `db/init.sql` validado via parser oficial do PostgreSQL (**16 testes `test_init_sql.py`**).
-- **Suíte de Testes**: **156 testes unitários passando** (0 falhas) + **17 E2E** (13 passed; 4 erros de timeout do fixture de análise aguardando LLM real sob cota diária esgotada — ambientais, janela ajustada 60s→240s). **13/08**: +3 testes (`test_engine.py`) → **159 testes unitários passando**, validados no python do sistema (3.12.3, após reparo) e no venv uv (`backend/.venv`).
-- **Validações de 13/08/2026** (ambiente WSL):
-  - **Postgres real validado** (`docker compose up -d db`, pgvector/pg16): o `init.sql` falhava no 1º boot (`relation "fornecedores" does not exist` — FK de `documents` antes da tabela; `pglast` só valida sintaxe) → **corrigido** movendo o bloco `fornecedores` para antes de `documents`. Revalidado: 13 tabelas, `analysis_mode`/`agent_origin`/`embedding TEXT`, `uq_comparacao_fornecedor_regra`, `uq_chat_messages_conversation_role`, FK e trigger `updated_at` ok. Container `sei-db` segue rodando; sem dados reais (só smoke tests com ROLLBACK).
-  - **E2E parcial**: sem chaves de API no WSL (`.env` só existe no Windows), **11/11 testes E2E não-LLM verdes** (health/upload/CRUD/start-analysis/report-not-found); os 6 com fixture `analyzed_document` dependem de chaves LLM.
-  - **Python 3.12 do sistema reparado** (mix noble/deadsnakes alinhado ao noble 3.12.3, PPA jammy desabilitado, `python3-pglast` instalado) — ver seção 7.
-- **Copiloto LicitAI (chat consultivo) implementado (06/08/2026)**: módulo backend isolado + API `/api/v1/chat` + frontend integrado na tela de análise; **26 novos testes** (11 validator + 16 API incl. guards) + **4 testes de schema** (`test_init_sql.py` chat contract). Smoke test real validado com `chat_force_fake_provider=True` (health, conversa, mensagem com fonte, feedback, 404/400).
-- **Backend FastAPI**: modo nativo Windows (SQLite), provedor ativo **gemini** (`gemini-2.0-flash`), failover Groq. Chaves reais no `.env` da raiz — `config.py` lê `.env` relativo ao CWD (rodar de `backend\` não vê o `.env` da raiz).
-- **Modernização UX/UI CONCLUÍDA na branch `feat/ux-modernization` (25/08) — 5 commits + 1 chore**: Fases 0–4 concluídas com `tsc` limpo, `next build` ok, Lighthouse 100/96/100 e QA visual 375/768/1280 sem overflow (commits `b3abbe5`, `19a1c1a`, `801bae0`, `af6dd94`, `59a4ebd` + `36d01b5` chore CI); branch pronta para PR (`origin/feat/ux-modernization`), ainda **não mergeada** em `main`; dev server em `http://localhost:3000` (produção validada e dev reiniciado). **CI/CD DESABILITADO** em 25/08 (`ci.yml` → `ci.yml.disabled`).
-- **Frontend Next.js Rodando Ativamente**: `http://localhost:3000`.
-- **Banco de Dados Nativo**: `licitacao.db` (raiz) com corpus jurídico completo reingerido.
-- **Benchmark (05/08/2026)**: recall médio **0,81**, precisão média **0,86**, F1 médio **0,83** (baseline 03/08: 0,68/0,89/0,77) — sem regressão.
+- **Suíte de Testes (08/09)**: **215+ unitários** (golden FakeLLM, jobs, OCR subprocess, privacy, grounding, reliability P0, chat, feedback stub). E2E Playwright smoke existe em `frontend/e2e/` (não é gate CI).
+- **Copiloto LicitAI (chat consultivo) implementado (06/08/2026)**: módulo backend isolado + API `/api/v1/chat` + frontend integrado na tela de análise; thumbs-down grava stub em `e2e/golden/feedback/` (promover com `promote_feedback.py`).
+- **Backend FastAPI**: provedor configurável (`LLM_PROVIDER`), failover + limiter; fora de `APP_ENV=development` exige `API_TOKEN` e Postgres. Análises/comparações **só avançam com worker**.
+- **Modernização UX/UI** na branch `feat/ux-modernization` (25/08) mergeada na linha de confiabilidade; CI permanece desabilitado.
+- **Benchmark (05/08/2026)**: recall médio **0,81**, precisão média **0,86**, F1 médio **0,83** (baseline 03/08: 0,68/0,89/0,77). Golden local (08/09) usa FakeLLM com meta precision ≥ 0.88.
 - **Módulo de Auditoria TR × Propostas (RF02/RF03) implementado**:
   - CRUD de fornecedores e moldes (config_json validado por Pydantic)
   - Upload com `document_type=tr|proposta` + `fornecedor_id`
@@ -396,27 +413,21 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Ver `PLANO.md` para o plano completo do backlog. Fases 1 (hardening), 2 (qualidade),
-> 3 (RF04 feedback/e-mail), 4 (RAG v1.0), 5 (polimentos), 7 (versionamento) e
-> 8 (gerador/extensão) concluídas. PRD executável v2.0 (correções A–D + validação E)
-> concluído em **05/08/2026**. **Copiloto LicitAI (PRD v1.1) implementado em 06/08/2026.**
+> Ver `PLANO.md` para backlog histórico. **Confiabilidade (08/09/2026)** na branch `feat/confiabilidade-master`: código das Fases 0–3 do plano mestre entregue; CI **não** reabilitar sem pedido.
 
-- **Modernização UX/UI — CONCLUÍDA (25/08, branch `feat/ux-modernization`, 6 commits pushados, `boulder.json` status `completed`)**: Fases 0–4 verificadas; `DESIGN.md` é o contrato; artefatos de QA em `.opomo-qa/` (ignorado no git); CI desabilitado. Próximo passo: **abrir PR** (`github.com/brunoadsba/licitai/pull/new/feat/ux-modernization`) e merge em `main` após aprovação do usuário; reabilitar CI quando desejado (`mv .github/workflows/ci.yml.disabled .github/workflows/ci.yml`).
+### Agora (ops / Bruno — sem bloquear código)
+1. Quando conveniente: rotacionar chaves Gemini/Groq e `POSTGRES_PASSWORD` (adiado no MVP a pedido do usuário).
+2. `docker compose up -d` (inclui **worker**) + `./scripts/smoke_readyz.sh` + smoke upload→análise→relatório.
+3. Restore drill (`docs/ops/restore-drill.md`) quando houver janela.
+4. Definir `DATABASE_URL` no `.env` apontando ao Postgres (senão Alembic/local caem no SQLite default).
 
-- **Copiloto LicitAI — evoluções futuras (06/08/2026)**:
-  - Rodar chat com **LLM real** (remover `chat_force_fake_provider`) para validar o prompt/validator com Gemini/Groq quando a cota diária permitir.
-  - Aplicar `suggested_actions` do LLM em versões futuras (hoje descartadas por design — chat é somente-leitura).
-  - Listagem de conversas no frontend (`listChatConversations`/`getChatMessages` já existem na API) e retomar conversa existente por `analysis_id`/`document_id`.
-  - Considerar `chat_conversations.document_id`/`analysis_id` como FK real (hoje são soft references `VARCHAR(36)` por compatibilidade SQLite/Postgres).
-- **Pendências ambientais (05/08/2026)**:
-  - ~~**Reparar Python 3.12 do WSL**~~ — **RESOLVIDO (13/08)**: stack alinhada ao noble 3.12.3, PPA jammy desabilitado, `python3-pglast` instalado; `ctypes`/`magic` ok e 159/159 testes verdes no python do sistema.
-  - Rodar os **6 testes E2E com `analyzed_document`** com cota LLM disponível (Gemini/Groq resetarem) para confirmar 17/17. **Parcial (13/08)**: sem chaves de API no WSL (`.env` não existe no repo — vive no Windows), rodei os **11 testes E2E não-LLM** (health/upload/CRUD/start-analysis/report-not-found) contra backend local: **11/11 verdes**. Os 6 restantes (`analysis_completes`, `analysis_has_scores`, `analysis_has_risk_level`, `get_report`, `report_has_document_name`, `list_document_analyses`) precisam de `GEMINI_API_KEY`/`GROQ_API_KEY` + cota disponível. Passo 1: copiar o `.env` do Windows para o WSL.
-  - **Backend rodando contra Postgres real (novo, 13/08)**: o dev usa SQLite; com o `sei-db` (pgvector/pg16) validado e de pé, falta rodar o backend com `DATABASE_URL=postgresql+asyncpg://sei_user:...@127.0.0.1:5432/sei_analise` (ou `docker compose up -d backend`) e revalidar fluxos (upload→análise→relatório, matriz de conformidade, chat).
-  - **Validação de runtime do `db/init.sql` em Postgres real — CONCLUÍDA (13/08)**: `docker compose up -d db` com volume novo; o init falhou no 1º boot com `ERROR: relation "fornecedores" does not exist` (linha 31) — `documents.fornecedor_id` referenciava a tabela antes de criá-la (o `pglast` valida só sintaxe, não existência). **Corrigido** movendo o bloco `CREATE TABLE fornecedores` para antes de `documents` (com comentário explicando a ordenação). Revalidado: 13 tabelas, colunas `analysis_mode`/`agent_origin`/`embedding TEXT` presentes, constraints `uq_comparacao_fornecedor_regra`/`uq_chat_messages_conversation_role`/`documents_fornecedor_id_fkey` ok, sem ivfflat; smoke test de FK e trigger `updated_at` ok (nota: `NOW()` é fixo na transação — testar o trigger em transações separadas).
-  - `data/juristcu/` não existe no repo — só `data/rilc/amostra.txt`; `ingest_corpus_extra.py` ingere apenas o que existir. Considerar adicionar acórdãos TCU reais.
-- **v2.0**:
-  - Múltiplos agentes especializados utilizando LangGraph (Agente Jurídico, Agente Técnico, Agente de Redação, Agente Revisor).
-  - Autenticação e controle de acesso (RBAC).
-  - Executar os scripts de ingestão **sequencialmente** (execução paralela contra o mesmo SQLite pode causar corrida no rebuild do FTS).
+### Produto / qualidade (não urgente)
+- Abrir PR `feat/confiabilidade-master` → base acordada (`feat/ux-modernization` ou `main`) quando for mergear.
+- Curadoria humana de stubs em `e2e/golden/feedback/` via `promote_feedback.py`.
+- Rodar E2E com LLM real quando cota permitir; Playwright live (`E2E_LIVE=1`) opcional.
+- Reabilitar CI só se o usuário pedir explicitamente.
 
-> **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83** (melhoria vs 03/08: 0,68/0,89/0,77 — recall subiu com a calibração do agente estrutural). Recall baixo no TR de "omissões graves" segue como maior lacuna; reavaliar redação do checklist/instruções quando revisitado.
+### Fora de escopo (premissas travadas)
+- Multi-tenant / JWT / RBAC completo; LangGraph; fine-tune; Kubernetes.
+
+> **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.

@@ -34,10 +34,18 @@ Bloquear promote se CRITICAL sem mitigação documentada.
 3. Se a migração Alembic for incompatível, restaure backup (`restore-drill.md`) antes do digest antigo.
 4. Valide `/livez`, `/readyz`, smoke upload→análise.
 
+## Runtime local / Compose
+
+- Serviços: `db`, `backend` (API), **`worker`** (processa `jobs`), `frontend` (BFF injeta `API_TOKEN`).
+- Sem o `worker`, `POST .../start` só enfileira — análise/comparação não avançam.
+- Smoke: `./scripts/smoke_readyz.sh` depois `docker compose up -d`.
+- Schema: Alembic head `20260908_003` (ou `scripts/apply_reliability_schema.sql` em Postgres já provisionado).
+
 ## Checklist pré-promote
 
 - [ ] Digest imutável publicado
 - [ ] Trivy sem CRITICAL aberto
 - [ ] Migrações Alembic aplicadas em staging
-- [ ] Worker e API na mesma versão
+- [ ] Worker e API na mesma versão (enqueue-only na API)
 - [ ] Backup recente + restore drill no ciclo
+- [ ] `/livez` e `/readyz` OK; CI permanece opcional (`ci.yml.disabled`)
