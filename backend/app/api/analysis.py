@@ -2,21 +2,20 @@
 Endpoints para análise de documentos e geração de relatórios.
 """
 
-import asyncio
 import logging
 import uuid
 from collections import Counter
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.config import settings
-from app.database import async_session_factory, get_db
+from app.database import get_db
 from app.models.analysis import Analysis
-from app.models.document import Document
+from app.models.document import Document, DocumentItem
 from app.schemas.analysis import (
     AnalysisDetailResponse,
     AnalysisStartRequest,
@@ -25,13 +24,19 @@ from app.schemas.analysis import (
     ReportResponse,
     ScoreDetail,
 )
-from app.services.analyzer.engine import run_analysis
+from app.services.jobs import enqueue
+from app.services.privacy import (
+    CloudPrivacyError,
+    assert_cloud_allowed_for_document,
+    resolve_classification,
+)
+from app.worker import process_job_by_id
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analysis", tags=["Análise"])
 
-_ANALYSIS_SLOTS = asyncio.Semaphore(max(1, settings.max_concurrent_analyses))
+PROMPT_VERSION = "v1"
 
 
 def estimate_tokens(analysis: Analysis) -> int:
@@ -54,6 +59,27 @@ def _score_details(analysis: Analysis) -> list[ScoreDetail]:
     ]
 
 
+async def _build_analysis_snapshot(
+    db: AsyncSession, document: Document
+) -> dict:
+    items = (
+        await db.execute(
+            select(DocumentItem.id).where(
+                DocumentItem.document_id == document.id,
+                DocumentItem.archived_at.is_(None),
+            )
+        )
+    ).scalars().all()
+    return {
+        "item_ids": [str(i) for i in items],
+        "prompt_version": PROMPT_VERSION,
+        "corpus_version": "legal-v1",
+        "provider": settings.llm_provider,
+        "model": _get_current_model(),
+        "analysis_mode": None,  # preenchido pelo caller
+    }
+
+
 @router.post(
     "/{document_id}/start",
     response_model=AnalysisStartResponse,
@@ -65,12 +91,14 @@ async def start_analysis(
     document_id: uuid.UUID,
     background_tasks: BackgroundTasks,
     payload: AnalysisStartRequest | None = None,
+    x_document_classification: str | None = Header(
+        default=None, alias="X-Document-Classification"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
-    """Inicia análise em background."""
+    """Inicia análise via fila durável (job) + kick in-process."""
     mode = payload.mode if payload and payload.mode else "multi_agent"
 
-    # Lock do documento serializa starts concorrentes (TOCTOU); no-op no SQLite.
     result = await db.execute(
         select(Document).where(Document.id == document_id).with_for_update()
     )
@@ -79,13 +107,21 @@ async def start_analysis(
     if not document:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
+    classification = resolve_classification(
+        header_value=x_document_classification,
+        document_classification=getattr(document, "classification", None),
+    )
+    try:
+        assert_cloud_allowed_for_document(classification)
+    except CloudPrivacyError as exc:
+        raise HTTPException(status_code=403, detail=exc.message) from exc
+
     if document.status not in ("parsed", "completed"):
         raise HTTPException(
             status_code=400,
             detail=f"Documento não está pronto para análise. Status atual: {document.status}",
         )
 
-    # Verificar se já existe análise em andamento
     running = await db.execute(
         select(Analysis).where(
             Analysis.document_id == document_id,
@@ -95,10 +131,23 @@ async def start_analysis(
     existing_analysis = running.scalar_one_or_none()
     if existing_analysis:
         if existing_analysis.status == "pending":
-            logger.info("Re-enfileirando análise pendente %s (doc %s)", existing_analysis.id, document_id)
-            background_tasks.add_task(_run_analysis_background, existing_analysis.id, document_id)
+            logger.info(
+                "Re-enfileirando análise pendente %s (doc %s)",
+                existing_analysis.id, document_id,
+            )
+            job = await enqueue(
+                db,
+                "analysis",
+                {
+                    "analysis_id": str(existing_analysis.id),
+                    "document_id": str(document_id),
+                },
+            )
+            await db.commit()
+            background_tasks.add_task(process_job_by_id, job.id)
             return AnalysisStartResponse(
                 analysis_id=existing_analysis.id,
+                job_id=job.id,
                 message="Análise pendente re-enfileirada. Acompanhe pelo status.",
             )
         raise HTTPException(
@@ -106,7 +155,9 @@ async def start_analysis(
             detail="Já existe uma análise em andamento para este documento.",
         )
 
-    # Criar registro de análise
+    snapshot = await _build_analysis_snapshot(db, document)
+    snapshot["analysis_mode"] = mode
+
     analysis = Analysis(
         document_id=document_id,
         status="pending",
@@ -114,60 +165,54 @@ async def start_analysis(
         llm_model=_get_current_model(),
         analysis_mode=mode,
         total_items=document.total_items,
+        run_snapshot=snapshot,
     )
     db.add(analysis)
     try:
         await db.flush()
     except IntegrityError as exc:
         await db.rollback()
-        # Perdeu corrida com outro start: o índice parcial único rejeitou.
         raise HTTPException(
             status_code=409,
             detail="Já existe uma análise em andamento para este documento.",
         ) from exc
 
     analysis_id = analysis.id
-
-    # Commit para que a análise fique visível para a background task
+    job = await enqueue(
+        db,
+        "analysis",
+        {"analysis_id": str(analysis_id), "document_id": str(document_id)},
+    )
     await db.commit()
 
-    # Executar análise em background
-    logger.info("Agendando background task para análise %s (doc %s)", analysis_id, document_id)
-    background_tasks.add_task(_run_analysis_background, analysis_id, document_id)
-    logger.info("Background task agendada")
+    logger.info(
+        "Análise %s enfileirada job=%s (doc %s)", analysis_id, job.id, document_id
+    )
+    background_tasks.add_task(process_job_by_id, job.id)
 
     return AnalysisStartResponse(
         analysis_id=analysis_id,
+        job_id=job.id,
         message="Análise iniciada. Acompanhe o progresso pelo endpoint de status.",
     )
 
 
-async def _run_analysis_background(
-    analysis_id: uuid.UUID, document_id: uuid.UUID
-) -> None:
-    """Executa a análise em background com sessão própria do banco."""
-    logger.info("Background task iniciada para análise %s", analysis_id)
-    async with _ANALYSIS_SLOTS:
-        async with async_session_factory() as db:
-            try:
-                await run_analysis(db, analysis_id, document_id)
-                await db.commit()
-            except Exception:
-                logger.exception("Erro na análise %s", analysis_id)
-                await db.rollback()
+SEI_APPLICABLE_STATUSES = frozenset({"aprovada", "ajustada"})
 
-                # Marcar análise como erro
-                try:
-                    result = await db.execute(
-                        select(Analysis).where(Analysis.id == analysis_id)
-                    )
-                    analysis = result.scalar_one_or_none()
-                    if analysis:
-                        analysis.status = "error"
-                        analysis.error_message = "Erro interno durante a análise."
-                        await db.commit()
-                except Exception:
-                    logger.exception("Erro ao atualizar status da análise %s", analysis_id)
+
+def _filter_corrections(
+    corrections: list,
+    *,
+    for_sei: bool = False,
+    review_statuses: set[str] | None = None,
+) -> list:
+    if for_sei:
+        allowed = SEI_APPLICABLE_STATUSES
+    elif review_statuses is not None:
+        allowed = review_statuses
+    else:
+        return list(corrections)
+    return [c for c in corrections if getattr(c, "review_status", None) in allowed]
 
 
 @router.get(
@@ -178,9 +223,11 @@ async def _run_analysis_background(
 )
 async def get_analysis(
     analysis_id: uuid.UUID,
+    for_sei: bool = False,
+    review_status: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """Retorna detalhes da análise com correções."""
+    """Retorna detalhes da análise com correções (filtro opcional para SEI)."""
     result = await db.execute(
         select(Analysis)
         .options(selectinload(Analysis.corrections))
@@ -192,8 +239,40 @@ async def get_analysis(
         raise HTTPException(status_code=404, detail="Análise não encontrada.")
 
     resp = AnalysisDetailResponse.model_validate(analysis)
+    statuses = (
+        {s.strip() for s in review_status.split(",") if s.strip()}
+        if review_status
+        else None
+    )
+    filtered = _filter_corrections(
+        analysis.corrections, for_sei=for_sei, review_statuses=statuses
+    )
+    if for_sei or statuses is not None:
+        resp.corrections = [CorrectionResponse.model_validate(c) for c in filtered]
     resp.tokens_estimated = estimate_tokens(analysis)
     return resp
+
+
+@router.get(
+    "/{analysis_id}/sei-corrections",
+    response_model=list[CorrectionResponse],
+    summary="Correções aplicáveis ao SEI",
+    description="Somente correções com review_status aprovada ou ajustada.",
+)
+async def get_sei_corrections(
+    analysis_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Analysis)
+        .options(selectinload(Analysis.corrections))
+        .where(Analysis.id == analysis_id)
+    )
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Análise não encontrada.")
+    filtered = _filter_corrections(analysis.corrections, for_sei=True)
+    return [CorrectionResponse.model_validate(c) for c in filtered]
 
 
 @router.get(
@@ -204,6 +283,7 @@ async def get_analysis(
 )
 async def get_report(
     analysis_id: uuid.UUID,
+    for_sei: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
     """Gera relatório consolidado."""
@@ -220,9 +300,9 @@ async def get_report(
     if not analysis:
         raise HTTPException(status_code=404, detail="Análise não encontrada.")
 
-    corrections = [CorrectionResponse.model_validate(c) for c in analysis.corrections]
+    raw = _filter_corrections(analysis.corrections, for_sei=for_sei) if for_sei else analysis.corrections
+    corrections = [CorrectionResponse.model_validate(c) for c in raw]
 
-    # Contagem por categoria e severidade
     category_counts = dict(Counter(c.category for c in corrections))
     severity_counts = dict(Counter(c.severity for c in corrections))
 

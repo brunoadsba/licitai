@@ -48,6 +48,7 @@ class AnalysisStartRequest(BaseModel):
 class AnalysisStartResponse(BaseModel):
     """Resposta ao iniciar uma análise."""
     analysis_id: uuid.UUID
+    job_id: uuid.UUID | None = None
     message: str
 
 

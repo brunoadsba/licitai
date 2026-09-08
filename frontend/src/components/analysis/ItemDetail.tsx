@@ -3,7 +3,7 @@
 import type { DocumentItemResponse, CorrectionResponse } from '@/types';
 import { useCopy } from '@/lib/useCopy';
 import { Check, ClipboardCopy, CheckCircle2, Lightbulb } from 'lucide-react';
-import CorrectionCard from '@/components/analysis/CorrectionCard';
+import CorrectionCard, { isSeiCopyAllowed } from '@/components/analysis/CorrectionCard';
 
 interface ItemDetailProps {
   item: DocumentItemResponse;
@@ -22,7 +22,8 @@ export default function ItemDetail({
   showCorrections = true,
 }: ItemDetailProps) {
   const { copy, isCopied } = useCopy();
-  const showCopyItem = showCorrections && corrections.length > 0;
+  const seiCorrections = corrections.filter((c) => isSeiCopyAllowed(c.review_status));
+  const showCopyItem = showCorrections && seiCorrections.length > 0;
 
   return (
     <div className="col-span-12 space-y-4 lg:col-span-8">
@@ -40,14 +41,24 @@ export default function ItemDetail({
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-content-secondary">{item.content}</p>
         </div>
 
+        {showCorrections && corrections.length > 0 && !showCopyItem && (
+          <div className="border-t border-line-subtle pt-3">
+            <span className="flex items-center gap-1.5 text-xs text-content-muted">
+              <Lightbulb className="h-3.5 w-3.5 text-content-subtle" aria-hidden />
+              Cópia do item para o SEI disponível somente com correções aprovadas ou ajustadas.
+            </span>
+          </div>
+        )}
+
         {showCopyItem && (
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-subtle pt-3">
             <span className="flex items-center gap-1.5 text-xs text-content-muted">
               <Lightbulb className="h-3.5 w-3.5 text-accent-400" aria-hidden />
-              Copie o item completo pronto para o SEI (com correções aplicadas):
+              Copie o item com correções aprovadas/ajustadas aplicadas (SEI):
             </span>
             <button
-              onClick={() => copy(getUpdatedItemText(item, corrections), `item_full_${item.id}`)}
+              type="button"
+              onClick={() => copy(getUpdatedItemText(item, seiCorrections), `item_full_${item.id}`)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-accent-500/30 bg-accent-500/15 px-3 py-1.5 text-xs font-medium text-accent-400 transition-colors outline-none hover:bg-accent-500/25 focus-visible:ring-2 focus-visible:ring-accent-500/60"
             >
               {isCopied(`item_full_${item.id}`) ? (
@@ -58,7 +69,7 @@ export default function ItemDetail({
               ) : (
                 <>
                   <ClipboardCopy className="h-3.5 w-3.5" aria-hidden />
-                  Copiar Item Inteiro para o SEI
+                  Copiar Item Inteiro (aprovadas/ajustadas)
                 </>
               )}
             </button>

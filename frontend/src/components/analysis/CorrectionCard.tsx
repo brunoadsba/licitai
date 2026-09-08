@@ -11,6 +11,25 @@ interface CorrectionCardProps {
   index: number;
 }
 
+const REVIEW_STATUS_LABELS: Record<NonNullable<CorrectionResponse['review_status']>, string> = {
+  pendente: 'Pendente',
+  aprovada: 'Aprovada',
+  rejeitada: 'Rejeitada',
+  ajustada: 'Ajustada',
+};
+
+const REVIEW_STATUS_BADGE: Record<NonNullable<CorrectionResponse['review_status']>, string> = {
+  pendente: 'badge-medio',
+  aprovada: 'badge-baixo',
+  rejeitada: 'badge-critico',
+  ajustada: 'badge-baixo',
+};
+
+/** Correções copiáveis para o SEI: apenas aprovada ou ajustada. */
+export function isSeiCopyAllowed(status: CorrectionResponse['review_status']): boolean {
+  return status === 'aprovada' || status === 'ajustada';
+}
+
 /**
  * Card DE → PARA de uma correção, com botões de cópia para o SEI.
  */
@@ -18,6 +37,8 @@ export default function CorrectionCard({ correction, index }: CorrectionCardProp
   const { copy, isCopied } = useCopy();
   const agent = correction.agent_origin ? AGENT_ORIGIN_CONFIG[correction.agent_origin] : null;
   const AgentIcon = agent?.icon;
+  const reviewStatus = correction.review_status ?? 'pendente';
+  const canCopyPara = isSeiCopyAllowed(reviewStatus);
 
   return (
     <div
@@ -41,13 +62,25 @@ export default function CorrectionCard({ correction, index }: CorrectionCardProp
           <span className={`badge ${getSeverityBadge(correction.severity)}`}>
             {SEVERITY_LABELS[correction.severity] || correction.severity}
           </span>
+          <span className={`badge ${REVIEW_STATUS_BADGE[reviewStatus]}`}>
+            Revisão: {REVIEW_STATUS_LABELS[reviewStatus]}
+          </span>
         </div>
 
-        {/* Botão principal de copiar o PARA */}
+        {/* Botão principal de copiar o PARA — só se aprovada/ajustada */}
         <button
-          onClick={() => copy(correction.suggested_text, `para_${correction.id}`)}
-          title="Copiar texto de substituição para colar no SEI"
-          className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/15 px-3 py-1.5 text-xs font-medium text-green-300 outline-none transition-colors hover:bg-green-500/25 focus-visible:ring-2 focus-visible:ring-green-500/60"
+          type="button"
+          disabled={!canCopyPara}
+          onClick={() => {
+            if (!canCopyPara) return;
+            copy(correction.suggested_text, `para_${correction.id}`);
+          }}
+          title={
+            canCopyPara
+              ? 'Copiar texto de substituição para colar no SEI'
+              : 'Disponível apenas para correções aprovadas ou ajustadas'
+          }
+          className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/15 px-3 py-1.5 text-xs font-medium text-green-300 outline-none transition-colors hover:bg-green-500/25 focus-visible:ring-2 focus-visible:ring-green-500/60 disabled:cursor-not-allowed disabled:border-line-subtle disabled:bg-canvas/40 disabled:text-content-subtle disabled:hover:bg-canvas/40"
         >
           {isCopied(`para_${correction.id}`) ? (
             <>
@@ -80,8 +113,18 @@ export default function CorrectionCard({ correction, index }: CorrectionCardProp
               PARA (sugerido)
             </p>
             <button
-              onClick={() => copy(correction.suggested_text, `para_sub_${correction.id}`)}
-              className="text-[11px] text-green-400/80 underline outline-none hover:text-green-300 focus-visible:ring-2 focus-visible:ring-green-500/60"
+              type="button"
+              disabled={!canCopyPara}
+              onClick={() => {
+                if (!canCopyPara) return;
+                copy(correction.suggested_text, `para_sub_${correction.id}`);
+              }}
+              title={
+                canCopyPara
+                  ? undefined
+                  : 'Disponível apenas para correções aprovadas ou ajustadas'
+              }
+              className="text-[11px] text-green-400/80 underline outline-none hover:text-green-300 focus-visible:ring-2 focus-visible:ring-green-500/60 disabled:cursor-not-allowed disabled:text-content-subtle disabled:no-underline disabled:hover:text-content-subtle"
             >
               {isCopied(`para_sub_${correction.id}`) ? 'Copiado!' : 'Copiar'}
             </button>
@@ -97,6 +140,7 @@ export default function CorrectionCard({ correction, index }: CorrectionCardProp
             Justificativa &amp; Fundamentação
           </p>
           <button
+            type="button"
             onClick={() =>
               copy(
                 `${correction.justification}${correction.legal_basis ? ` (Fundamento: ${correction.legal_basis})` : ''}`,

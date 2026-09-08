@@ -40,6 +40,8 @@ export interface DocumentListResponse {
 
 export type AgentOrigin = 'juridico' | 'tecnico' | 'redacao' | 'estrutural';
 
+export type ReviewStatus = 'pendente' | 'aprovada' | 'rejeitada' | 'ajustada';
+
 export interface CorrectionResponse {
   id: string;
   document_item_id: string;
@@ -54,7 +56,7 @@ export interface CorrectionResponse {
   legal_basis: string | null;
   importance: Importance;
   agent_origin?: AgentOrigin | null;
-  review_status?: 'pendente' | 'aprovada' | 'rejeitada' | 'ajustada';
+  review_status?: ReviewStatus;
   review_note?: string | null;
   reviewed_at?: string | null;
 }
@@ -284,6 +286,7 @@ export type ChatCitationType = 'legal' | 'analysis' | 'correction' | 'document_i
 
 export interface ChatCitation {
   type: ChatCitationType;
+  source_id?: string | null;
   reference: string;
   title: string;
   snippet: string;

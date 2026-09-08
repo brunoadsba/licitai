@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { Clock, FileBarChart, Play, ChevronLeft } from 'lucide-react';
 import { getDocument, startAnalysis, getDocumentAnalyses, getAnalysis, extractErrorMessage } from '@/lib/api';
+import { startPolling } from '@/lib/polling';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import { Button } from '@/components/ui/Button';
@@ -14,6 +15,7 @@ import ChatPanel from '@/components/chat/ChatPanel';
 import AnalysisProgress from '@/components/analysis/AnalysisProgress';
 import ItemList from '@/components/analysis/ItemList';
 import ItemDetail from '@/components/analysis/ItemDetail';
+import { isSeiCopyAllowed } from '@/components/analysis/CorrectionCard';
 import type {
   DocumentDetailResponse,
   DocumentItemResponse,
@@ -28,10 +30,15 @@ export default function AnalysisPage() {
   const [document, setDocument] = useState<DocumentDetailResponse | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisDetailResponse | null>(null);
   const [selectedItem, setSelectedItem] = useState<DocumentItemResponse | null>(null);
+  const selectedItemRef = useRef<DocumentItemResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [revisionsModalOpen, setRevisionsModalOpen] = useState(false);
+
+  useEffect(() => {
+    selectedItemRef.current = selectedItem;
+  }, [selectedItem]);
 
   const loadData = useCallback(
     async (keepSelectedItem = false) => {
@@ -40,11 +47,18 @@ export default function AnalysisPage() {
         const doc = await getDocument(documentId);
         setDocument(doc);
 
-        if (doc.items.length > 0 && (!keepSelectedItem || !selectedItem)) {
+        if (keepSelectedItem) {
+          const current = selectedItemRef.current;
+          if (current) {
+            const stillExists = doc.items.find((i) => i.id === current.id) ?? null;
+            setSelectedItem(stillExists);
+          }
+        } else if (doc.items.length > 0) {
           setSelectedItem(doc.items[0]);
+        } else {
+          setSelectedItem(null);
         }
 
-        // Carregar análise mais recente
         const analyses = await getDocumentAnalyses(documentId);
         if (analyses.length > 0) {
           setAnalysis(analyses[0]);
@@ -63,24 +77,28 @@ export default function AnalysisPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId]);
 
-  // Polling em tempo real durante a análise (1 segundo)
+  // Polling em tempo real durante a análise
   useEffect(() => {
     if (!analysis || !['pending', 'running'].includes(analysis.status)) return;
 
-    const interval = setInterval(async () => {
-      try {
-        const updated = await getAnalysis(analysis.id);
-        setAnalysis(updated);
-
-        if (['completed', 'error'].includes(updated.status)) {
-          clearInterval(interval);
-        }
-      } catch {
-        // silenciar erros de polling
+    const analysisId = analysis.id;
+    const { cancel } = startPolling(
+      () => getAnalysis(analysisId, { skipCache: true }),
+      (updated) => ['completed', 'error'].includes(updated.status),
+      {
+        initialIntervalMs: 1000,
+        maxIntervalMs: 8000,
+        deadlineMs: 30 * 60 * 1000,
+        maxFailures: 8,
+        onResult: (updated) => {
+          setAnalysis(updated);
+        },
       }
-    }, 1000);
+    );
 
-    return () => clearInterval(interval);
+    return () => cancel();
+    // Intencional: reagir só a id/status, não a cada tick de progresso
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [analysis?.id, analysis?.status]);
 
   async function handleStartAnalysis() {
@@ -89,8 +107,7 @@ export default function AnalysisPage() {
       setError(null);
       const result = await startAnalysis(documentId);
 
-      // Carregar a análise criada
-      const newAnalysis = await getAnalysis(result.analysis_id);
+      const newAnalysis = await getAnalysis(result.analysis_id, { skipCache: true });
       setAnalysis(newAnalysis);
     } catch (err) {
       setError(extractErrorMessage(err, 'Erro ao iniciar análise.'));
@@ -107,6 +124,7 @@ export default function AnalysisPage() {
   function getUpdatedItemText(item: DocumentItemResponse, corrections: CorrectionResponse[]): string {
     let text = item.content;
     for (const c of corrections) {
+      if (!isSeiCopyAllowed(c.review_status)) continue;
       if (c.original_text && c.suggested_text && text.includes(c.original_text)) {
         text = text.replace(c.original_text, c.suggested_text);
       }
