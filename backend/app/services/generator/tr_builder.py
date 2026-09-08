@@ -11,6 +11,7 @@ from app.models.document import Document, DocumentItem
 from app.schemas.generator import TRGeneratorItemResponse, TRGeneratorRequest, TRGeneratorResponse
 from app.services.analyzer.json_utils import parse_json_response
 from app.services.generator.validator import FALLBACK_POR_ELEMENTO, validate_tr_completeness
+from app.services.legal.art6_xxiii import art6_checklist_prompt_block
 from app.services.llm.provider import get_llm_provider
 from app.services.rag.retriever import retrieve
 
@@ -45,32 +46,26 @@ async def generate_tr_document(
     chunks = await retrieve(db, query_rag, top_k=3)
     rag_context = "\n\n".join([f"[{c.law_number} - {c.article}]\n{c.text}" for c in chunks])
 
-    system_prompt = """Você é um especialista em Contratações Públicas e Redação de Termos de Referência (Lei 14.133/2021, Lei 13.303/2016 e TCU).
+    system_prompt = f"""Você é um especialista em Contratações Públicas e Redação de Termos de Referência (Lei 14.133/2021, Lei 13.303/2016 e TCU).
 
-Sua tarefa é GERAL O TEXTO COMPLETO E ESTRUTURADO DE UM TERMO DE REFERÊNCIA com as 10 seções obrigatórias do Art. 6º, XXIII:
-1. DO OBJETO
-2. DA JUSTIFICATIVA DA CONTRATAÇÃO
-3. DAS ESPECIFICAÇÕES TÉCNICAS E REQUISITOS DA CONTRATAÇÃO
-4. DO MODELO DE EXECUÇÃO DO CONTRATO
-5. DO MODELO DE GESTÃO E FISCALIZAÇÃO CONTRATUAL
-6. DOS CRITÉRIOS DE MEDIÇÃO E PAGAMENTO
-7. DA ESTIMATIVA DE PREÇOS E ADEQUAÇÃO ORÇAMENTÁRIA
-8. DA GARANTIA CONTRATUAL E ASSISTÊNCIA TÉCNICA
-9. DAS INFRAÇÕES E SANÇÕES ADMINISTRATIVAS
-10. DA FORMA DE SELEÇÃO E CRITÉRIO DE JULGAMENTO
+Sua tarefa é GERAR O TEXTO COMPLETO E ESTRUTURADO DE UM TERMO DE REFERÊNCIA cobrindo as alíneas a–j do Art. 6º, XXIII.
+
+{art6_checklist_prompt_block()}
+
+NÃO invente seções como se fossem o inciso XXIII (ex.: garantia/sanções isoladas como checklist).
+Você pode incluir conteúdo auxiliar se necessário, mas as 10 alíneas a–j são obrigatórias.
 
 ## REGRAS DE SAÍDA (EXCLUSIVAMENTE JSON):
 Retorne a saída estritamente em formato JSON com o seguinte formato:
-{
+{{
   "secoes": [
-    {
+    {{
       "item_number": "1.0",
-      "title": "DO OBJETO",
+      "title": "DA DEFINIÇÃO DO OBJETO",
       "content": "Texto detalhado da seção..."
-    },
-    ...
+    }}
   ]
-}
+}}
 """
 
     valor_txt = f"R$ {request.valor_estimado:,.2f}" if request.valor_estimado else "A definir em pesquisa de mercado"
@@ -132,16 +127,16 @@ Gere o JSON com todas as 10 seções completas, com linguagem jurídica formal, 
         id=doc_id,
         filename_original=f"Termo de Referência — {tipo_nome}",
         filename_stored=nome_arquivo,
-        file_type="docx",
-        file_size_bytes=len(raw_response.encode("utf-8")),
+        file_type="html",
+        file_size_bytes=max(1, len(raw_response.encode("utf-8"))),
         document_type="tr",
         total_items=len(secoes_json),
         status="parsed",
         generation_manifest={
-            "prompt_version": "v1",
+            "prompt_version": "v2-art6-aj",
             "corpus_version": str(valid_refs_count),
             "tipo_contratacao": request.tipo_contratacao,
-            "rag_chunk_ids": [str(c.id) for c in chunks],
+            "rag_chunk_ids": [str(c.id) for c in chunks if getattr(c, "id", None)],
             "llm_provider": provider.__class__.__name__,
         },
     )

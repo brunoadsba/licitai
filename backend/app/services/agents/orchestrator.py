@@ -6,6 +6,7 @@ import asyncio
 import logging
 from typing import Any
 
+from app.services.agents.agent_result import AgentOutcome, AgentResult
 from app.services.agents.base_agent import BaseSpecializedAgent
 from app.services.agents.legal_agent import LegalAgent
 from app.services.agents.structural_agent import StructuralAgent
@@ -36,61 +37,117 @@ class MultiAgentOrchestrator:
         self, llm: Any, item: Any, legal_context: str
     ) -> list[dict[str, Any]]:
         """
-        Executa os agentes em 2 fases para economia: se Jurídico+Técnico
-        retornarem vazio com confiança, pula Redação+Estrutural. Provedor
-        por etapa: Groq para extração rápida, Gemini para fundamentação (quando
-        llm suporta failover, a escolha é transparente).
+        Executa agentes em 2 fases. Early-exit da fase 2 SOMENTE se a fase 1
+        concluiu com sucesso (ok_empty) em todos os agentes e zero achados.
+        Falhas/parse_error NÃO disparam early-exit.
         """
         item_num = getattr(item, "item_number", "desconhecido")
         phase1 = self.agents[:2]
         phase2 = self.agents[2:]
 
-        phase1_tasks = [
-            agent.analyze_item(llm=llm, item=item, legal_context=legal_context)
-            for agent in phase1
-        ]
-        phase1_results = await asyncio.gather(*phase1_tasks, return_exceptions=True)
+        phase1_results = await self._run_phase(phase1, llm, item, legal_context)
+        combined: list[dict[str, Any]] = []
+        coverage_errors: list[str] = []
 
-        combined_corrections: list[dict[str, Any]] = []
-        empty_phase1 = 0
-        for agent, res in zip(phase1, phase1_results, strict=False):
-            if isinstance(res, Exception):
-                logger.error(
-                    "Exceção no agente %s no item %s: %s",
-                    agent.agent_id,
-                    item_num,
-                    str(res),
-                )
-                empty_phase1 += 1
+        phase1_all_ok_empty = True
+        for res in phase1_results:
+            if res.outcome == AgentOutcome.FINDINGS:
+                phase1_all_ok_empty = False
+                combined.extend(res.corrections)
+            elif res.outcome == AgentOutcome.OK_EMPTY:
                 continue
-            if isinstance(res, list):
-                if not res:
-                    empty_phase1 += 1
-                combined_corrections.extend(res)
+            else:
+                phase1_all_ok_empty = False
+                coverage_errors.append(f"{res.agent_id}:{res.outcome.value}")
+                logger.error(
+                    "Agente %s falhou no item %s (%s): %s",
+                    res.agent_id,
+                    item_num,
+                    res.outcome.value,
+                    res.error,
+                )
 
-        if empty_phase1 == len(phase1) and not combined_corrections:
-            logger.info("Early-exit no item %s: fase 1 vazia, pulando fase 2", item_num)
+        if phase1_all_ok_empty and not combined and not coverage_errors:
+            logger.info(
+                "Early-exit seguro no item %s: fase 1 ok_empty, pulando fase 2",
+                item_num,
+            )
             return []
 
-        phase2_tasks = [
-            agent.analyze_item(llm=llm, item=item, legal_context=legal_context)
-            for agent in phase2
-        ]
-        phase2_results = await asyncio.gather(*phase2_tasks, return_exceptions=True)
-        for agent, res in zip(phase2, phase2_results, strict=False):
-            if isinstance(res, Exception):
+        phase2_results = await self._run_phase(phase2, llm, item, legal_context)
+        for res in phase2_results:
+            if res.outcome == AgentOutcome.FINDINGS:
+                combined.extend(res.corrections)
+            elif res.outcome not in (AgentOutcome.OK_EMPTY, AgentOutcome.SKIPPED):
+                coverage_errors.append(f"{res.agent_id}:{res.outcome.value}")
                 logger.error(
-                    "Exceção no agente %s no item %s: %s",
-                    agent.agent_id,
+                    "Agente %s falhou no item %s (%s): %s",
+                    res.agent_id,
                     item_num,
-                    str(res),
+                    res.outcome.value,
+                    res.error,
                 )
-                continue
-            if isinstance(res, list):
-                combined_corrections.extend(res)
 
-        deduplicated = self._deduplicate_corrections(combined_corrections)
+        deduplicated = self._deduplicate_corrections(combined)
+        if coverage_errors:
+            # Metadado consumido pelo engine para status completed_with_errors
+            for corr in deduplicated:
+                corr.setdefault("_coverage_errors", coverage_errors)
+            if not deduplicated:
+                deduplicated.append(
+                    {
+                        "category": "estrutural",
+                        "severity": "alto",
+                        "situation": "Cobertura incompleta de agentes",
+                        "problem": (
+                            "Um ou mais agentes falharam na análise deste item: "
+                            + ", ".join(coverage_errors)
+                        ),
+                        "risk": "Análise incompleta — não tratar como item adequado.",
+                        "original_text": getattr(item, "content", "")[:200] or "N/A",
+                        "suggested_text": "Reexecutar a análise deste item.",
+                        "justification": "Falha de cobertura multi-agente.",
+                        "legal_basis": None,
+                        "importance": "alta",
+                        "agent_origin": "orchestrator",
+                        "_coverage_errors": coverage_errors,
+                    }
+                )
         return deduplicated
+
+    async def _run_phase(
+        self,
+        agents: list[BaseSpecializedAgent],
+        llm: Any,
+        item: Any,
+        legal_context: str,
+    ) -> list[AgentResult]:
+        tasks = [
+            agent.analyze_item(llm=llm, item=item, legal_context=legal_context)
+            for agent in agents
+        ]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        typed: list[AgentResult] = []
+        for agent, res in zip(agents, results, strict=False):
+            if isinstance(res, AgentResult):
+                typed.append(res)
+            elif isinstance(res, Exception):
+                typed.append(
+                    AgentResult(
+                        agent_id=agent.agent_id,
+                        outcome=AgentOutcome.FAILED,
+                        error=str(res),
+                    )
+                )
+            else:
+                typed.append(
+                    AgentResult(
+                        agent_id=agent.agent_id,
+                        outcome=AgentOutcome.FAILED,
+                        error="resultado inesperado",
+                    )
+                )
+        return typed
 
     def _deduplicate_corrections(
         self, corrections: list[dict[str, Any]]

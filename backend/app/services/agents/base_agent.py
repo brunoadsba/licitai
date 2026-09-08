@@ -6,6 +6,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Any
 
+from app.services.agents.agent_result import AgentOutcome, AgentResult
 from app.services.analyzer.json_utils import (
     parse_json_response,
     sanitize_correction,
@@ -56,36 +57,63 @@ class BaseSpecializedAgent(ABC):
         """Monta o user prompt direcionado ao escopo do agente."""
         pass
 
-    async def analyze_item(self, llm: Any, item: Any, legal_context: str) -> list[dict[str, Any]]:
+    async def analyze_item(self, llm: Any, item: Any, legal_context: str) -> AgentResult:
         """
         Executa a análise do item pelo agente especializado.
-        Retorna a lista de correções encontradas com a tag `agent_origin`.
+        Retorna AgentResult tipado (nunca mascara falha como lista vazia).
         """
         user_prompt = self.build_user_prompt(item, legal_context)
+        item_num = getattr(item, "item_number", "desconhecido")
 
         try:
             raw_response = await llm.generate(
                 system_prompt=self.system_prompt,
                 user_prompt=user_prompt,
             )
-            corrections = parse_json_response(raw_response)
-
-            valid_corrections = []
-            for corr in corrections:
-                if validate_correction(corr):
-                    sanitized = sanitize_correction(corr)
-                    # Forçar categoria primária do agente se ausente/divergente
-                    sanitized["category"] = self.category
-                    sanitized["agent_origin"] = self.agent_id
-                    valid_corrections.append(sanitized)
-
-            return valid_corrections
-
         except Exception as e:
             logger.warning(
                 "Falha na análise do agente %s para o item %s: %s",
                 self.agent_id,
-                getattr(item, "item_number", "desconhecido"),
+                item_num,
                 str(e),
             )
-            return []
+            return AgentResult(
+                agent_id=self.agent_id,
+                outcome=AgentOutcome.FAILED,
+                error=str(e),
+            )
+
+        try:
+            corrections = parse_json_response(raw_response)
+        except Exception as e:
+            logger.warning(
+                "Parse error no agente %s item %s: %s",
+                self.agent_id,
+                item_num,
+                str(e),
+            )
+            return AgentResult(
+                agent_id=self.agent_id,
+                outcome=AgentOutcome.PARSE_ERROR,
+                error=str(e),
+            )
+
+        valid_corrections = []
+        for corr in corrections:
+            if validate_correction(corr):
+                sanitized = sanitize_correction(corr)
+                sanitized["category"] = self.category
+                sanitized["agent_origin"] = self.agent_id
+                valid_corrections.append(sanitized)
+
+        if valid_corrections:
+            return AgentResult(
+                agent_id=self.agent_id,
+                outcome=AgentOutcome.FINDINGS,
+                corrections=valid_corrections,
+            )
+        return AgentResult(
+            agent_id=self.agent_id,
+            outcome=AgentOutcome.OK_EMPTY,
+            corrections=[],
+        )
