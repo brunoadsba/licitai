@@ -48,6 +48,7 @@ def _clear_legal_context_cache() -> None:
 class RetrievedChunk:
     """Chunk recuperado do corpus jurídico."""
 
+    id: str
     law_number: str
     law_title: str
     article: str
@@ -150,6 +151,7 @@ def _para_chunks(rows: list[dict]) -> list[RetrievedChunk]:
     """Converte linhas de busca em objetos RetrievedChunk."""
     return [
         RetrievedChunk(
+            id=str(row.get("id") or row.get("chunk_id") or ""),
             law_number=row["law_number"],
             law_title=row["law_title"],
             article=row["article"] or "",

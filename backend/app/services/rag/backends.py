@@ -36,7 +36,7 @@ async def _search_sqlite(
     match_expr = " OR ".join(_quote_term(t) for t in query.split())
 
     base_sql = """
-        SELECT ld.law_number, ld.law_title, lc.article, lc.section,
+        SELECT CAST(lc.id AS TEXT) AS id, ld.law_number, ld.law_title, lc.article, lc.section,
                lc.chunk_text, bm25(legal_chunks_fts) AS score
         FROM legal_chunks_fts
         JOIN legal_chunks lc ON CAST(lc.id AS TEXT) = legal_chunks_fts.chunk_id
@@ -69,7 +69,7 @@ async def _search_postgres(
     params = {f"term{i}": t for i, t in enumerate(terms)}
 
     sql = f"""
-        SELECT ld.law_number, ld.law_title, lc.article, lc.section,
+        SELECT CAST(lc.id AS TEXT) AS id, ld.law_number, ld.law_title, lc.article, lc.section,
                lc.chunk_text, 1 AS score
         FROM legal_chunks lc
         JOIN legal_documents ld ON ld.id = lc.legal_document_id

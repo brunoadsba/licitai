@@ -4,6 +4,7 @@ Endpoints para Histórico e Versionamento de Edições de Documentos.
 
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
@@ -25,12 +26,28 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/documents/{document_id}/revisions", tags=["Revisões de Documento"])
 
 
+def _snapshot_items(items: list[DocumentItem]) -> list[dict]:
+    return [
+        {
+            "item_number": i.item_number,
+            "title": i.title or "",
+            "content": i.content or "",
+            "page_number": i.page_number,
+            "item_order": i.item_order,
+            "item_type": i.item_type,
+        }
+        for i in sorted(
+            (x for x in items if getattr(x, "archived_at", None) is None),
+            key=lambda x: x.item_order,
+        )
+    ]
+
+
 @router.post(
     "",
     response_model=DocumentRevisionResponse,
     status_code=201,
     summary="Salvar snapshot de versão",
-    description="Cria uma nova versão historizada (snapshot) dos itens de um documento.",
 )
 async def create_revision(
     document_id: uuid.UUID,
@@ -42,37 +59,25 @@ async def create_revision(
         select(Document)
         .options(selectinload(Document.items))
         .where(Document.id == document_id)
+        .with_for_update()
     )
     doc = doc_result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
-    # Descobrir próxima versão sequencial
     max_v = await db.execute(
-        select(func.coalesce(func.max(DocumentRevision.versao), 0))
-        .where(DocumentRevision.document_id == document_id)
+        select(func.coalesce(func.max(DocumentRevision.versao), 0)).where(
+            DocumentRevision.document_id == document_id
+        )
     )
     proxima_versao = (max_v.scalar() or 0) + 1
-
-    # Montar snapshot dos itens
-    items_snapshot = [
-        {
-            "item_number": i.item_number,
-            "title": i.title or "",
-            "content": i.content or "",
-            "page_number": i.page_number,
-            "item_order": i.item_order,
-            "item_type": i.item_type,
-        }
-        for i in sorted(doc.items, key=lambda x: x.item_order)
-    ]
 
     revision = DocumentRevision(
         document_id=document_id,
         versao=proxima_versao,
         rotulo=data.rotulo,
         descricao=data.descricao,
-        items_snapshot=items_snapshot,
+        items_snapshot=_snapshot_items(doc.items),
     )
 
     db.add(revision)
@@ -95,13 +100,11 @@ async def create_revision(
     "",
     response_model=DocumentRevisionListResponse,
     summary="Listar histórico de versões",
-    description="Retorna todas as versões historizadas salvas para um documento.",
 )
 async def list_revisions(
     document_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    """Retorna lista de revisões do documento ordenadas por versão decrescente."""
     result = await db.execute(
         select(DocumentRevision)
         .where(DocumentRevision.document_id == document_id)
@@ -118,14 +121,12 @@ async def list_revisions(
     "/{versao}",
     response_model=DocumentRevisionResponse,
     summary="Obter versão específica",
-    description="Retorna os detalhes e o snapshot completo de uma versão de documento.",
 )
 async def get_revision(
     document_id: uuid.UUID,
     versao: int,
     db: AsyncSession = Depends(get_db),
 ):
-    """Retorna o snapshot de uma versão específica."""
     result = await db.execute(
         select(DocumentRevision).where(
             DocumentRevision.document_id == document_id,
@@ -141,14 +142,22 @@ async def get_revision(
 @router.post(
     "/{versao}/restore",
     summary="Restaurar versão",
-    description="Restaura os itens do documento ativo para o estado de um snapshot historizado.",
+    description=(
+        "Restaura criando NOVO conjunto de itens e arquivando os atuais "
+        "(não apaga correções via cascade)."
+    ),
 )
 async def restore_revision(
     document_id: uuid.UUID,
     versao: int,
     db: AsyncSession = Depends(get_db),
 ):
-    """Restaura o documento para o snapshot selecionado."""
+    """
+    Restore seguro:
+    1. Snapshot do estado atual como nova revisão (backup).
+    2. Arquiva itens ativos (archived_at) — correções permanecem.
+    3. Cria novo conjunto de DocumentItem a partir do snapshot.
+    """
     rev_result = await db.execute(
         select(DocumentRevision).where(
             DocumentRevision.document_id == document_id,
@@ -163,61 +172,39 @@ async def restore_revision(
         select(Document)
         .options(selectinload(Document.items))
         .where(Document.id == document_id)
+        .with_for_update()
     )
     doc = doc_result.scalar_one_or_none()
     if not doc:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
-    # Backup do estado atual para permitir desfazer o restauro.
     max_v = await db.execute(
-        select(func.coalesce(func.max(DocumentRevision.versao), 0))
-        .where(DocumentRevision.document_id == document_id)
+        select(func.coalesce(func.max(DocumentRevision.versao), 0)).where(
+            DocumentRevision.document_id == document_id
+        )
     )
     backup_versao = (max_v.scalar() or 0) + 1
-    db.add(DocumentRevision(
-        document_id=document_id,
-        versao=backup_versao,
-        rotulo=f"Backup automático (pré-restauro v{versao})",
-        descricao=(
-            f"Estado do documento capturado antes de restaurar a versão {versao} "
-            f"('{revision.rotulo}')."
-        ),
-        items_snapshot=[
-            {
-                "item_number": i.item_number,
-                "title": i.title or "",
-                "content": i.content or "",
-                "page_number": i.page_number,
-                "item_order": i.item_order,
-                "item_type": i.item_type,
-            }
-            for i in sorted(doc.items, key=lambda x: x.item_order)
-        ],
-    ))
+    db.add(
+        DocumentRevision(
+            document_id=document_id,
+            versao=backup_versao,
+            rotulo=f"Backup automático (pré-restauro v{versao})",
+            descricao=(
+                f"Estado do documento capturado antes de restaurar a versão {versao} "
+                f"('{revision.rotulo}')."
+            ),
+            items_snapshot=_snapshot_items(doc.items),
+        )
+    )
 
-    snapshot_by_number = {
-        item["item_number"]: item for item in revision.items_snapshot
-    }
+    now = datetime.now(timezone.utc)
+    active_items = [i for i in doc.items if getattr(i, "archived_at", None) is None]
+    for item in active_items:
+        item.archived_at = now
 
-    # Itens removidos via delete-orphan apagam junto suas correções.
-    for item in list(doc.items):
-        data = snapshot_by_number.get(item.item_number)
-        if data is None:
-            doc.items.remove(item)
-            continue
-        item.title = data.get("title") or ""
-        item.content = data["content"]
-        item.page_number = data.get("page_number")
-        item.item_order = data.get("item_order", 0)
-        item.item_type = data.get("item_type", "item")
-
-    numeros_restantes = {i.item_number for i in doc.items}
-    faltantes = [
-        data for number, data in snapshot_by_number.items()
-        if number not in numeros_restantes
-    ]
-    for data in sorted(faltantes, key=lambda d: d.get("item_order", 0)):
-        db.add(DocumentItem(
+    new_item_ids: list[str] = []
+    for data in sorted(revision.items_snapshot, key=lambda d: d.get("item_order", 0)):
+        new_item = DocumentItem(
             document_id=document_id,
             item_number=data["item_number"],
             title=data.get("title") or "",
@@ -225,18 +212,30 @@ async def restore_revision(
             page_number=data.get("page_number"),
             item_order=data.get("item_order", 0),
             item_type=data.get("item_type", "item"),
-        ))
+        )
+        db.add(new_item)
+        await db.flush()
+        new_item_ids.append(str(new_item.id))
 
-    doc.total_items = len(snapshot_by_number)
+    doc.total_items = len(revision.items_snapshot)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Conflito ao restaurar versão. Tente novamente.",
+        ) from exc
+
     return {
         "message": (
-            f"Documento restaurado fielmente para a versão {versao} "
-            f"('{revision.rotulo}'). Estado anterior salvo como versão "
-            f"{backup_versao}."
+            f"Documento restaurado para a versão {versao} ('{revision.rotulo}'). "
+            f"Itens anteriores arquivados (correções preservadas). "
+            f"Estado anterior salvo como versão {backup_versao}."
         ),
-        "document_id": document_id,
+        "document_id": str(document_id),
         "versao_restaurada": versao,
         "versao_backup": backup_versao,
+        "new_item_ids": new_item_ids,
     }
