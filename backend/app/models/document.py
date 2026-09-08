@@ -40,7 +40,7 @@ class Document(Base):
     )
     file_type: Mapped[str] = mapped_column(
         String(10),
-        CheckConstraint("file_type IN ('pdf', 'docx', 'odt')"),
+        CheckConstraint("file_type IN ('pdf', 'docx', 'odt', 'html')"),
         nullable=False,
     )
     file_size_bytes: Mapped[int] = mapped_column(
@@ -68,6 +68,8 @@ class Document(Base):
     )
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     generation_manifest: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    # Classificação de confidencialidade (ex.: "sigiloso"). Opcional.
+    classification: Mapped[str | None] = mapped_column(String(50), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
@@ -79,8 +81,9 @@ class Document(Base):
 
     # Relacionamentos
     items: Mapped[list["DocumentItem"]] = relationship(
-        back_populates="document", cascade="all, delete-orphan",
-        order_by="DocumentItem.item_order"
+        back_populates="document",
+        cascade="all, delete-orphan",
+        order_by="DocumentItem.item_order",
     )
     analyses: Mapped[list["Analysis"]] = relationship(
         "Analysis", back_populates="document", cascade="all, delete-orphan"
@@ -121,6 +124,10 @@ class DocumentItem(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+    )
+    # Soft-archive: restore cria novo conjunto sem cascade destruir correções.
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
     )
 
     # Relacionamentos

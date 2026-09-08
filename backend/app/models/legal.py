@@ -67,6 +67,8 @@ class LegalChunk(Base):
     section: Mapped[str | None] = mapped_column(String(200), nullable=True)
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[str | None] = mapped_column(Text, nullable=True)
+    embedding_model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    embedding_dim: Mapped[int | None] = mapped_column(Integer, nullable=True)
     doc_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)

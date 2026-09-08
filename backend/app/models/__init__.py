@@ -10,6 +10,7 @@ from app.models.comparison import (
 )
 from app.models.document import Document, DocumentItem
 from app.models.document_revision import DocumentRevision
+from app.models.job import Job
 from app.models.legal import LegalChunk, LegalDocument
 
 __all__ = [
@@ -26,4 +27,5 @@ __all__ = [
     "ComparacaoResultado",
     "ChatConversation",
     "ChatMessage",
+    "Job",
 ]

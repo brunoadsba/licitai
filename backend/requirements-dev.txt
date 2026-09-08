@@ -1,0 +1,11 @@
+# ============================================================
+# Backend — Dependências de desenvolvimento / CI
+# ============================================================
+
+pytest==8.3.5
+pytest-asyncio==0.25.3
+aiosqlite==0.21.0
+ruff==0.11.2
+pip-audit==2.9.0
+alembic==1.15.2
+httpx==0.28.1

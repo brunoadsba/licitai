@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS documents (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     filename_original VARCHAR(500) NOT NULL,
     filename_stored VARCHAR(255) NOT NULL UNIQUE,
-    file_type VARCHAR(10) NOT NULL CHECK (file_type IN ('pdf', 'docx', 'odt')),
+    file_type VARCHAR(10) NOT NULL CHECK (file_type IN ('pdf', 'docx', 'odt', 'html')),
     file_size_bytes BIGINT NOT NULL CHECK (file_size_bytes > 0),
     document_type VARCHAR(10) NOT NULL DEFAULT 'tr'
         CHECK (document_type IN ('tr', 'proposta')),
@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS documents (
     status VARCHAR(20) NOT NULL DEFAULT 'uploaded'
         CHECK (status IN ('uploaded', 'parsing', 'parsed', 'analyzing', 'completed', 'error')),
     error_message TEXT,
+    generation_manifest JSONB,
+    classification VARCHAR(50),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -57,7 +59,9 @@ CREATE TABLE IF NOT EXISTS document_items (
     parent_item_id UUID REFERENCES document_items(id) ON DELETE SET NULL,
     item_order INTEGER NOT NULL DEFAULT 0,
     item_type VARCHAR(20) NOT NULL DEFAULT 'item'
-        CHECK (item_type IN ('section', 'item', 'subitem', 'table', 'annex'))
+        CHECK (item_type IN ('section', 'item', 'subitem', 'table', 'annex')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    archived_at TIMESTAMP WITH TIME ZONE
 );
 
 -- -----------------------------------------------------------
@@ -83,8 +87,8 @@ CREATE INDEX IF NOT EXISTS idx_document_revisions_doc_id ON document_revisions(d
 CREATE TABLE IF NOT EXISTS analyses (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     document_id UUID NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
-    status VARCHAR(20) NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'running', 'completed', 'error')),
+    status VARCHAR(30) NOT NULL DEFAULT 'pending'
+        CHECK (status IN ('pending', 'running', 'completed', 'completed_with_errors', 'error')),
     llm_provider VARCHAR(20) NOT NULL,
     llm_model VARCHAR(100) NOT NULL,
     analysis_mode VARCHAR(20) NOT NULL DEFAULT 'multi_agent',
@@ -98,6 +102,7 @@ CREATE TABLE IF NOT EXISTS analyses (
     risk_level VARCHAR(10) CHECK (risk_level IN ('baixo', 'medio', 'alto', 'critico')),
     final_opinion TEXT,
     error_message TEXT,
+    run_snapshot JSONB,
     started_at TIMESTAMP WITH TIME ZONE,
     completed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -129,6 +134,7 @@ CREATE TABLE IF NOT EXISTS corrections (
         CHECK (review_status IN ('pendente', 'aprovada', 'rejeitada', 'ajustada')),
     review_note TEXT,
     reviewed_at TIMESTAMP WITH TIME ZONE,
+    evidence JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -158,7 +164,10 @@ CREATE TABLE IF NOT EXISTS legal_chunks (
     section VARCHAR(200),
     chunk_text TEXT NOT NULL,
     embedding TEXT,
-    metadata JSONB,
+    embedding_model VARCHAR(100),
+    embedding_dim INTEGER,
+    embedding_vector vector(3072),
+    doc_metadata JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -185,6 +194,8 @@ CREATE TABLE IF NOT EXISTS comparacoes (
     status VARCHAR(20) NOT NULL DEFAULT 'pending'
         CHECK (status IN ('pending', 'running', 'completed', 'error')),
     error_message TEXT,
+    run_snapshot JSONB,
+    propostas_ids JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     completed_at TIMESTAMP WITH TIME ZONE
 );
@@ -269,6 +280,41 @@ CREATE INDEX IF NOT EXISTS idx_comparacao_resultados_comparacao_id ON comparacao
 CREATE INDEX IF NOT EXISTS idx_comparacao_resultados_fornecedor_id ON comparacao_resultados(fornecedor_id);
 CREATE INDEX IF NOT EXISTS ix_chat_conversations_updated_at ON chat_conversations(updated_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation_id ON chat_messages(conversation_id);
+
+-- -----------------------------------------------------------
+-- Tabela: jobs (fila durável)
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS jobs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type VARCHAR(50) NOT NULL,
+    payload JSONB NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    attempts INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 3,
+    lease_until TIMESTAMP WITH TIME ZONE,
+    error TEXT,
+    result JSONB,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    completed_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
+CREATE INDEX IF NOT EXISTS idx_jobs_type_status ON jobs(type, status);
+
+-- -----------------------------------------------------------
+-- Tabela: schema_meta
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS schema_meta (
+    key VARCHAR(64) PRIMARY KEY,
+    value VARCHAR(255) NOT NULL
+);
+
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260908_002')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+CREATE INDEX IF NOT EXISTS idx_legal_chunks_embedding_hnsw
+    ON legal_chunks USING hnsw (embedding_vector vector_cosine_ops);
 
 -- -----------------------------------------------------------
 -- Trigger: atualizar updated_at automaticamente

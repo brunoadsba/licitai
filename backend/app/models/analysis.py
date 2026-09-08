@@ -44,11 +44,14 @@ class Analysis(Base):
         UUID(as_uuid=True), ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
     status: Mapped[str] = mapped_column(
-        String(20),
-        CheckConstraint("status IN ('pending', 'running', 'completed', 'error')"),
+        String(30),
+        CheckConstraint(
+            "status IN ('pending', 'running', 'completed', 'completed_with_errors', 'error')"
+        ),
         default="pending",
         nullable=False,
     )
+    run_snapshot: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     llm_provider: Mapped[str] = mapped_column(String(20), nullable=False)
     llm_model: Mapped[str] = mapped_column(String(100), nullable=False)
     analysis_mode: Mapped[str] = mapped_column(

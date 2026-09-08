@@ -11,6 +11,7 @@ python-multipart==0.0.20
 sqlalchemy[asyncio]==2.0.41
 asyncpg==0.30.0
 greenlet==3.2.3
+alembic==1.15.2
 
 # --- Parsing de Documentos ---
 pymupdf==1.25.5
