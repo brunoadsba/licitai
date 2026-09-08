@@ -5,6 +5,9 @@ Executa uma segunda passagem sobre as correções de cada item para validar
 consistência: sem inventar lei, sem reduzir competitividade, sem contradizer
 o texto original. Cada correção recebe um status de revisão que fica
 persistido na tabela `corrections`.
+
+Fail-closed: status inválido ou índice ausente/fora do intervalo NÃO aprova.
+Achados jurídicos altos sem review válida permanecem `pendente` e fora do score.
 """
 
 import logging
@@ -16,6 +19,8 @@ from app.services.analyzer.prompts import REVIEW_PROMPT, REVIEW_SYSTEM_PROMPT
 logger = logging.getLogger(__name__)
 
 VALID_REVIEW_STATUSES = {"aprovada", "rejeitada", "ajustada"}
+_HIGH_SEVERITIES = frozenset({"alto", "critico"})
+_HIGH_IMPORTANCES = frozenset({"alta", "critica"})
 
 
 async def review_item_corrections(
@@ -48,11 +53,13 @@ async def review_item_corrections(
         logger.warning("Resposta do revisor inválida; correções mantidas")
         return []
 
-    normalized = [
-        _normalize_decision(d, len(corrections))
-        for d in decisions
-        if isinstance(d, dict)
-    ]
+    normalized = []
+    for d in decisions:
+        if not isinstance(d, dict):
+            continue
+        decision = _normalize_decision(d, len(corrections))
+        if decision is not None:
+            normalized.append(decision)
     logger.info(
         "Revisão do item %s: %d decisões",
         item.item_number,
@@ -77,17 +84,44 @@ def _build_summary(corrections: list[dict]) -> str:
     return "\n\n".join(parts)
 
 
-def _normalize_decision(decision: dict, total: int) -> dict:
-    """Normaliza uma decisão do revisor para valores seguros."""
-    status = str(decision.get("status", "aprovada")).lower()
+def _normalize_decision(decision: dict, total: int) -> dict | None:
+    """
+    Normaliza uma decisão do revisor.
+
+    Fail-closed: status inválido ou índice ausente/inválido → None (não aprova).
+    """
+    raw_status = decision.get("status")
+    if raw_status is None or str(raw_status).strip() == "":
+        logger.warning("Decisão de revisão sem status — ignorada (fail-closed)")
+        return None
+
+    status = str(raw_status).lower().strip()
     if status not in VALID_REVIEW_STATUSES:
-        status = "aprovada"
+        logger.warning(
+            "Status de revisão inválido %r — não aprova (fail-closed)", raw_status
+        )
+        return None
+
+    if "correction_index" not in decision:
+        logger.warning("Decisão de revisão sem correction_index — ignorada (fail-closed)")
+        return None
 
     try:
-        index = int(decision.get("correction_index", 0))
+        index = int(decision["correction_index"])
     except (TypeError, ValueError):
-        index = 0
-    index = max(0, min(index, total - 1)) if total > 0 else 0
+        logger.warning(
+            "correction_index inválido %r — ignorado (fail-closed)",
+            decision.get("correction_index"),
+        )
+        return None
+
+    if total <= 0 or index < 0 or index >= total:
+        logger.warning(
+            "correction_index fora do intervalo (%s, total=%s) — ignorado (fail-closed)",
+            index,
+            total,
+        )
+        return None
 
     return {
         "correction_index": index,
@@ -102,6 +136,15 @@ def _normalize_decision(decision: dict, total: int) -> dict:
     }
 
 
+def _is_high_juridical(obj) -> bool:
+    category = getattr(obj, "category", "") or ""
+    severity = (getattr(obj, "severity", "") or "").lower()
+    importance = (getattr(obj, "importance", "") or "").lower()
+    return category == "juridica" and (
+        severity in _HIGH_SEVERITIES or importance in _HIGH_IMPORTANCES
+    )
+
+
 def apply_review_decisions(correction_objs: list, decisions: list[dict]) -> list[dict]:
     """
     Aplica as decisões do revisor nos objetos Correction persistidos.
@@ -110,6 +153,7 @@ def apply_review_decisions(correction_objs: list, decisions: list[dict]) -> list
     - Correções rejeitadas ficam marcadas como tal (mantidas no banco para
       auditoria, mas excluídas do conjunto final de correções válidas).
     - Correções sem decisão permanecem como "pendente".
+    - Achados jurídicos altos sem review válida ficam `pendente` e fora do score.
 
     Retorna a lista de dicts das correções válidas (para pontuação/benchmark).
     """
@@ -135,11 +179,16 @@ def apply_review_decisions(correction_objs: list, decisions: list[dict]) -> list
             if d["adjusted_justification"]:
                 obj.justification = d["adjusted_justification"]
 
-    return [
-        correction_to_dict(obj)
-        for obj in correction_objs
-        if obj.review_status in ("aprovada", "ajustada", "pendente")
-    ]
+    kept: list[dict] = []
+    for obj in correction_objs:
+        if obj.review_status in ("aprovada", "ajustada"):
+            kept.append(correction_to_dict(obj))
+        elif obj.review_status == "pendente":
+            if _is_high_juridical(obj):
+                # Fora do score/cópia até review válida
+                continue
+            kept.append(correction_to_dict(obj))
+    return kept
 
 
 def correction_to_dict(obj) -> dict:

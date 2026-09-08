@@ -22,7 +22,7 @@ from app.config import settings
 from app.models.chat import ChatConversation, ChatMessage
 from app.services.chat.llm_adapter import ChatLLMProvider, get_chat_llm
 from app.services.chat.prompts import build_messages
-from app.services.chat.sources import build_sources
+from app.services.chat.sources import build_sources, source_ids_from
 from app.services.chat.validator import ValidatedAnswer, validate_llm_answer
 
 logger = logging.getLogger(__name__)
@@ -120,7 +120,9 @@ async def send_message(
         raw = await provider.generate(system_prompt, user_prompt)
         latency_ms = int((time.monotonic() - inicio) * 1000)
         resposta: ValidatedAnswer = validate_llm_answer(
-            raw, require_grounding=settings.chat_require_grounding
+            raw,
+            require_grounding=settings.chat_require_grounding,
+            valid_source_ids=source_ids_from(fontes),
         )
     except Exception:
         logger.exception(

@@ -33,6 +33,7 @@ from app.services.analyzer.grounding import (
     get_valid_legal_refs,
     is_legal_basis_valid,
     is_original_text_grounded,
+    should_fail_closed_legal,
 )
 from app.services.analyzer.scoring import (
     calculate_fallback_scores,
@@ -129,11 +130,17 @@ async def run_analysis(
             )
             importance = correction_data.get("importance", "media")
             legal_basis = correction_data.get("legal_basis")
+            severity = correction_data.get("severity", "medio")
+            fail_closed = should_fail_closed_legal(
+                legal_valid, severity=severity, importance=importance
+            )
             if legal_valid is False:
                 legal_basis = None
-                if importance in ("alta", "critica"):
+                if fail_closed:
+                    # Fail-closed: não rebaixa silenciosamente — rejeita o achado.
+                    pass
+                elif importance in ("alta", "critica"):
                     importance = "media"
-            severity = correction_data.get("severity", "medio")
             if severity == "critico":
                 if correction_data.get("category") != "juridica" or not grounded or legal_valid is not True:
                     severity = "alto"
@@ -145,6 +152,7 @@ async def run_analysis(
                 "corpus_version": str(len(valid_refs)),
                 "grounded": grounded,
                 "legal_valid": legal_valid,
+                "fail_closed_legal": fail_closed,
                 "item_number": item.item_number,
             }
             correction = Correction(
@@ -167,15 +175,26 @@ async def run_analysis(
                 correction.review_status = "rejeitada"
                 correction.review_note = "original_text não encontrado no item (possível alucinação)"
                 correction.reviewed_at = datetime.now(timezone.utc)
+            elif fail_closed:
+                correction.review_status = "rejeitada"
+                correction.review_note = (
+                    "legal_basis inválido no corpus (fail-closed para severidade alta/crítica)"
+                )
+                correction.reviewed_at = datetime.now(timezone.utc)
             db.add(correction)
             correction_objs.append(correction)
-            if grounded:
+            if grounded and not fail_closed:
                 all_corrections.append(correction_data)
-            else:
+            elif not grounded:
                 logger.warning(
                     "Correção rejeitada por falta de grounding no item %s: %s",
                     item.item_number,
                     correction_data.get("original_text", "")[:80],
+                )
+            elif fail_closed:
+                logger.warning(
+                    "Correção rejeitada por legal_basis inválido (fail-closed) no item %s",
+                    item.item_number,
                 )
 
         corrigiveis = [c for c in correction_objs if c.review_status != "rejeitada"]

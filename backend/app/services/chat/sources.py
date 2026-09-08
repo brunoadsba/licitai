@@ -8,6 +8,9 @@ Toda resposta factual exige citação válida de fonte. As fontes são:
 - `correction`: correções apontadas pela análise.
 - `document_item`: item específico do documento referenciado no contexto.
 
+Cada fonte recebe um `source_id` imutável. O validator só aceita citações
+cujo ID esteja neste conjunto.
+
 Falhas de recuperação são tratadas individualmente (nunca derrubam a
 resposta): se nada for recuperado, a resposta fica sem citação e o validator
 decide entre recusar (grounding obrigatório) ou responder com warning.
@@ -64,6 +67,7 @@ async def _legal_sources(db: AsyncSession, query: str) -> list[ChatCitation]:
     return [
         ChatCitation(
             type="legal",
+            source_id=f"legal:{c.id}",
             reference=f"{c.law_number}, {c.article}".rstrip(", "),
             title=c.law_title,
             snippet=_snippet(c.text),
@@ -88,6 +92,7 @@ async def _analysis_sources(
     return [
         ChatCitation(
             type="analysis",
+            source_id=f"analysis:{analysis_id}",
             reference=f"Análise {analysis_id}",
             title="Análise do documento",
             snippet=_snippet(
@@ -116,6 +121,7 @@ async def _correction_sources(
     return [
         ChatCitation(
             type="correction",
+            source_id=f"correction:{c.id}",
             reference=f"Correção · {c.category} · {c.severity}",
             title=c.problem,
             snippet=_snippet(c.suggested_text or c.justification),
@@ -148,6 +154,7 @@ async def _document_item_sources(
     return [
         ChatCitation(
             type="document_item",
+            source_id=f"doc:{document_id}:item:{item.item_number}",
             reference=f"Item {item.item_number}",
             title=item.title or "Item do documento",
             snippet=_snippet(item.content),
@@ -156,15 +163,20 @@ async def _document_item_sources(
 
 
 def _dedupe(fontes: list[ChatCitation]) -> list[ChatCitation]:
-    vistos: set[tuple[str, str]] = set()
+    vistos: set[str] = set()
     resultado: list[ChatCitation] = []
     for f in fontes:
-        chave = (f.type, f.reference)
+        chave = f.source_id or f"{f.type}:{f.reference}"
         if chave in vistos:
             continue
         vistos.add(chave)
         resultado.append(f)
     return resultado
+
+
+def source_ids_from(fontes: list[ChatCitation]) -> set[str]:
+    """Conjunto imutável de IDs fornecidos nesta chamada."""
+    return {f.source_id for f in fontes if f.source_id}
 
 
 async def build_sources(

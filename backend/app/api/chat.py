@@ -181,6 +181,16 @@ async def send_feedback(
         "chat.feedback.received message_id=%s rating=%s",
         message_id, payload.rating,
     )
+    if payload.rating == "down":
+        from app.services.feedback_golden import append_thumbs_down_stub
+
+        append_thumbs_down_stub(
+            message_id=message_id,
+            content=mensagem.content,
+            comment=payload.comment,
+            conversation_id=mensagem.conversation_id,
+            sources=mensagem.sources,
+        )
     return ChatFeedbackResponse(
         message_id=message_id,
         rating=payload.rating,

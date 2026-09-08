@@ -34,6 +34,8 @@ class ChatCitation(BaseModel):
     """Citação de uma fonte utilizada na resposta."""
 
     type: ChatCitationType
+    # ID imutável fornecido na chamada; o validator só aceita IDs desta lista.
+    source_id: str | None = None
     reference: str
     title: str = ""
     snippet: str = ""

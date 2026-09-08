@@ -12,7 +12,7 @@ Segurança:
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -32,6 +32,11 @@ from app.schemas.document import (
     DocumentResponse,
 )
 from app.services.comparator.diff import diff_terms, resumir_diffs
+from app.services.privacy import (
+    CloudPrivacyError,
+    assert_cloud_allowed_for_document,
+    resolve_classification,
+)
 from app.services.upload_service import (
     UploadValidationError,
     parse_e_inserir_itens,
@@ -60,6 +65,13 @@ async def upload_document(
     fornecedor_id: uuid.UUID | None = Form(
         default=None, description="Fornecedor vinculado (obrigatório p/ proposta)"
     ),
+    classification: str | None = Form(
+        default=None,
+        description="Classificação de confidencialidade (ex.: sigiloso)",
+    ),
+    x_document_classification: str | None = Header(
+        default=None, alias="X-Document-Classification"
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload seguro de documento com validação completa."""
@@ -69,6 +81,15 @@ async def upload_document(
             status_code=400,
             detail=f"document_type inválido. Use um de: {sorted(TIPOS_DOCUMENTO)}",
         )
+
+    resolved_classification = resolve_classification(
+        form_value=classification,
+        header_value=x_document_classification,
+    )
+    try:
+        assert_cloud_allowed_for_document(resolved_classification)
+    except CloudPrivacyError as exc:
+        raise HTTPException(status_code=403, detail=exc.message) from exc
 
     # Pré-checagem além do validar_upload: rejeita antes de alocar o corpo em memória.
     if file.size is not None and file.size > settings.max_upload_size_bytes:
@@ -113,17 +134,32 @@ async def upload_document(
         file_size_bytes=len(file_bytes),
         document_type=document_type,
         fornecedor_id=fornecedor_id,
+        classification=resolved_classification,
         status="uploaded",
     )
     db.add(document)
-    await db.flush()
 
-    document.status = "parsing"
-    await parse_e_inserir_itens(db, document, file_ext)
-
-    # Commit explícito antes do 201: evita corrida com DELETE/GET imediatos
-    # (o commit pós-resposta do get_db chega depois que o cliente já recebeu 201).
-    await db.commit()
+    try:
+        await db.flush()
+        document.status = "parsing"
+        await parse_e_inserir_itens(db, document, file_ext)
+        # Commit explícito antes do 201: evita corrida com DELETE/GET imediatos.
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        # Compensação: arquivo já no disco sem linha no DB → remover.
+        try:
+            path = get_upload_path(safe_filename)
+            if path.exists():
+                path.unlink()
+                logger.warning(
+                    "upload.compensation removed orphan file=%s", safe_filename
+                )
+        except OSError:
+            logger.exception(
+                "upload.compensation failed to remove file=%s", safe_filename
+            )
+        raise
 
     return DocumentResponse.model_validate(document)
 
@@ -264,10 +300,13 @@ async def get_document(
 
     items_response = []
     for item in document.items:
+        if getattr(item, "archived_at", None) is not None:
+            continue
         items_response.append(DocumentItemResponse.model_validate(item))
 
     response = DocumentDetailResponse.model_validate(document)
     response.items = items_response
+    response.total_items = len(items_response)
 
     return response
 

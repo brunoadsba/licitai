@@ -50,7 +50,7 @@ class FakeLLM(LLMProvider):
                 "situation": "Situação do item",
                 "problem": "Problema identificado",
                 "risk": "Risco de descumprimento",
-                "original_text": "Texto original",
+                "original_text": "Conteúdo do item para análise.",
                 "suggested_text": "Texto sugerido",
                 "justification": "Fundamentação",
                 "legal_basis": "Lei 14.133/2021",
@@ -204,8 +204,10 @@ def test_run_analysis_completa_fluxo_single_agent():
     assert analysis.status == "completed"
     assert analysis.total_items == 2
     assert analysis.analyzed_items == 2
-    assert float(analysis.score_overall) == 7.5
-    assert analysis.risk_level == "medio"
+    # Scoring determinístico primário (2 correções juridica/medio → 9.5)
+    assert float(analysis.score_overall) == 9.5
+    assert analysis.risk_level == "baixo"
+    # Opinião LLM secundária (payload de scoring válido)
     assert analysis.final_opinion == "Parecer final de teste."
     assert analysis.started_at is not None
     assert analysis.completed_at is not None
@@ -214,7 +216,7 @@ def test_run_analysis_completa_fluxo_single_agent():
 
 
 def test_run_analysis_usa_fallback_quando_llm_falha_pontuacao():
-    """Falha na sumarização final cai no cálculo determinístico de fallback."""
+    """Falha na sumarização final mantém opinião determinística."""
     analysis, doc, n_corrections = _fluxo(falhar_pontuacao=True)
 
     assert analysis.status == "completed"
@@ -225,7 +227,7 @@ def test_run_analysis_usa_fallback_quando_llm_falha_pontuacao():
 
 
 def test_run_analysis_usa_fallback_quando_llm_devolve_notas_invalidas():
-    """Notas não numéricas vindas do LLM não são persistidas; fallback assume."""
+    """Notas inválidas do LLM: scores determinísticos; opinião LLM ignorada."""
     analysis, doc, n_corrections = _fluxo(pontuacao_invalida=True)
 
     assert analysis.status == "completed"

@@ -4,6 +4,7 @@ Testes Unitários da Arquitetura de Múltiplos Agentes Inteligentes Especializad
 
 import asyncio
 
+from app.services.agents.agent_result import AgentOutcome
 from app.services.agents.legal_agent import LegalAgent
 from app.services.agents.orchestrator import MultiAgentOrchestrator
 from app.services.agents.structural_agent import StructuralAgent
@@ -89,12 +90,13 @@ def test_legal_agent_analysis():
         agent = LegalAgent()
         item = DummyItem()
 
-        corrections = await agent.analyze_item(provider, item, "Contexto legal")
+        result = await agent.analyze_item(provider, item, "Contexto legal")
 
-        assert len(corrections) == 1
-        assert corrections[0]["agent_origin"] == "juridico"
-        assert corrections[0]["category"] == "juridica"
-        assert corrections[0]["legal_basis"] == "Art. 67 da Lei 14.133/21"
+        assert result.outcome == AgentOutcome.FINDINGS
+        assert len(result.corrections) == 1
+        assert result.corrections[0]["agent_origin"] == "juridico"
+        assert result.corrections[0]["category"] == "juridica"
+        assert result.corrections[0]["legal_basis"] == "Art. 67 da Lei 14.133/21"
 
     asyncio.run(_run())
 

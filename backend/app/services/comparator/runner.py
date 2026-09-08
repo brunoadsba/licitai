@@ -2,6 +2,8 @@
 Execução assíncrona da comparação TR × propostas.
 """
 
+from __future__ import annotations
+
 import logging
 import uuid
 from datetime import datetime, timezone
@@ -32,13 +34,18 @@ def itens_para_dict(document: Document) -> list[dict]:
     ]
 
 
-async def executar_comparacao_background(
+async def executar_comparacao(
     comparacao_id: uuid.UUID,
     tr_document_id: uuid.UUID,
     molde_id: uuid.UUID,
     propostas_ids: list[uuid.UUID],
 ) -> None:
-    """Executa a comparação em background com sessão própria."""
+    """
+    Executa a comparação com sessão própria.
+
+    Se alguma proposta sumir (id ausente), marca a comparação como error —
+    nunca completed incompleto.
+    """
     async with async_session_factory() as db:
         try:
             comparacao = await db.get(Comparacao, comparacao_id)
@@ -48,7 +55,6 @@ async def executar_comparacao_background(
             comparacao.status = "running"
             await db.commit()
 
-            # Carregar dados necessários
             molde = await db.get(Molde, molde_id)
             if not molde:
                 raise RuntimeError("Molde não encontrado durante a execução.")
@@ -65,24 +71,35 @@ async def executar_comparacao_background(
                 raise RuntimeError("TR não encontrado durante a execução.")
             itens_tr = itens_para_dict(tr)
 
+            # Preferir propostas_ids persistidos na comparação (snapshot)
+            ids = propostas_ids or [
+                uuid.UUID(str(x)) for x in (comparacao.propostas_ids or [])
+            ]
+            if not ids:
+                raise RuntimeError("Nenhuma proposta no snapshot da comparação.")
+
             propostas = []
-            for pid in propostas_ids:
+            missing: list[str] = []
+            for pid in ids:
                 doc_result = await db.execute(
                     select(Document)
                     .options(selectinload(Document.items))
                     .where(Document.id == pid)
                 )
                 doc = doc_result.scalar_one_or_none()
-                if doc:
-                    propostas.append({
-                        "fornecedor_id": doc.fornecedor_id,
-                        "itens": itens_para_dict(doc),
-                    })
-                else:
-                    logger.warning(
-                        "Proposta %s não encontrada durante a comparação %s; ignorada.",
-                        pid, comparacao_id,
-                    )
+                if not doc:
+                    missing.append(str(pid))
+                    continue
+                propostas.append({
+                    "fornecedor_id": doc.fornecedor_id,
+                    "itens": itens_para_dict(doc),
+                })
+
+            if missing:
+                raise RuntimeError(
+                    "Proposta(s) ausente(s) durante a comparação: "
+                    + ", ".join(missing)
+                )
 
             resultados = await comparar(regras, itens_tr, propostas)
 
@@ -100,14 +117,34 @@ async def executar_comparacao_background(
             comparacao.status = "completed"
             comparacao.completed_at = datetime.now(timezone.utc)
             await db.commit()
-        except Exception:
+        except Exception as exc:
             logger.exception("Erro na comparação %s", comparacao_id)
             await db.rollback()
             try:
                 comparacao = await db.get(Comparacao, comparacao_id)
                 if comparacao:
                     comparacao.status = "error"
-                    comparacao.error_message = "Erro interno durante a comparação."
+                    comparacao.error_message = str(exc)[:2000] or (
+                        "Erro interno durante a comparação."
+                    )
                     await db.commit()
             except Exception:
-                logger.exception("Erro ao atualizar status da comparação %s", comparacao_id)
+                logger.exception(
+                    "Erro ao atualizar status da comparação %s", comparacao_id
+                )
+            raise
+
+
+async def executar_comparacao_background(
+    comparacao_id: uuid.UUID,
+    tr_document_id: uuid.UUID,
+    molde_id: uuid.UUID,
+    propostas_ids: list[uuid.UUID],
+) -> None:
+    """Compat: background task legado; engole exceção (job path propaga)."""
+    try:
+        await executar_comparacao(
+            comparacao_id, tr_document_id, molde_id, propostas_ids
+        )
+    except Exception:
+        pass

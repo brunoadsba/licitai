@@ -30,7 +30,7 @@ function useBackendStatus(): BackendStatus {
 
     async function probe() {
       try {
-        const res = await fetch('/health', { signal: AbortSignal.timeout(5000) });
+        const res = await fetch('/readyz', { signal: AbortSignal.timeout(5000) });
         if (!cancelled) setStatus(res.ok ? 'online' : 'offline');
       } catch {
         if (!cancelled) setStatus('offline');

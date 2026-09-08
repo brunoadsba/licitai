@@ -9,6 +9,7 @@ import CorrectionCard from '@/components/analysis/CorrectionCard';
 import { Button } from '@/components/ui/Button';
 import AlertBanner from '@/components/ui/AlertBanner';
 import { uploadDocument, startAnalysis, getAnalysis } from '@/lib/api';
+import { pollUntil } from '@/lib/polling';
 import { getErrorMessage } from '@/lib/errors';
 import type { CorrectionResponse } from '@/types';
 
@@ -31,20 +32,30 @@ export default function WizardPage() {
       const start = await startAnalysis(doc.id);
       setAnalysisId(start.analysis_id);
       toast.success('Documento enviado — análise iniciada');
-      for (let i = 0; i < 60; i++) {
-        const a = await getAnalysis(start.analysis_id);
-        if (a.status === 'completed') {
-          setCorrections(a.corrections);
-          setStep(3);
-          toast.success(`${a.corrections.length} correções prontas para cópia`);
-          break;
+
+      const finalAnalysis = await pollUntil(
+        () => getAnalysis(start.analysis_id, { skipCache: true }),
+        (a) => a.status === 'completed' || a.status === 'error',
+        {
+          initialIntervalMs: 2000,
+          maxIntervalMs: 8000,
+          deadlineMs: 2 * 60 * 1000,
+          maxFailures: 10,
+          pauseWhenHidden: true,
         }
-        if (a.status === 'error') {
-          setError(a.error_message || 'Falha na análise');
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 2000));
+      );
+
+      if (!finalAnalysis) {
+        setError('A análise demorou mais que o esperado. Tente pelo modo avançado.');
+        return;
       }
+      if (finalAnalysis.status === 'error') {
+        setError(finalAnalysis.error_message || 'Falha na análise');
+        return;
+      }
+      setCorrections(finalAnalysis.corrections);
+      setStep(3);
+      toast.success(`${finalAnalysis.corrections.length} correções prontas para cópia`);
     } catch (e) {
       setError(getErrorMessage(e, 'upload').message);
     }

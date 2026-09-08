@@ -1,9 +1,10 @@
 """
 Validação e normalização da resposta do LLM do Copiloto.
 
-Garante o contrato de qualidade: resposta factual SEMPRE com citação válida,
-ou recusa explícita. `suggested_actions` geradas pelo LLM são descartadas no
-MVP (zero ações de escrita em entidades de negócio).
+Garante o contrato de qualidade: resposta factual SEMPRE com citação válida
+de `source_id` fornecido na chamada, ou recusa explícita. `suggested_actions`
+geradas pelo LLM são descartadas no MVP (zero ações de escrita em entidades
+de negócio).
 """
 
 import json
@@ -79,20 +80,50 @@ def _extract_json(raw: str) -> dict:
     raise ValueError("Resposta do LLM não contém um JSON válido.")
 
 
-def _parse_citations(valor) -> list[ChatCitation]:
+def _parse_citations(
+    valor,
+    valid_source_ids: set[str] | None,
+) -> tuple[list[ChatCitation], bool]:
+    """
+    Parseia citações.
+
+    Retorna (citações_válidas, citou_id_inexistente).
+    Fail-closed: qualquer source_id fora do conjunto fornecido marca
+    `citou_id_inexistente=True`.
+    """
     if not isinstance(valor, list):
-        return []
+        return [], False
+
     citacoes: list[ChatCitation] = []
+    id_inexistente = False
+    allowed = valid_source_ids if valid_source_ids is not None else None
+
     for item in valor:
         if not isinstance(item, dict):
             continue
         tipo = item.get("type")
         if tipo not in _CITATION_TYPES:
             continue
+
+        source_id = item.get("source_id")
+        source_id_str = str(source_id).strip() if source_id is not None else ""
+
+        if allowed is not None:
+            if not source_id_str:
+                # Sem ID quando IDs foram fornecidos: ignora a citação
+                continue
+            if source_id_str not in allowed:
+                logger.warning(
+                    "Citação com source_id inexistente recusada: %s", source_id_str
+                )
+                id_inexistente = True
+                continue
+
         try:
             citacoes.append(
                 ChatCitation(
                     type=tipo,
+                    source_id=source_id_str or None,
                     reference=str(item.get("reference") or ""),
                     title=str(item.get("title") or ""),
                     snippet=str(item.get("snippet") or ""),
@@ -100,7 +131,7 @@ def _parse_citations(valor) -> list[ChatCitation]:
             )
         except ValidationError:
             logger.warning("Citação do LLM inválida descartada: %s", item)
-    return citacoes
+    return citacoes, id_inexistente
 
 
 def _normalizar_confidence(valor) -> float | None:
@@ -112,12 +143,15 @@ def _normalizar_confidence(valor) -> float | None:
 def validate_llm_answer(
     raw: str,
     require_grounding: bool,
+    valid_source_ids: set[str] | None = None,
 ) -> ValidatedAnswer:
     """
     Valida a resposta bruta do LLM.
 
-    Se `require_grounding` estiver ativo e não houver citação válida, a
-    resposta é convertida em recusa (nunca se responde fato sem fonte).
+    - Só aceita `source_id` presentes em `valid_source_ids` (IDs imutáveis
+      fornecidos na chamada).
+    - Fail-closed: citar ID inexistente → recusa.
+    - Se `require_grounding` e não houver citação válida → recusa.
     """
     try:
         dados = _extract_json(raw)
@@ -144,8 +178,19 @@ def validate_llm_answer(
             reason="resposta-vazia",
         )
 
-    citations = _parse_citations(dados.get("citations"))
-    grounded = bool(dados.get("grounded", False))
+    citations, id_inexistente = _parse_citations(
+        dados.get("citations"), valid_source_ids
+    )
+
+    if id_inexistente:
+        logger.info("Resposta recusada: citação com source_id inexistente (fail-closed)")
+        return ValidatedAnswer(
+            content=REFUSAL_MESSAGE,
+            refused=True,
+            reason="source-id-inexistente",
+        )
+
+    grounded = bool(dados.get("grounded", False)) and bool(citations)
     confidence = _normalizar_confidence(dados.get("confidence"))
 
     if require_grounding and not citations:
@@ -161,7 +206,7 @@ def validate_llm_answer(
     # suggested_actions do LLM são DESCARTADAS no MVP (nada é aplicado).
     return ValidatedAnswer(
         content=answer.strip(),
-        grounded=grounded,
+        grounded=grounded if citations else False,
         confidence=confidence,
         citations=citations,
         refused=False,

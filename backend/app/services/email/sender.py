@@ -39,18 +39,39 @@ def _enviar(
             "houver autenticação, SMTP_USER/SMTP_PASSWORD) no .env."
         )
 
+    if settings.smtp_require_tls and settings.smtp_port == 25:
+        raise EmailConfigError(
+            "SMTP_REQUIRE_TLS=true: porta 25 sem TLS não é permitida. "
+            "Use 587 (STARTTLS) ou 465 (SSL)."
+        )
+
     msg = EmailMessage()
     msg["From"] = settings.smtp_from
     msg["To"] = to
     msg["Subject"] = subject
     msg.set_content(body)
 
-    with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as smtp:
-        smtp.ehlo()
-        if settings.smtp_user:
-            smtp.starttls()
-            smtp.login(settings.smtp_user, settings.smtp_password)
-        smtp.send_message(msg)
+    if settings.smtp_port == 465:
+        with smtplib.SMTP_SSL(
+            settings.smtp_host, settings.smtp_port, timeout=15
+        ) as smtp:
+            smtp.ehlo()
+            if settings.smtp_user:
+                smtp.login(settings.smtp_user, settings.smtp_password)
+            smtp.send_message(msg)
+    else:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as smtp:
+            smtp.ehlo()
+            if settings.smtp_require_tls:
+                smtp.starttls()
+                smtp.ehlo()
+            elif settings.smtp_user:
+                logger.warning(
+                    "SMTP autenticado sem TLS (smtp_require_tls=false)"
+                )
+            if settings.smtp_user:
+                smtp.login(settings.smtp_user, settings.smtp_password)
+            smtp.send_message(msg)
 
     logger.info("E-mail enviado para %s (assunto: %s)", to, subject)
 

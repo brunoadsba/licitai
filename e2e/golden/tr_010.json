@@ -1,0 +1,18 @@
+{
+  "id": "tr_010",
+  "descricao": "TR completo usado para medir FP deliberado do FakeLLM (clausula fantasma)",
+  "itens": [
+    {"item_number": "1.0", "title": "DA DEFINIÇÃO DO OBJETO", "content": "Contratação de serviços de jardinagem, natureza continuada, quantitativo 2 postos, prazo do contrato 12 meses."},
+    {"item_number": "2.0", "title": "DA FUNDAMENTAÇÃO DA CONTRATAÇÃO", "content": "Fundamentação com estudos técnicos preliminares."},
+    {"item_number": "3.0", "title": "DA DESCRIÇÃO DA SOLUÇÃO COMO UM TODO", "content": "Solução como um todo no ciclo de vida do objeto."},
+    {"item_number": "4.0", "title": "DOS REQUISITOS DA CONTRATAÇÃO", "content": "Requisitos da contratação: frequência semanal."},
+    {"item_number": "5.0", "title": "DO MODELO DE EXECUÇÃO DO OBJETO", "content": "Modelo de execução do objeto até o encerramento."},
+    {"item_number": "6.0", "title": "DO MODELO DE GESTÃO DO CONTRATO", "content": "Modelo de gestão e fiscalização."},
+    {"item_number": "7.0", "title": "DOS CRITÉRIOS DE MEDIÇÃO E DE PAGAMENTO", "content": "Critérios de medição e pagamento mensal."},
+    {"item_number": "8.0", "title": "DA FORMA E CRITÉRIOS DE SELEÇÃO DO FORNECEDOR", "content": "Seleção do fornecedor, menor preço."},
+    {"item_number": "9.0", "title": "DAS ESTIMATIVAS DO VALOR DA CONTRATAÇÃO", "content": "Estimativas do valor da contratação com preços unitários."},
+    {"item_number": "10.0", "title": "DA ADEQUAÇÃO ORÇAMENTÁRIA", "content": "Adequação orçamentária."}
+  ],
+  "expected_checklist": [],
+  "expected_findings": []
+}

@@ -52,6 +52,7 @@ class DocumentResponse(BaseModel):
     fornecedor_id: uuid.UUID | None = None
     total_items: int
     status: str
+    classification: str | None = None
     created_at: AwareDatetime
     updated_at: AwareDatetime
     tokens_estimated: int | None = None

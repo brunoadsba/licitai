@@ -20,16 +20,16 @@ from app.services.llm.provider import LLMProvider
 # ---------------------------------------------------------------------------
 
 ELEMENTOS_ART_6 = [
-    "objeto",
-    "justificativa da contratação",
-    "requisitos técnicos",
-    "modelo de execução",
-    "modelo de gestão",
-    "estimativa de quantidades",
-    "cronograma físico-financeiro",
-    "medição e pagamento",
-    "sanções administrativas",
-    "garantias",
+    "definição do objeto",
+    "fundamentação da contratação",
+    "descrição da solução como um todo",
+    "requisitos da contratação",
+    "modelo de execução do objeto",
+    "modelo de gestão do contrato",
+    "critérios de medição e de pagamento",
+    "seleção do fornecedor",
+    "estimativas do valor",
+    "adequação orçamentária",
 ]
 
 
@@ -37,6 +37,8 @@ def test_system_prompt_contem_checklist_art_6():
     """O system prompt lista os elementos obrigatórios do Art. 6º, XXIII."""
     for elemento in ELEMENTOS_ART_6:
         assert elemento.lower() in SYSTEM_PROMPT.lower()
+    # Não inventa elementos fora das alíneas a–j
+    assert "garantia, sanções e cronograma" in SYSTEM_PROMPT.lower()
 
 
 def test_system_prompt_sinaliza_ausencia_sem_reescrever():
@@ -44,12 +46,14 @@ def test_system_prompt_sinaliza_ausencia_sem_reescrever():
     texto = SYSTEM_PROMPT.lower()
     assert "ausente" in texto
     assert "não reescreva" in texto
+    assert "<document_data>" in ITEM_ANALYSIS_PROMPT.lower()
 
 
 def test_item_prompt_instrui_aplicar_checklist():
     """O prompt de item referencia o checklist do Art. 6º, XXIII."""
     assert "art. 6º, xxiii" in ITEM_ANALYSIS_PROMPT.lower()
     assert "elemento ausente" in ITEM_ANALYSIS_PROMPT.lower()
+    assert "</document_data>" in ITEM_ANALYSIS_PROMPT.lower()
 
 
 # ---------------------------------------------------------------------------
@@ -186,22 +190,26 @@ def test_review_resposta_invalida_mantem_correcoes():
     assert objs[0].review_status == "pendente"
 
 
-def test_review_decisao_normaliza_status_invalido():
-    """Status desconhecido cai para 'aprovada' e índice fora do intervalo é ignorado."""
+def test_review_decisao_status_invalido_nao_aprova():
+    """Status desconhecido / índice ausente → fail-closed (não aprova)."""
     llm = RevisorDecisoes([
-        {"correction_index": 99, "status": "desconhecido", "note": ""},
-        {"correction_index": 0, "status": "rejeitada", "note": "x"},
+        {"correction_index": 0, "status": "desconhecido", "note": ""},
+        {"status": "aprovada", "note": "sem índice"},
+        {"correction_index": 99, "status": "aprovada", "note": "fora"},
     ])
     item = FakeItem()
 
     decisoes = asyncio_run(review_item_corrections(llm, item, [{"problem": "A"}], ""))
-    # Primeira: índice normalizado para 0 e status 'aprovada'
-    assert decisoes[0]["status"] == "aprovada"
-    assert decisoes[0]["correction_index"] == 0
-    # Segunda: rejeita a mesma correção (aplicação mais restritiva vence por ordem)
+    assert decisoes == []
+
     objs = [CorrectionFake()]
-    apply_review_decisions(objs, decisoes)
-    assert objs[0].review_status == "rejeitada"
+    objs[0].category = "juridica"
+    objs[0].severity = "alto"
+    objs[0].importance = "alta"
+    mantidas = apply_review_decisions(objs, decisoes)
+    assert objs[0].review_status == "pendente"
+    # Jurídico alto sem review válida fica fora do score
+    assert mantidas == []
 
 
 def test_review_data_utc_marcada_apos_decisao():

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { uploadDocument, getDocument, listFornecedores } from '@/lib/api';
+import { startPolling } from '@/lib/polling';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import { Button } from '@/components/ui/Button';
@@ -25,7 +26,6 @@ const STAGE_LABELS: Partial<Record<DocumentStatus, string>> = {
   analyzing: 'Análise em andamento…',
 };
 
-const POLL_INTERVAL_MS = 1000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 
 const ALLOWED_TYPES = [
@@ -57,34 +57,43 @@ export default function UploadPage() {
   useEffect(() => {
     if (state !== 'processing' || !documentId) return;
 
-    const startedAt = Date.now();
-    const interval = setInterval(async () => {
-      try {
-        const doc = await getDocument(documentId);
-        setCurrentStage(doc.status);
-
-        if (doc.status === 'error') {
-          clearInterval(interval);
-          setState('error');
-          setError(doc.error_message || 'Falha no processamento do documento.');
-        } else if (doc.status === 'parsed' || doc.status === 'completed') {
-          clearInterval(interval);
-          setState('success');
-          toast.success('Documento processado');
-          setTimeout(() => router.push(`/analysis/${documentId}`), 1200);
-        } else if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
-          clearInterval(interval);
+    const { cancel } = startPolling(
+      () => getDocument(documentId, { skipCache: true }),
+      (doc) =>
+        doc.status === 'error' || doc.status === 'parsed' || doc.status === 'completed',
+      {
+        initialIntervalMs: 1000,
+        maxIntervalMs: 8000,
+        deadlineMs: POLL_TIMEOUT_MS,
+        maxFailures: 10,
+        onResult: (doc) => {
+          setCurrentStage(doc.status);
+          if (doc.status === 'error') {
+            setState('error');
+            setError(doc.error_message || 'Falha no processamento do documento.');
+            return true;
+          }
+          if (doc.status === 'parsed' || doc.status === 'completed') {
+            setState('success');
+            toast.success('Documento processado');
+            setTimeout(() => router.push(`/analysis/${documentId}`), 1200);
+            return true;
+          }
+        },
+        onDeadline: () => {
           setState('error');
           setError(
             'O processamento demorou mais que o esperado. Verifique o status do documento na lista do Painel.',
           );
-        }
-      } catch {
-        // Erros de polling são silenciosos — a última resposta válida continua valendo
+        },
+        onMaxFailures: () => {
+          setState('error');
+          setError('Falha ao acompanhar o processamento. Tente novamente ou verifique o Painel.');
+        },
       }
-    }, POLL_INTERVAL_MS);
+    );
 
-    return () => clearInterval(interval);
+    return () => cancel();
   }, [state, documentId, router]);
 
   function validateAndSet(file: File) {

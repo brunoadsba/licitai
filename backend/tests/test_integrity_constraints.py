@@ -159,7 +159,10 @@ def test_restore_revision_restaura_fielmente_snapshot():
 
             finais = (await session.execute(
                 select(DocumentItem)
-                .where(DocumentItem.document_id == doc_id)
+                .where(
+                    DocumentItem.document_id == doc_id,
+                    DocumentItem.archived_at.is_(None),
+                )
                 .order_by(DocumentItem.item_order)
             )).scalars().all()
             return resposta, finais

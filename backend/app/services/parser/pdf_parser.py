@@ -10,19 +10,18 @@ Segurança:
 - Sem execução de JavaScript embutido
 """
 
-import io
 import logging
 from pathlib import Path
 
 import fitz  # PyMuPDF
 import pdfplumber
-import pytesseract
-from PIL import Image
 
 logger = logging.getLogger(__name__)
 
 # Limite de páginas para prevenir DoS
 MAX_PAGES = 500
+# Cota específica de OCR (mais caro em CPU/RAM).
+MAX_OCR_PAGES = 50
 
 
 def parse_pdf(file_path: Path) -> tuple[str, list[dict]]:
@@ -155,35 +154,11 @@ def _extract_with_pdfplumber(file_path: Path) -> list[dict]:
 
 
 def _extract_with_ocr(file_path: Path) -> list[dict]:
-    """OCR com Tesseract para PDFs escaneados."""
-    pages = []
+    """OCR com Tesseract em subprocesso isolado + hard timeout."""
+    from app.services.parser.ocr_subprocess import run_ocr_isolated
 
-    doc = fitz.open(str(file_path))
-
-    if doc.page_count > MAX_PAGES:
-        doc.close()
-        raise ValueError(f"PDF excede o limite de {MAX_PAGES} páginas.")
-
-    try:
-        for page_num in range(doc.page_count):
-            page = doc[page_num]
-
-            # Renderizar página como imagem (300 DPI para boa qualidade OCR)
-            mat = fitz.Matrix(300 / 72, 300 / 72)
-            pix = page.get_pixmap(matrix=mat)
-
-            # Converter para PIL Image
-            img_bytes = pix.tobytes("png")
-            image = Image.open(io.BytesIO(img_bytes))
-
-            # OCR com Tesseract (Português)
-            text = pytesseract.image_to_string(image, lang="por")
-
-            pages.append({
-                "page": page_num + 1,
-                "text": text.strip(),
-            })
-    finally:
-        doc.close()
-
-    return pages
+    return run_ocr_isolated(
+        file_path,
+        max_pages=MAX_PAGES,
+        max_ocr_pages=MAX_OCR_PAGES,
+    )

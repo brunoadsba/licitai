@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, LoaderCircle } from 'lucide-react';
 import { getComparacao, getMatriz, extractErrorMessage } from '@/lib/api';
+import { startPolling } from '@/lib/polling';
 import { Skeleton } from '@/components/ui/Skeleton';
 import {
   COMPARACAO_STATUS_LABELS,
@@ -25,7 +26,6 @@ export default function MatrizPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pollingError, setPollingError] = useState<string | null>(null);
-  const falhasConsecutivas = useRef(0);
 
   const loadData = useCallback(async () => {
     try {
@@ -52,32 +52,37 @@ export default function MatrizPage() {
   useEffect(() => {
     if (!comparacao || !['pending', 'running'].includes(comparacao.status)) return;
 
-    const interval = setInterval(async () => {
-      // Aba em background: economiza requests sem parar o monitoramento.
-      if (document.hidden) return;
-
-      try {
-        const updated = await getComparacao(comparacaoId);
-        setComparacao(updated);
-        falhasConsecutivas.current = 0;
-        setPollingError(null);
-
-        if (['completed', 'error'].includes(updated.status)) {
-          clearInterval(interval);
-          const m = await getMatriz(comparacaoId);
-          setMatriz(m);
-        }
-      } catch (err) {
-        falhasConsecutivas.current += 1;
-        if (falhasConsecutivas.current >= 2) {
-          setPollingError(
-            `${extractErrorMessage(err, 'Falha ao atualizar status.')} Verificando novamente…`
-          );
-        }
+    const { cancel } = startPolling(
+      () => getComparacao(comparacaoId, { skipCache: true }),
+      (updated) => ['completed', 'error'].includes(updated.status),
+      {
+        initialIntervalMs: 3000,
+        maxIntervalMs: 15_000,
+        deadlineMs: 30 * 60 * 1000,
+        maxFailures: 8,
+        onResult: (updated) => {
+          setComparacao(updated);
+          setPollingError(null);
+          if (['completed', 'error'].includes(updated.status)) {
+            void getMatriz(comparacaoId).then(setMatriz).catch(() => {
+              /* matriz pode falhar; status já atualizado */
+            });
+            return true;
+          }
+        },
+        onError: (err, failures) => {
+          if (failures >= 2) {
+            setPollingError(
+              `${extractErrorMessage(err, 'Falha ao atualizar status.')} Verificando novamente…`
+            );
+          }
+        },
       }
-    }, 3000);
+    );
 
-    return () => clearInterval(interval);
+    return () => cancel();
+    // Intencional: reagir só a mudança de status, não a cada tick
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comparacao?.status, comparacaoId]);
 
   function getStatusBadge(status: string) {

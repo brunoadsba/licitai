@@ -288,13 +288,16 @@ def get_llm_provider() -> LLMProvider:
         )
 
     if len(providers) == 1:
-        _llm_provider_instance = providers[0]
+        inner = providers[0]
     else:
         logger.info(
             "Failover ativo: %s → %s",
             providers[0].provider_name,
             " → ".join(p.provider_name for p in providers[1:]),
         )
-        _llm_provider_instance = FailoverProvider(providers)
+        inner = FailoverProvider(providers)
 
+    from app.services.llm.limiter import wrap_with_limiter
+
+    _llm_provider_instance = wrap_with_limiter(inner)
     return _llm_provider_instance

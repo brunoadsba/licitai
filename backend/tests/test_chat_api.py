@@ -14,11 +14,15 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
+from unittest.mock import AsyncMock, patch
 
 from app.database import Base, get_db
 from app.main import app
 from app.models.chat import ChatConversation, ChatMessage
+from app.schemas.chat import ChatCitation
 from app.services.chat.llm_adapter import get_chat_llm
+
+_SOURCES_PATCHER = None
 
 
 class FakeLLM:
@@ -37,6 +41,7 @@ class FakeLLM:
                 "citations": [
                     {
                         "type": "legal",
+                        "source_id": "legal:test-1",
                         "reference": "Lei 14.133/2021, art. 5º",
                         "title": "Lei 14.133/2021",
                         "snippet": "Trecho citado...",
@@ -46,6 +51,18 @@ class FakeLLM:
             },
             ensure_ascii=False,
         )
+
+
+async def _fake_build_sources(db, query, context):
+    return [
+        ChatCitation(
+            type="legal",
+            source_id="legal:test-1",
+            reference="Lei 14.133/2021, art. 5º",
+            title="Lei 14.133/2021",
+            snippet="Trecho citado...",
+        )
+    ]
 
 
 def _run(coroutine):
@@ -68,6 +85,8 @@ def _montar_session() -> async_sessionmaker:
 
 
 def _cliente(Session, llm=None):
+    global _SOURCES_PATCHER
+
     async def override_get_db():
         async with Session() as session:
             try:
@@ -79,12 +98,22 @@ def _cliente(Session, llm=None):
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_chat_llm] = lambda: llm or FakeLLM()
+    if _SOURCES_PATCHER is None:
+        _SOURCES_PATCHER = patch(
+            "app.services.chat.service.build_sources",
+            new=AsyncMock(side_effect=_fake_build_sources),
+        )
+        _SOURCES_PATCHER.start()
     return ASGITransport(app=app)
 
 
 def _limpar_overrides():
+    global _SOURCES_PATCHER
     app.dependency_overrides.pop(get_db, None)
     app.dependency_overrides.pop(get_chat_llm, None)
+    if _SOURCES_PATCHER is not None:
+        _SOURCES_PATCHER.stop()
+        _SOURCES_PATCHER = None
 
 
 async def _criar_conversa(ac: AsyncClient, context=None, title="Conversa Teste"):

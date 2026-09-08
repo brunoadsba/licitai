@@ -143,6 +143,8 @@ def test_get_llm_provider_eh_singleton(monkeypatch):
 
 
 def test_reset_llm_provider_permite_reconstruir(monkeypatch):
+    from app.services.llm.limiter import LimitedLLMProvider
+
     fake1 = ProviderControlado("fake1", [])
     fake2 = ProviderControlado("fake2", [])
     monkeypatch.setattr(provider_module, "_build_providers", lambda: [fake1])
@@ -153,7 +155,12 @@ def test_reset_llm_provider_permite_reconstruir(monkeypatch):
         reset_llm_provider()
         segundo = provider_module.get_llm_provider()
         assert primeiro is not segundo
-        assert segundo is fake2
+        inner = (
+            segundo._inner
+            if isinstance(segundo, LimitedLLMProvider)
+            else segundo
+        )
+        assert inner is fake2
     finally:
         reset_llm_provider()
 

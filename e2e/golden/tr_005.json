@@ -1,0 +1,28 @@
+{
+  "id": "tr_005",
+  "descricao": "TR sintético - omissões estruturais e finding de prazo relativo ambíguo",
+  "itens": [
+    {"item_number": "1.0", "title": "DA DEFINIÇÃO DO OBJETO", "content": "Aquisição de combustíveis, natureza contínua, quantitativos mensais."},
+    {"item_number": "2.0", "title": "DA FUNDAMENTAÇÃO DA CONTRATAÇÃO", "content": "Fundamentação baseada em estudos técnicos preliminares."},
+    {"item_number": "3.0", "title": "DOS REQUISITOS DA CONTRATAÇÃO", "content": "Entrega em prazo razoável a critério da Administração."},
+    {"item_number": "4.0", "title": "DO MODELO DE EXECUÇÃO DO OBJETO", "content": "Modelo de execução sob demanda até o encerramento do contrato."}
+  ],
+  "expected_checklist": [
+    "descricao_solucao",
+    "modelo_gestao",
+    "criterios_medicao_pagamento",
+    "selecao_fornecedor",
+    "estimativa_valor",
+    "adequacao_orcamentaria"
+  ],
+  "expected_findings": [
+    {"original_text": "ausencia:descricao_solucao", "category": "estrutural"},
+    {"original_text": "ausencia:modelo_gestao", "category": "estrutural"},
+    {"original_text": "ausencia:criterios_medicao_pagamento", "category": "estrutural"},
+    {"original_text": "ausencia:selecao_fornecedor", "category": "estrutural"},
+    {"original_text": "ausencia:estimativa_valor", "category": "estrutural"},
+    {"original_text": "ausencia:adequacao_orcamentaria", "category": "estrutural"},
+    {"original_text": "prazo razoável", "category": "tecnica"}
+  ],
+  "expected_correcoes": []
+}

@@ -2,7 +2,8 @@
 Testes do validador de respostas do Copiloto (T7).
 
 Garantem o contrato de grounding: resposta factual exige citação válida ou
-recusa explícita; `suggested_actions` do LLM são sempre descartadas.
+recusa explícita; `suggested_actions` do LLM são sempre descartadas;
+source_id inexistente → fail-closed.
 """
 
 import json
@@ -17,7 +18,7 @@ from app.services.chat.validator import (
 )
 
 
-def _resposta_ok(citations=True, suggested=()):
+def _resposta_ok(citations=True, suggested=(), source_id="legal:1"):
     dados = {
         "refused": False,
         "answer": "Resposta factual de teste.",
@@ -27,6 +28,7 @@ def _resposta_ok(citations=True, suggested=()):
             [
                 {
                     "type": "legal",
+                    "source_id": source_id,
                     "reference": "Lei 14.133/2021, art. 5º",
                     "title": "Lei 14.133/2021",
                     "snippet": "A contratação observará...",
@@ -60,7 +62,9 @@ class TestExtractJson:
 class TestValidateAnswer:
     def test_resposta_valida_com_citacao(self):
         resultado: ValidatedAnswer = validate_llm_answer(
-            _resposta_ok(), require_grounding=True
+            _resposta_ok(),
+            require_grounding=True,
+            valid_source_ids={"legal:1"},
         )
         assert not resultado.refused
         assert resultado.content == "Resposta factual de teste."
@@ -68,6 +72,7 @@ class TestValidateAnswer:
         assert resultado.confidence == 0.87
         assert len(resultado.citations) == 1
         assert resultado.citations[0].reference == "Lei 14.133/2021, art. 5º"
+        assert resultado.citations[0].source_id == "legal:1"
 
     def test_suggested_actions_sao_descartadas(self):
         resultado: ValidatedAnswer = validate_llm_answer(
@@ -75,13 +80,16 @@ class TestValidateAnswer:
                 suggested=[{"action": "editar", "description": "mudar item"}]
             ),
             require_grounding=True,
+            valid_source_ids={"legal:1"},
         )
         assert not hasattr(resultado, "suggested_actions")
         assert not resultado.refused
 
     def test_sem_citacao_com_grounding_obrigatorio_recusa(self):
         resultado: ValidatedAnswer = validate_llm_answer(
-            _resposta_ok(citations=False), require_grounding=True
+            _resposta_ok(citations=False),
+            require_grounding=True,
+            valid_source_ids={"legal:1"},
         )
         assert resultado.refused is True
         assert resultado.content == REFUSAL_MESSAGE
@@ -89,18 +97,29 @@ class TestValidateAnswer:
 
     def test_sem_citacao_sem_grounding_obrigatorio_aceita(self):
         resultado: ValidatedAnswer = validate_llm_answer(
-            _resposta_ok(citations=False), require_grounding=False
+            _resposta_ok(citations=False),
+            require_grounding=False,
+            valid_source_ids=set(),
         )
         assert not resultado.refused
         assert resultado.content == "Resposta factual de teste."
         assert resultado.citations == []
+
+    def test_source_id_inexistente_fail_closed(self):
+        resultado = validate_llm_answer(
+            _resposta_ok(source_id="legal:999"),
+            require_grounding=True,
+            valid_source_ids={"legal:1"},
+        )
+        assert resultado.refused is True
+        assert resultado.reason == "source-id-inexistente"
 
     def test_recusa_explicita_do_llm(self):
         raw = json.dumps(
             {"refused": True, "reason": "sem-fontes", "answer": "não sei"}
         )
         resultado: ValidatedAnswer = validate_llm_answer(
-            raw, require_grounding=True
+            raw, require_grounding=True, valid_source_ids={"legal:1"}
         )
         assert resultado.refused is True
         assert resultado.reason == "sem-fontes"
@@ -120,11 +139,17 @@ class TestValidateAnswer:
                 "grounded": True,
                 "confidence": 2.5,
                 "citations": [
-                    {"type": "legal", "reference": "r", "title": "t", "snippet": "s"}
+                    {
+                        "type": "legal",
+                        "source_id": "legal:1",
+                        "reference": "r",
+                        "title": "t",
+                        "snippet": "s",
+                    }
                 ],
             }
         )
         resultado: ValidatedAnswer = validate_llm_answer(
-            raw, require_grounding=True
+            raw, require_grounding=True, valid_source_ids={"legal:1"}
         )
         assert resultado.confidence == 1.0
