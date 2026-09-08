@@ -111,9 +111,11 @@ async def run_analysis(
     analyzed_count = 0
     pending_reviews: list[tuple[DocumentItem, str, list[Correction]]] = []
     all_corrections: list[dict] = []
+    coverage_incomplete = False
 
     for (item, legal_context), outcome in zip(items_context, results, strict=False):
         if isinstance(outcome, Exception):
+            coverage_incomplete = True
             logger.warning(
                 "Erro ao analisar item %s do documento %s: %s",
                 item.item_number, document_id, outcome,
@@ -122,6 +124,8 @@ async def run_analysis(
 
         correction_objs = []
         for correction_data in outcome:
+            if correction_data.get("_coverage_errors"):
+                coverage_incomplete = True
             grounded = is_original_text_grounded(
                 correction_data.get("original_text", ""), item.content or ""
             )
@@ -155,6 +159,8 @@ async def run_analysis(
                 "fail_closed_legal": fail_closed,
                 "item_number": item.item_number,
             }
+            if correction_data.get("_coverage_errors"):
+                evidence["coverage_errors"] = correction_data["_coverage_errors"]
             correction = Correction(
                 analysis_id=analysis.id,
                 document_item_id=item.id,
@@ -198,7 +204,7 @@ async def run_analysis(
                 )
 
         corrigiveis = [c for c in correction_objs if c.review_status != "rejeitada"]
-        pending_reviews.append((item, legal_context, corrigiveis, outcome))
+        pending_reviews.append((item, legal_context, corrigiveis))
         analyzed_count += 1
         analysis.analyzed_items = analyzed_count
         await db.commit()
@@ -210,6 +216,9 @@ async def run_analysis(
             len(document.items),
             len(outcome),
         )
+
+    if analyzed_count < len(document.items):
+        coverage_incomplete = True
 
     # Se nenhum item foi analisado, os provedores LLM estão indisponíveis:
     # marcar como erro em vez de reportar sucesso falso.
@@ -259,7 +268,15 @@ async def run_analysis(
         analysis.final_opinion = scores["final_opinion"]
 
     # Finalizar
-    analysis.status = "completed"
+    if coverage_incomplete:
+        analysis.status = "completed_with_errors"
+        analysis.error_message = (
+            "Análise concluída com cobertura incompleta de agentes/itens. "
+            "Não tratar todos os itens como adequados; reexecute os faltantes."
+        )
+    else:
+        analysis.status = "completed"
+        analysis.error_message = None
     analysis.completed_at = datetime.now(timezone.utc)
 
     # Atualizar status do documento
@@ -268,8 +285,9 @@ async def run_analysis(
     await db.flush()
 
     logger.info(
-        "Análise %s concluída: %d itens, %d correções, nota %.1f",
+        "Análise %s concluída (%s): %d itens, %d correções, nota %.1f",
         analysis_id,
+        analysis.status,
         len(document.items),
         len(all_corrections),
         float(analysis.score_overall) if analysis.score_overall is not None else 0.0,
@@ -340,7 +358,7 @@ async def _run_cross_review(
     kept: list[dict] = []
     revisaveis = [
         (item, legal_context, correction_objs)
-        for item, legal_context, correction_objs, _ in pending_reviews
+        for item, legal_context, correction_objs in pending_reviews
         if correction_objs
     ]
     if not revisaveis:

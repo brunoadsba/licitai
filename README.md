@@ -67,6 +67,15 @@ backend\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --app-dir back
 > 📍 **URL do Backend**: `http://127.0.0.1:8000`  
 > 📑 **Documentação da API (Swagger)**: `http://127.0.0.1:8000/docs`
 
+Análises e comparações vão para a fila `jobs` e **só avançam com o worker**:
+
+```powershell
+# Terminal extra (ou serviço Compose `worker`):
+cd backend
+..\.venv\Scripts\python.exe -m app.worker
+# Linux/WSL: PYTHONPATH=. .venv/bin/python -m app.worker
+```
+
 ---
 
 ### 2️⃣ Terminal 2: Iniciar o Frontend (Next.js + React)

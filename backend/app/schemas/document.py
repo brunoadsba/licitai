@@ -22,7 +22,7 @@ class DocumentCreate(BaseModel):
     """Schema para criação de documento (usado internamente após upload)."""
     filename_original: str = Field(..., max_length=500)
     filename_stored: str = Field(..., max_length=255)
-    file_type: str = Field(..., pattern=r"^(pdf|docx|odt)$")
+    file_type: str = Field(..., pattern=r"^(pdf|docx|odt|html)$")
     file_size_bytes: int = Field(..., gt=0)
 
 

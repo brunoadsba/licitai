@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
     key VARCHAR(64) PRIMARY KEY,
     value VARCHAR(255) NOT NULL
 );
-INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260908_002')
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260908_003')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 -- Alembic version tracking (se a tabela existir após alembic stamp)
@@ -68,4 +68,17 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL
 );
 DELETE FROM alembic_version;
-INSERT INTO alembic_version (version_num) VALUES ('20260908_002');
+INSERT INTO alembic_version (version_num) VALUES ('20260908_003');
+
+-- CHECKs alinhados ao ORM (idempotente em Postgres legado)
+DO $$
+BEGIN
+  ALTER TABLE analyses DROP CONSTRAINT IF EXISTS analyses_status_check;
+  ALTER TABLE analyses ADD CONSTRAINT analyses_status_check
+    CHECK (status IN ('pending', 'running', 'completed', 'completed_with_errors', 'error'));
+  ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_file_type_check;
+  ALTER TABLE documents ADD CONSTRAINT documents_file_type_check
+    CHECK (file_type IN ('pdf', 'docx', 'odt', 'html'));
+EXCEPTION WHEN undefined_table THEN
+  NULL;
+END $$;

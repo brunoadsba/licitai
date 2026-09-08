@@ -97,7 +97,7 @@ class Settings(BaseSettings):
     worker_poll_interval_seconds: float = 2.0
 
     # --- Schema ---
-    expected_schema_version: str = "20260908_002"
+    expected_schema_version: str = "20260908_003"
 
     @field_validator("*", mode="before")
     @classmethod

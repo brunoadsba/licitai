@@ -266,6 +266,10 @@ CREATE INDEX IF NOT EXISTS idx_document_items_document_id ON document_items(docu
 CREATE INDEX IF NOT EXISTS idx_document_items_order ON document_items(document_id, item_order);
 CREATE INDEX IF NOT EXISTS idx_analyses_document_id ON analyses(document_id);
 CREATE INDEX IF NOT EXISTS idx_analyses_status ON analyses(status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_analyses_active_per_document
+    ON analyses (document_id) WHERE status IN ('pending', 'running');
+CREATE UNIQUE INDEX IF NOT EXISTS uq_revision_doc_versao
+    ON document_revisions (document_id, versao);
 CREATE INDEX IF NOT EXISTS idx_corrections_analysis_id ON corrections(analysis_id);
 CREATE INDEX IF NOT EXISTS idx_corrections_item_id ON corrections(document_item_id);
 CREATE INDEX IF NOT EXISTS idx_corrections_category ON corrections(category);
@@ -310,7 +314,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
     value VARCHAR(255) NOT NULL
 );
 
-INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260908_002')
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260908_003')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 CREATE INDEX IF NOT EXISTS idx_legal_chunks_embedding_hnsw

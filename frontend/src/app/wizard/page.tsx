@@ -35,7 +35,10 @@ export default function WizardPage() {
 
       const finalAnalysis = await pollUntil(
         () => getAnalysis(start.analysis_id, { skipCache: true }),
-        (a) => a.status === 'completed' || a.status === 'error',
+        (a) =>
+          a.status === 'completed' ||
+          a.status === 'completed_with_errors' ||
+          a.status === 'error',
         {
           initialIntervalMs: 2000,
           maxIntervalMs: 8000,

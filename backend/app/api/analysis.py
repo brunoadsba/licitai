@@ -6,7 +6,7 @@ import logging
 import uuid
 from collections import Counter
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +30,6 @@ from app.services.privacy import (
     assert_cloud_allowed_for_document,
     resolve_classification,
 )
-from app.worker import process_job_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -89,14 +88,13 @@ async def _build_analysis_snapshot(
 )
 async def start_analysis(
     document_id: uuid.UUID,
-    background_tasks: BackgroundTasks,
     payload: AnalysisStartRequest | None = None,
     x_document_classification: str | None = Header(
         default=None, alias="X-Document-Classification"
     ),
     db: AsyncSession = Depends(get_db),
 ):
-    """Inicia análise via fila durável (job) + kick in-process."""
+    """Enfileira análise na fila durável (processada por `python -m app.worker`)."""
     mode = payload.mode if payload and payload.mode else "multi_agent"
 
     result = await db.execute(
@@ -144,11 +142,13 @@ async def start_analysis(
                 },
             )
             await db.commit()
-            background_tasks.add_task(process_job_by_id, job.id)
             return AnalysisStartResponse(
                 analysis_id=existing_analysis.id,
                 job_id=job.id,
-                message="Análise pendente re-enfileirada. Acompanhe pelo status.",
+                message=(
+                    "Análise pendente re-enfileirada. "
+                    "Requer worker (`python -m app.worker`)."
+                ),
             )
         raise HTTPException(
             status_code=409,
@@ -188,12 +188,14 @@ async def start_analysis(
     logger.info(
         "Análise %s enfileirada job=%s (doc %s)", analysis_id, job.id, document_id
     )
-    background_tasks.add_task(process_job_by_id, job.id)
 
     return AnalysisStartResponse(
         analysis_id=analysis_id,
         job_id=job.id,
-        message="Análise iniciada. Acompanhe o progresso pelo endpoint de status.",
+        message=(
+            "Análise enfileirada. Acompanhe pelo status "
+            "(worker: `python -m app.worker`)."
+        ),
     )
 
 

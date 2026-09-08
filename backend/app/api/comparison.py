@@ -11,7 +11,7 @@ import hashlib
 import logging
 import uuid
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -38,7 +38,6 @@ from app.services.comparator.serializers import (
 from app.services.email.sender import smtp_configurado
 from app.services.jobs import enqueue
 from app.services.rules.loader import parse_molde
-from app.worker import process_job_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +92,6 @@ async def list_comparacoes(
 )
 async def start_comparacao(
     data: ComparacaoStartRequest,
-    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
     # Lock serializa starts concorrentes do mesmo TR (TOCTOU); no-op no SQLite.
@@ -202,12 +200,13 @@ async def start_comparacao(
     )
     await db.commit()
 
-    background_tasks.add_task(process_job_by_id, job.id)
-
     return ComparacaoStartResponse(
         comparacao_id=comparacao_id,
         job_id=job.id,
-        message="Comparação iniciada. Acompanhe pelo endpoint de status.",
+        message=(
+            "Comparação enfileirada. Acompanhe pelo status "
+            "(worker: `python -m app.worker`)."
+        ),
     )
 
 

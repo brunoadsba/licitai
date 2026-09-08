@@ -84,7 +84,7 @@ export default function AnalysisPage() {
     const analysisId = analysis.id;
     const { cancel } = startPolling(
       () => getAnalysis(analysisId, { skipCache: true }),
-      (updated) => ['completed', 'error'].includes(updated.status),
+      (updated) => ['completed', 'completed_with_errors', 'error'].includes(updated.status),
       {
         initialIntervalMs: 1000,
         maxIntervalMs: 8000,
@@ -188,7 +188,7 @@ export default function AnalysisPage() {
             <span className="sm:hidden">Histórico</span>
           </Button>
 
-          {analysis?.status === 'completed' && (
+          {(analysis?.status === 'completed' || analysis?.status === 'completed_with_errors') && (
             <Link href={`/report/${analysis.id}`}>
               <Button variant="secondary">
                 <FileBarChart className="h-4 w-4" aria-hidden />
@@ -198,7 +198,7 @@ export default function AnalysisPage() {
             </Link>
           )}
 
-          {(!analysis || ['completed', 'error'].includes(analysis.status)) &&
+          {(!analysis || ['completed', 'completed_with_errors', 'error'].includes(analysis.status)) &&
             document.status !== 'error' && (
               <Button onClick={handleStartAnalysis} loading={analyzing}>
                 {!analyzing && <Play className="h-4 w-4" aria-hidden />}
@@ -232,6 +232,20 @@ export default function AnalysisPage() {
         </AlertBanner>
       )}
 
+      {analysis?.status === 'completed_with_errors' && (
+        <AlertBanner
+          variant="warning"
+          title="Análise concluída com cobertura incompleta"
+          action={
+            <Button size="sm" onClick={handleStartAnalysis} loading={analyzing}>
+              Reanalisar
+            </Button>
+          }
+        >
+          {analysis.error_message ||
+            'Um ou mais agentes/itens falharam. Não trate todos os itens como adequados.'}
+        </AlertBanner>
+      )}
       {/* Erro de Requisição */}
       {errorInfo && (
         <AlertBanner variant="error" title={errorInfo.title}>

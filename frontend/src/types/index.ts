@@ -203,7 +203,7 @@ export interface MatrizResponse {
 
 // Enums
 export type DocumentStatus = 'uploaded' | 'parsing' | 'parsed' | 'analyzing' | 'completed' | 'error';
-export type AnalysisStatus = 'pending' | 'running' | 'completed' | 'error';
+export type AnalysisStatus = 'pending' | 'running' | 'completed' | 'completed_with_errors' | 'error';
 export type ComparacaoStatus = 'pending' | 'running' | 'completed' | 'error';
 export type ConformidadeStatus = 'ok' | 'falha' | 'atencao';
 export type CorrectionCategory = 'juridica' | 'tecnica' | 'redacao' | 'estrutural';
