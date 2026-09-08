@@ -24,16 +24,24 @@ const nextConfig = {
       },
     ];
   },
-  // Proxy API requests to backend
+  // Proxy legado (/api/v1) coexiste com BFF Route Handler em /api/proxy/*
   async rewrites() {
     return [
       {
-        source: '/api/:path*',
-        destination: `${BACKEND_URL}/api/:path*`,
+        source: '/api/v1/:path*',
+        destination: `${BACKEND_URL}/api/v1/:path*`,
       },
       {
         source: '/health',
         destination: `${BACKEND_URL}/health`,
+      },
+      {
+        source: '/livez',
+        destination: `${BACKEND_URL}/livez`,
+      },
+      {
+        source: '/readyz',
+        destination: `${BACKEND_URL}/readyz`,
       },
     ];
   },

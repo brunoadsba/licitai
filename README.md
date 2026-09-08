@@ -214,7 +214,7 @@ licitacao/
 - Renomeação de arquivos para UUID (nunca usa nome original)
 - Prevenção de path traversal
 - CSP strict + X-Frame-Options DENY (API **e** páginas do frontend)
-- Token opcional de API: defina `API_TOKEN` (backend) e `NEXT_PUBLIC_API_TOKEN` (frontend) para exigir o header `X-API-Token` em todas as rotas `/api/v1`; vazio = sem autenticação (piloto local)
+- Token opcional de API: defina `API_TOKEN` (backend e BFF Next.js server-side) para exigir o header `X-API-Token` em `/api/v1`; o browser nunca recebe o token. Vazio = sem autenticação (piloto local)
 - Rate limiting configurável via env `RATE_LIMIT_MAX` (padrão 600 req/min)
 - CORS com allowlist de origens
 - SQL via ORM (sem string concatenation)

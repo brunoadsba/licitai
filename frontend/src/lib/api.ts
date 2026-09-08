@@ -1,8 +1,8 @@
 /**
  * Cliente API — comunicação segura com o backend.
  *
- * Todas as chamadas passam pelo proxy do Next.js (next.config.js rewrites),
- * evitando exposição direta do backend ao client.
+ * Chamadas do browser passam pelo BFF (`/api/proxy/v1/...`), que injeta
+ * `API_TOKEN` server-side. O token nunca vai para o client.
  */
 
 import type {
@@ -30,7 +30,6 @@ import type {
 } from '@/types';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '';
-const API_TOKEN = process.env.NEXT_PUBLIC_API_TOKEN || '';
 
 export class ApiError extends Error {
   readonly status: number;
@@ -79,8 +78,8 @@ export function clearApiCache() {
 }
 
 async function fetchAPI<T>(endpoint: string, options: FetchAPIOptions = {}): Promise<T> {
-  const url = `${API_BASE}/api/v1${endpoint}`;
-  const { timeoutMs = 30_000, skipCache, ...requestInit } = options;
+  const url = `${API_BASE}/api/proxy/v1${endpoint}`;
+  const { timeoutMs = 30_000, skipCache: _skipCache, ...requestInit } = options;
 
   const cacheKey = getCacheKey(endpoint, options);
   if (cacheKey) {
@@ -100,7 +99,6 @@ async function fetchAPI<T>(endpoint: string, options: FetchAPIOptions = {}): Pro
       signal: options.signal ?? AbortSignal.timeout(timeoutMs),
       headers: {
         'Accept': 'application/json',
-        ...(API_TOKEN ? { 'X-API-Token': API_TOKEN } : {}),
         ...options.headers,
       },
     });
@@ -174,8 +172,14 @@ export async function listDocuments(): Promise<DocumentListResponse> {
   return fetchAPI<DocumentListResponse>('/documents/');
 }
 
-export async function getDocument(id: string): Promise<DocumentDetailResponse> {
-  return fetchAPI<DocumentDetailResponse>(`/documents/${encodeURIComponent(id)}`);
+export async function getDocument(
+  id: string,
+  options?: { skipCache?: boolean; signal?: AbortSignal }
+): Promise<DocumentDetailResponse> {
+  return fetchAPI<DocumentDetailResponse>(`/documents/${encodeURIComponent(id)}`, {
+    skipCache: options?.skipCache,
+    signal: options?.signal,
+  });
 }
 
 export async function deleteDocument(id: string): Promise<void> {
@@ -200,8 +204,14 @@ export async function startAnalysis(
   );
 }
 
-export async function getAnalysis(analysisId: string): Promise<AnalysisDetailResponse> {
-  return fetchAPI<AnalysisDetailResponse>(`/analysis/${encodeURIComponent(analysisId)}`);
+export async function getAnalysis(
+  analysisId: string,
+  options?: { skipCache?: boolean; signal?: AbortSignal }
+): Promise<AnalysisDetailResponse> {
+  return fetchAPI<AnalysisDetailResponse>(`/analysis/${encodeURIComponent(analysisId)}`, {
+    skipCache: options?.skipCache,
+    signal: options?.signal,
+  });
 }
 
 export async function getReport(analysisId: string): Promise<ReportResponse> {
@@ -304,8 +314,14 @@ export async function listComparacoes(): Promise<ComparacaoListResponse> {
   return fetchAPI<ComparacaoListResponse>('/comparison');
 }
 
-export async function getComparacao(comparacaoId: string): Promise<ComparacaoResponse> {
-  return fetchAPI<ComparacaoResponse>(`/comparison/${encodeURIComponent(comparacaoId)}`);
+export async function getComparacao(
+  comparacaoId: string,
+  options?: { skipCache?: boolean; signal?: AbortSignal }
+): Promise<ComparacaoResponse> {
+  return fetchAPI<ComparacaoResponse>(`/comparison/${encodeURIComponent(comparacaoId)}`, {
+    skipCache: options?.skipCache,
+    signal: options?.signal,
+  });
 }
 
 export async function getMatriz(comparacaoId: string): Promise<MatrizResponse> {
