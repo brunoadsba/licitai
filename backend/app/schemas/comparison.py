@@ -84,6 +84,7 @@ class ComparacaoResultadoResponse(BaseModel):
 class ComparacaoStartResponse(BaseModel):
     """Resposta ao iniciar uma comparação."""
     comparacao_id: uuid.UUID
+    job_id: uuid.UUID | None = None
     message: str
 
 

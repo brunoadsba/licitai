@@ -7,6 +7,7 @@ Fluxo:
 3. GET /comparison/{id}/matrix — matriz de conformidade regras × fornecedores.
 """
 
+import hashlib
 import logging
 import uuid
 
@@ -15,9 +16,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.config import settings
 from app.database import get_db
 from app.models.comparison import Comparacao, Molde
-from app.models.document import Document
+from app.models.document import Document, DocumentItem
 from app.schemas.comparison import (
     ComparacaoListResponse,
     ComparacaoResponse,
@@ -28,14 +30,15 @@ from app.schemas.comparison import (
 )
 from app.services.comparator.feedback import enviar_pendencias_por_email
 from app.services.comparator.matrix import montar_matriz
-from app.services.comparator.runner import executar_comparacao_background
 from app.services.comparator.serializers import (
     carregar_fornecedores,
     montar_comparacao_response,
     resultados_para_dict,
 )
 from app.services.email.sender import smtp_configurado
+from app.services.jobs import enqueue
 from app.services.rules.loader import parse_molde
+from app.worker import process_job_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -152,26 +155,58 @@ async def start_comparacao(
         fornecedores_vistos.add(doc.fornecedor_id)
         propostas.append(doc)
 
+    tr_item_ids = (
+        await db.execute(
+            select(DocumentItem.id).where(
+                DocumentItem.document_id == data.tr_document_id,
+                DocumentItem.archived_at.is_(None),
+            )
+        )
+    ).scalars().all()
+    molde_hash = hashlib.sha256(molde.config_json.encode("utf-8")).hexdigest()
+    model_map = {
+        "groq": settings.groq_model,
+        "gemini": settings.gemini_model,
+        "ollama": settings.ollama_model,
+    }
+    run_snapshot = {
+        "item_ids": [str(i) for i in tr_item_ids],
+        "molde_config_hash": molde_hash,
+        "prompt_version": "comparison-v1",
+        "corpus_version": "legal-v1",
+        "provider": settings.llm_provider,
+        "model": model_map.get(settings.llm_provider, "unknown"),
+        "propostas_ids": [str(p) for p in propostas_ids_unicas],
+    }
+
     comparacao = Comparacao(
         tr_document_id=data.tr_document_id,
         molde_id=data.molde_id,
         status="pending",
+        run_snapshot=run_snapshot,
+        propostas_ids=[str(p) for p in propostas_ids_unicas],
     )
     db.add(comparacao)
     await db.flush()
     comparacao_id = comparacao.id
+
+    job = await enqueue(
+        db,
+        "comparacao",
+        {
+            "comparacao_id": str(comparacao_id),
+            "tr_document_id": str(data.tr_document_id),
+            "molde_id": str(data.molde_id),
+            "propostas_ids": [str(p) for p in propostas_ids_unicas],
+        },
+    )
     await db.commit()
 
-    background_tasks.add_task(
-        executar_comparacao_background,
-        comparacao_id,
-        data.tr_document_id,
-        data.molde_id,
-        propostas_ids_unicas,
-    )
+    background_tasks.add_task(process_job_by_id, job.id)
 
     return ComparacaoStartResponse(
         comparacao_id=comparacao_id,
+        job_id=job.id,
         message="Comparação iniciada. Acompanhe pelo endpoint de status.",
     )
 
