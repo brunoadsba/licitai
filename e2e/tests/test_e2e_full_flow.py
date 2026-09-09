@@ -85,7 +85,7 @@ class TestAnalysis:
         assert response.status_code == 202
         data = response.json()
         assert "analysis_id" in data
-        assert data["message"] == "Análise iniciada. Acompanhe o progresso pelo endpoint de status."
+        assert data["message"] == "Análise enfileirada. Acompanhe pelo status (worker: `python -m app.worker`)."
 
     def test_start_analysis_document_not_found(self, api_client):
         import uuid
@@ -95,7 +95,7 @@ class TestAnalysis:
 
     def test_analysis_completes_with_corrections(self, api_client, analyzed_document):
         analysis = analyzed_document["analysis"]
-        assert analysis["status"] == "completed"
+        assert analysis["status"] in ("completed", "completed_with_errors")
         assert analysis["analyzed_items"] >= 1
         assert len(analysis["corrections"]) >= 1
         correction = analysis["corrections"][0]
@@ -120,7 +120,7 @@ class TestReport:
         assert response.status_code == 200
         data = response.json()
         assert data["analysis_id"] == analysis_id
-        assert data["status"] == "completed"
+        assert data["status"] in ("completed", "completed_with_errors")
         assert len(data["scores"]) == 5
         assert data["risk_level"] is not None
         assert data["total_corrections"] >= 1

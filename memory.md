@@ -50,8 +50,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **Novos Extratores**: CNPJ (dígitos verificadores), Prazo Relativo (ex: "30 dias"), CEP (`#####-###`).
   - **Duplicação & Dry-Run**: Endpoints `POST /moldes/{id}/duplicate` e `POST /moldes/{id}/validate/{document_id}` com modal no frontend.
 - **Provedores de LLM (Factory Pattern com Failover Simétrico)**:
-  - **Google Gemini API** (`gemini_provider.py`) — *Provedor*: `gemini-2.0-flash`.
-  - **Groq API** (`groq_provider.py`) — *Provedor ativo*: `llama-3.1-8b-instant` (otimizado para inferência rápida e cota de 500.000 tokens/dia no free tier).
+  - **Google Gemini API** (`gemini_provider.py`) — *Provedor*: `gemini-flash-latest` (alias estável; `gemini-2.0-flash` descontinuado em 09/09/2026).
+  - **Groq API** (`groq_provider.py`) — *Provedor ativo*: `openai/gpt-oss-20b` (`llama-3.1-8b-instant` removido do catálogo Groq em 09/09/2026).
   - **Ollama** (`ollama_provider.py`) — *Local*: `qwen3:32b`, `deepseek-r1:32b`, `hermes3` (mais leve, bom em JSON/instruções; opção para TRs sigilosos), etc.
   - **Failover Simétrico (`provider.py`)**: Tenta o provedor primário configurado (`LLM_PROVIDER`) e realiza fallback automático para os demais provedores com chaves válidas.
 - **Compatibilidade Windows**:
@@ -104,7 +104,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **Resiliência LLM (`services/llm/provider.py` reescrito)**: `get_llm_provider()` virou **singleton** (`reset_llm_provider()` p/ testes) — estado de failover persiste entre chamadas; retry único com backoff (1s) para erros transitórios; **timeout não é re-tentado**; **circuit breaker** em 429/quota (cooldown 30s por provedor, `_is_rate_limit_error` detecta 429/RESOURCE_EXHAUSTED/quota/TPM/TPD). Fix: `engine.py` capturava `ValueError` mas a factory levanta `RuntimeError`. Limiter global adicional em `services/llm/limiter.py` (Fase 3 confiabilidade).
   - **Análise paralela (`analyzer/engine.py`)**: pipeline em fases — RAG sequencial (sessão DB única) → análise LLM concorrente com `asyncio.Semaphore(settings.analysis_concurrency, padrão 3)` via `gather(return_exceptions=True)` → persistência sequencial com commit por item → revisão cruzada concorrente (LLM-only) + aplicação sequencial. TR de N itens ≈ 5N+1 chamadas agora com concorrência 3×. Itens com erro não derrubam o lote.
   - **Parsing fora do event loop (`parser/__init__.py`)**: `parse_pdf/docx/odt` (sync, CPU-bound) offloadados via `asyncio.to_thread` — OCR de PDF escaneado não congela mais o backend inteiro durante upload; OCR hard-timeout em subprocesso (`parser/ocr_subprocess.py`).
-  - **Docker/env corrigidos**: `docker-compose.yml` com serviços `db`, `backend`, **`worker`**, `frontend`; frontend recebe `BACKEND_URL=http://backend:8000` e `API_TOKEN` (BFF); default `GROQ_MODEL` alinhado a `llama-3.1-8b-instant`.
+  - **Docker/env corrigidos**: `docker-compose.yml` com serviços `db`, `backend`, **`worker`**, `frontend`; frontend recebe `BACKEND_URL=http://backend:8000` (também no **build arg** do Dockerfile — rewrites Next embutem no build) e `API_TOKEN` (BFF); default `GROQ_MODEL=openai/gpt-oss-20b`.
   - **Bug de score zero (falsy)**: `api/analysis.py` extraiu `_score_details()` — `float(x) if x is not None` (nota 0.0 legítima não vira mais null); `engine.py` idem (`if analysis.score_overall is None`). Scoring determinístico primário em `analyzer/scoring.py`.
   - **TOCTOU**: `start_analysis` usa `with_for_update()` no Document (serializa starts concorrentes no Postgres; no-op SQLite); `start_comparacao` idem via `db.get(..., with_for_update=True)`.
   - **N+1 eliminado**: `list_comparacoes` pré-carrega fornecedores da página em 1 query (`montar_comparacao_response(c, db, fornecedores_precarregados)`).
@@ -410,24 +410,28 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 - **Groq 429 Rate Limit (05/08/2026)**: o modelo `llama-3.3-70b-versatile` no free tier do Groq possui limite de 100k tokens/dia (TPD), que estourou durante o uso do Copiloto. Solução: alterado modelo padrão no `config.py` para `llama-3.1-8b-instant` (cota de 500k tokens/dia no free tier e latência < 1s), tornado o `_build_providers()` simétrico para failover bidirecional (Groq ↔ Gemini) e reiniciado o processo do backend. Teste ao vivo da API confirmou retorno HTTP 200 com resposta válida do Llama.
 - **Python 3.12 do sistema WSL corrompido — `_ctypes` quebrado (13/08/2026) — RESOLVIDO**: `import ctypes` falhava com `ImportError: /usr/lib/python3.12/lib-dynload/_ctypes.cpython-312-x86_64-linux-gnu.so: undefined symbol: _PyErr_SetLocaleString`. **Causa raiz (diagnóstico 13/08)**: *mix de fontes apt* — `python3.12-minimal`/`libpython3.12-minimal` eram do **noble (24.04) 3.12.3-1ubuntu0.15**, mas `python3.12`/`python3.12-venv`/`libpython3.12-stdlib` eram do **deadsnakes PPA (build jammy) 3.12.12-1+jammy1** (`deadsnakes-ubuntu-ppa-jammy.sources`). O `_PyErr_SetLocaleString` foi adicionado ao CPython na **3.12.4**; o binário `/usr/bin/python3.12` (noble 3.12.3, `nm -D` sem o símbolo) não o exporta, mas o `_ctypes` 3.12.12 (deadsnakes) o exige. **Reparo aplicado (13/08)**: `sudo apt install --allow-downgrades python3.12=3.12.3-1ubuntu0.15 python3.12-minimal=3.12.3-1ubuntu0.15 libpython3.12-minimal=3.12.3-1ubuntu0.15 libpython3.12-stdlib=3.12.3-1ubuntu0.15 python3.12-venv=3.12.3-1ubuntu0.15` (alinha TODA a stack ao noble — reinstall só dos `-minimal` NÃO resolve, pois o `_ctypes` mora no `-stdlib`) + desabilitado o PPA jammy (`sudo mv /etc/apt/sources.list.d/deadsnakes-ubuntu-ppa-jammy.sources ...disabled`) + `sudo apt install python3-pglast` (faltava no sistema). **Validação**: `import ctypes, magic` ok e **159/159 testes verdes** com o python do sistema.
 - **Upload respondia 201 antes do commit (24/08/2026)**: o endpoint `POST /documents/upload` persistia via `flush()` e dependia do commit pós-resposta do `get_db`. Com a resposta chegando ao cliente antes desse commit, um `DELETE`/`GET` imediato sobre o id recém-criado retornava 404 — corrida exposta no E2E (`test_delete_document`) após o parsing virar `asyncio.to_thread` (mudou o timing da janela). Corrigido com `await db.commit()` explícito ao fim do upload; **11/11 E2E não-LLM verdes em 3 runs consecutivas** após o fix.
+- **Runtime Docker / modelos LLM (09/09/2026, branch `ops/runtime-confiavel`)**:
+  - Frontend standalone embutia `BACKEND_URL=127.0.0.1:8000` no **build** dos rewrites → `/readyz` via UI falhava com `ECONNREFUSED`. Fix: `ARG BACKEND_URL=http://backend:8000` no `frontend/Dockerfile` + `build.args` no Compose; healthcheck do frontend passou a validar `/readyz`.
+  - Worker ganhou `--check-db` + healthcheck Compose; smoke `./scripts/smoke_readyz.sh` cobre API, `/api/docs`, frontend e health dos 4 containers.
+  - Modelos descontinuados: `llama-3.1-8b-instant` (Groq 404) e `gemini-2.0-flash` (Gemini 404). Defaults atualizados para `openai/gpt-oss-20b` e `gemini-flash-latest`; `ANALYSIS_CONCURRENCY=1` no Compose reduz 429 TPM no free tier.
+  - E2E API contra Docker: **17/17** em ~4m22s (`E2E_BASE_URL=http://127.0.0.1:8000`). Fixture de análise em escopo `module` (uma LLM run); aceita `completed_with_errors`; mensagem “enfileirada” alinhada ao worker-only.
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Ver `PLANO.md` para backlog histórico. **Confiabilidade (08/09/2026)** na branch `feat/confiabilidade-master`: código das Fases 0–3 do plano mestre entregue; CI **não** reabilitar sem pedido.
+> Ver `PLANO.md` para backlog histórico. Runtime local na branch `ops/runtime-confiavel` (sobre `feat/confiabilidade-master`). CI **não** reabilitar sem pedido.
 
 ### Agora (ops / Bruno — sem bloquear código)
 1. Quando conveniente: rotacionar chaves Gemini/Groq e `POSTGRES_PASSWORD` (adiado no MVP a pedido do usuário).
-2. `docker compose up -d` (inclui **worker**) + `./scripts/smoke_readyz.sh` + smoke upload→análise→relatório.
-3. Restore drill (`docs/ops/restore-drill.md`) quando houver janela.
-4. Definir `DATABASE_URL` no `.env` apontando ao Postgres (senão Alembic/local caem no SQLite default).
+2. Restore drill (`docs/ops/restore-drill.md`) quando houver janela.
+3. Abrir PR / merge: `ops/runtime-confiavel` → `feat/confiabilidade-master` (e depois base acordada).
 
 ### Produto / qualidade (não urgente)
-- Abrir PR `feat/confiabilidade-master` → base acordada (`feat/ux-modernization` ou `main`) quando for mergear.
 - Curadoria humana de stubs em `e2e/golden/feedback/` via `promote_feedback.py`.
-- Rodar E2E com LLM real quando cota permitir; Playwright live (`E2E_LIVE=1`) opcional.
+- Playwright live (`E2E_LIVE=1`) opcional.
 - Reabilitar CI só se o usuário pedir explicitamente.
 
 ### Fora de escopo (premissas travadas)
 - Multi-tenant / JWT / RBAC completo; LangGraph; fine-tune; Kubernetes.
 
-> **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.
+> **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
+> **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.

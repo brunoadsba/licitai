@@ -38,11 +38,11 @@ class Settings(BaseSettings):
 
     # --- Groq ---
     groq_api_key: str = ""
-    groq_model: str = "llama-3.1-8b-instant"
+    groq_model: str = "openai/gpt-oss-20b"
 
     # --- Google Gemini ---
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-1.5-flash"
+    gemini_model: str = "gemini-flash-latest"
 
     # --- Ollama ---
     ollama_base_url: str = "http://ollama:11434"

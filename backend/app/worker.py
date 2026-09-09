@@ -263,7 +263,20 @@ async def run_worker_loop(*, once: bool = False) -> None:
             break
 
 
+async def check_db() -> None:
+    """Probe leve de conectividade (healthcheck do Compose)."""
+    from sqlalchemy import text
+
+    async with async_session_factory() as db:
+        await db.execute(text("SELECT 1"))
+
+
 def main() -> None:
+    import sys
+
+    if "--check-db" in sys.argv:
+        asyncio.run(check_db())
+        return
     asyncio.run(run_worker_loop())
 
 

@@ -38,8 +38,10 @@ Bloquear promote se CRITICAL sem mitigação documentada.
 
 - Serviços: `db`, `backend` (API), **`worker`** (processa `jobs`), `frontend` (BFF injeta `API_TOKEN`).
 - Sem o `worker`, `POST .../start` só enfileira — análise/comparação não avançam.
-- Smoke: `./scripts/smoke_readyz.sh` depois `docker compose up -d`.
+- Smoke: `./scripts/smoke_readyz.sh` depois `docker compose up -d` (valida `/livez`, `/readyz`, `/api/docs`, frontend `/readyz` e health dos containers).
+- Frontend: build arg `BACKEND_URL=http://backend:8000` obrigatório (rewrites do Next são embutidos no build).
 - Schema: Alembic head `20260908_003` (ou `scripts/apply_reliability_schema.sql` em Postgres já provisionado).
+- LLM defaults: Groq `openai/gpt-oss-20b`, Gemini `gemini-flash-latest`; `ANALYSIS_CONCURRENCY=1` no free tier.
 
 ## Checklist pré-promote
 

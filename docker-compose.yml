@@ -36,14 +36,15 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://sei_user:${POSTGRES_PASSWORD}@db:5432/sei_analise}
       LLM_PROVIDER: ${LLM_PROVIDER:-groq}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
       API_TOKEN: ${API_TOKEN:-}
+      ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-1}
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
@@ -75,17 +76,25 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://sei_user:${POSTGRES_PASSWORD}@db:5432/sei_analise}
       LLM_PROVIDER: ${LLM_PROVIDER:-groq}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
-      GROQ_MODEL: ${GROQ_MODEL:-llama-3.1-8b-instant}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
       API_TOKEN: ${API_TOKEN:-}
       APP_ENV: ${APP_ENV:-development}
       LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-true}
+      # Free tier: concorrência 1 reduz 429 TPM no Groq durante E2E/uso local
+      ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-1}
     volumes:
       - ./backend/app:/app/app:ro
       - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-m", "app.worker", "--check-db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     depends_on:
       db:
         condition: service_healthy
@@ -101,11 +110,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Obrigatório no build: next.config.js embute BACKEND_URL nos rewrites.
+        BACKEND_URL: http://backend:8000
     container_name: sei-frontend
     restart: unless-stopped
     environment:
-      # BACKEND_URL é usado pelos rewrites/BFF server-side do next.config.js:
-      # sem ele o proxy cairia em 127.0.0.1 dentro do container (quebrado).
+      # Runtime (BFF /api/proxy). Rewrites já usam o valor do build arg acima.
       BACKEND_URL: http://backend:8000
       # Vazio = browser usa caminhos relativos via BFF /api/proxy.
       NEXT_PUBLIC_API_URL: ""
@@ -114,13 +125,14 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/readyz"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 20s
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - sei-network
 

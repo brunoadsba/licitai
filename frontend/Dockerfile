@@ -12,6 +12,10 @@ FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Rewrites do next.config.js embutem BACKEND_URL no build.
+# No Compose a API é o serviço `backend`, não 127.0.0.1 do container.
+ARG BACKEND_URL=http://backend:8000
+ENV BACKEND_URL=$BACKEND_URL
 RUN npm run build
 
 # Production
