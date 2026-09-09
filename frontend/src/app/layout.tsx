@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   title: 'Análise de Termos de Referência | SEI',
   description:
     'Sistema especialista para análise e revisão de Termos de Referência de licitações públicas usando Inteligência Artificial.',
+  icons: {
+    icon: [{ url: '/logo-codeba.png', type: 'image/png' }],
+    shortcut: '/logo-codeba.png',
+    apple: '/logo-codeba.png',
+  },
 };
 
 export default function RootLayout({
