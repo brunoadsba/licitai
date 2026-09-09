@@ -1,316 +1,115 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import {
-  listComparacoes,
-  listFornecedores,
-  listMoldes,
-  listDocuments,
-  createFornecedor,
-  updateFornecedor,
-  deleteFornecedor,
-  startComparacao,
-  enviarFeedback,
-  uploadDocument,
-  extractErrorMessage,
-} from '@/lib/api';
-import type { DocumentResponse, Fornecedor, Molde } from '@/types';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
+import AlertBanner from '@/components/ui/AlertBanner';
 import NovaComparacaoForm from '@/components/comparacao/NovaComparacaoForm';
 import FornecedorPanel from '@/components/comparacao/FornecedorPanel';
 import ComparacaoList from '@/components/comparacao/ComparacaoList';
-
-interface Comparacao {
-  id: string;
-  tr_document_id: string;
-  molde_id: string;
-  status: string;
-  error_message: string | null;
-  created_at: string;
-  completed_at: string | null;
-  total_resultados: number;
-  fornecedores: { id: string; nome: string }[];
-}
+import { useComparacaoPage } from '@/components/comparacao/useComparacaoPage';
 
 export default function ComparacaoPage() {
-  const [comparacoes, setComparacoes] = useState<Comparacao[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Dados para criar comparação
-  const [trs, setTrs] = useState<DocumentResponse[]>([]);
-  const [propostas, setPropostas] = useState<DocumentResponse[]>([]);
-  const [moldes, setMoldes] = useState<Molde[]>([]);
-  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
-
-  const [trId, setTrId] = useState('');
-  const [moldeId, setMoldeId] = useState('');
-  const [propostaIds, setPropostaIds] = useState<string[]>([]);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Upload de proposta
-  const [novoFornecedor, setNovoFornecedor] = useState('');
-  const [novoFornecedorCnpj, setNovoFornecedorCnpj] = useState('');
-  const [novoFornecedorEmail, setNovoFornecedorEmail] = useState('');
-  const [editandoFornecedorId, setEditandoFornecedorId] = useState<string | null>(null);
-  const [propostaFile, setPropostaFile] = useState<File | null>(null);
-  const [propostaFornecedorId, setPropostaFornecedorId] = useState('');
-  const [uploading, setUploading] = useState(false);
-
-  // Feedback de pendências por e-mail (RF04)
-  const [sendingFeedbackId, setSendingFeedbackId] = useState<string | null>(null);
-  const [feedbackEnviadosIds, setFeedbackEnviadosIds] = useState<string[]>([]);
-  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
-
-  const loadAll = useCallback(async () => {
-    try {
-      setLoading(true);
-      const [cmp, trsData, propData, moldesData, fornecedoresData] =
-        await Promise.all([
-          listComparacoes(),
-          listDocuments(),
-          listDocuments(),
-          listMoldes(),
-          listFornecedores(),
-        ]);
-      setComparacoes(cmp.comparacoes);
-      setTrs(trsData.documents.filter((d) => d.document_type === 'tr'));
-      setPropostas(propData.documents.filter((d) => d.document_type === 'proposta'));
-      setMoldes(moldesData.moldes);
-      setFornecedores(fornecedoresData.fornecedores);
-    } catch {
-      setError('Erro ao carregar dados. Verifique se o backend está rodando.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadAll();
-  }, [loadAll]);
-
-  function toggleProposta(id: string) {
-    setPropostaIds((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
-    );
-  }
-
-  async function handleStart() {
-    if (!trId || !moldeId || propostaIds.length === 0) {
-      setError('Selecione o TR, o molde e ao menos uma proposta.');
-      return;
-    }
-    try {
-      setSubmitting(true);
-      setError(null);
-      await startComparacao({
-        tr_document_id: trId,
-        molde_id: moldeId,
-        propostas_ids: propostaIds,
-      });
-      setPropostaIds([]);
-      await loadAll();
-    } catch (err) {
-      setError(extractErrorMessage(err, 'Erro ao iniciar comparação.'));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  async function handleCadastrarFornecedor() {
-    if (!novoFornecedor.trim()) return;
-    const dados = {
-      nome: novoFornecedor.trim(),
-      cnpj: novoFornecedorCnpj.trim() || undefined,
-      email: novoFornecedorEmail.trim() || undefined,
-    };
-    try {
-      if (editandoFornecedorId) {
-        await updateFornecedor(editandoFornecedorId, dados);
-      } else {
-        await createFornecedor(dados);
-      }
-      setNovoFornecedor('');
-      setNovoFornecedorCnpj('');
-      setNovoFornecedorEmail('');
-      setEditandoFornecedorId(null);
-      const data = await listFornecedores();
-      setFornecedores(data.fornecedores);
-    } catch (err) {
-      setError(extractErrorMessage(err, 'Erro ao salvar fornecedor.'));
-    }
-  }
-
-  function handleEditarFornecedor(f: Fornecedor) {
-    setEditandoFornecedorId(f.id);
-    setNovoFornecedor(f.nome);
-    setNovoFornecedorCnpj(f.cnpj || '');
-    setNovoFornecedorEmail(f.email || '');
-  }
-
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
-
-  async function handleExcluirFornecedor(id: string) {
-    try {
-      await deleteFornecedor(id);
-      if (editandoFornecedorId === id) {
-        setEditandoFornecedorId(null);
-        setNovoFornecedor('');
-        setNovoFornecedorCnpj('');
-        setNovoFornecedorEmail('');
-      }
-      const data = await listFornecedores();
-      setFornecedores(data.fornecedores);
-    } catch (err) {
-      setError(extractErrorMessage(err, 'Erro ao excluir fornecedor.'));
-    }
-  }
-
-  async function handleFeedback(id: string) {
-    try {
-      setSendingFeedbackId(id);
-      setError(null);
-      setFeedbackMsg(null);
-      const result = await enviarFeedback(id);
-      let msg = `Pendências enviadas: ${result.enviados} e-mail(s).`;
-      if (result.falhas.length > 0) {
-        msg += ` Falhas: ${result.falhas.map((f) => f.nome).join(', ')}.`;
-      }
-      if (result.fornecedores_sem_pendencias.length > 0) {
-        msg += ` Sem pendências: ${result.fornecedores_sem_pendencias.join(', ')}.`;
-      }
-      if (result.fornecedores_sem_email.length > 0) {
-        msg += ` Sem e-mail cadastrado: ${result.fornecedores_sem_email.join(', ')}.`;
-      }
-      setFeedbackMsg(msg);
-      setFeedbackEnviadosIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-    } catch (err) {
-      setError(extractErrorMessage(err, 'Erro ao enviar pendências.'));
-    } finally {
-      setSendingFeedbackId(null);
-    }
-  }
-
-  async function handleUploadProposta() {
-    if (!propostaFile || !propostaFornecedorId) {
-      setError('Selecione o arquivo e o fornecedor da proposta.');
-      return;
-    }
-    try {
-      setUploading(true);
-      setError(null);
-      await uploadDocument(propostaFile, {
-        documentType: 'proposta',
-        fornecedorId: propostaFornecedorId,
-      });
-      setPropostaFile(null);
-      setPropostaFornecedorId('');
-      const data = await listDocuments();
-      setPropostas(data.documents.filter((d) => d.document_type === 'proposta'));
-    } catch (err) {
-      setError(extractErrorMessage(err, 'Erro ao enviar proposta.'));
-    } finally {
-      setUploading(false);
-    }
-  }
+  const page = useComparacaoPage();
 
   return (
-    <div className="animate-fade-in space-y-8">
-      {/* Cabeçalho */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
-            Auditoria TR × Propostas
-          </h1>
-          <p className="mt-1 text-sm text-content-muted">
-            Compare as propostas dos fornecedores com o Termo de Referência
-          </p>
-        </div>
-      </div>
-
-      {error && (
-        <div className="glass-card border-red-500/20 p-4">
-          <p className="text-sm text-red-400">{error}</p>
-        </div>
-      )}
-
-      {feedbackMsg && (
-        <div className="glass-card border-accent-500/30 p-4">
-          <p className="text-sm text-content-secondary">{feedbackMsg}</p>
-        </div>
-      )}
-
-      {/* Seção de criação */}
-      <div className="glass-card p-5 sm:p-6">
-        <h2 className="mb-4 text-lg font-semibold tracking-tight text-content-primary">
-          Nova Comparação
-        </h2>
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <NovaComparacaoForm
-            trs={trs}
-            moldes={moldes}
-            propostas={propostas}
-            propostaIds={propostaIds}
-            submitting={submitting}
-            onToggleProposta={toggleProposta}
-            onStart={handleStart}
-            setTrId={setTrId}
-            setMoldeId={setMoldeId}
-          />
-
-          <FornecedorPanel
-            fornecedores={fornecedores}
-            editandoId={editandoFornecedorId}
-            nome={novoFornecedor}
-            cnpj={novoFornecedorCnpj}
-            email={novoFornecedorEmail}
-            propostaFornecedorId={propostaFornecedorId}
-            propostaFile={propostaFile}
-            uploading={uploading}
-            setNome={setNovoFornecedor}
-            setCnpj={setNovoFornecedorCnpj}
-            setEmail={setNovoFornecedorEmail}
-            setPropostaFornecedorId={setPropostaFornecedorId}
-            setPropostaFile={setPropostaFile}
-            onSalvar={handleCadastrarFornecedor}
-            onCancelarEdicao={() => {
-              setEditandoFornecedorId(null);
-              setNovoFornecedor('');
-              setNovoFornecedorCnpj('');
-              setNovoFornecedorEmail('');
-            }}
-            onEditar={handleEditarFornecedor}
-            onExcluir={(id) => setConfirmDeleteId(id)}
-            onUpload={handleUploadProposta}
-          />
-        </div>
-      </div>
-
-      {/* Listagem de comparações */}
+    <div className="animate-fade-in space-y-6">
       <div>
-        <h2 className="mb-4 text-lg font-semibold tracking-tight text-content-primary">
-          Comparações Realizadas
-        </h2>
-        <ComparacaoList
-          comparacoes={comparacoes}
-          loading={loading}
-          sendingFeedbackId={sendingFeedbackId}
-          feedbackEnviadosIds={feedbackEnviadosIds}
-          onFeedback={handleFeedback}
-        />
+        <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
+          Auditoria TR × Propostas
+        </h1>
+        <p className="mt-1 text-sm text-content-muted">
+          Compare propostas com o Termo de Referência em etapas separadas
+        </p>
       </div>
+
+      {page.error && (
+        <AlertBanner variant="error" title="Não foi possível concluir">
+          {page.error}
+        </AlertBanner>
+      )}
+
+      {page.feedbackMsg && (
+        <AlertBanner variant="info" title="Feedback enviado">
+          {page.feedbackMsg}
+        </AlertBanner>
+      )}
+
+      <Tabs defaultValue="historico">
+        <TabsList aria-label="Seções da auditoria">
+          <TabsTrigger value="historico">Histórico</TabsTrigger>
+          <TabsTrigger value="nova">Nova auditoria</TabsTrigger>
+          <TabsTrigger value="fornecedores">Fornecedores</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="historico">
+          <ComparacaoList
+            comparacoes={page.comparacoes}
+            loading={page.loading}
+            sendingFeedbackId={page.sendingFeedbackId}
+            feedbackEnviadosIds={page.feedbackEnviadosIds}
+            onFeedback={page.handleFeedback}
+          />
+        </TabsContent>
+
+        <TabsContent value="nova">
+          <div className="glass-card p-5 sm:p-6">
+            <h2 className="mb-4 text-lg font-semibold tracking-tight text-content-primary">
+              Nova Comparação
+            </h2>
+            <NovaComparacaoForm
+              trs={page.trs}
+              moldes={page.moldes}
+              propostas={page.propostas}
+              propostaIds={page.propostaIds}
+              submitting={page.submitting}
+              onToggleProposta={page.toggleProposta}
+              onStart={page.handleStart}
+              setTrId={page.setTrId}
+              setMoldeId={page.setMoldeId}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="fornecedores">
+          <div className="glass-card p-5 sm:p-6">
+            <h2 className="mb-4 text-lg font-semibold tracking-tight text-content-primary">
+              Fornecedores e propostas
+            </h2>
+            <FornecedorPanel
+              fornecedores={page.fornecedores}
+              editandoId={page.editandoFornecedorId}
+              nome={page.novoFornecedor}
+              cnpj={page.novoFornecedorCnpj}
+              email={page.novoFornecedorEmail}
+              propostaFornecedorId={page.propostaFornecedorId}
+              propostaFile={page.propostaFile}
+              uploading={page.uploading}
+              setNome={page.setNovoFornecedor}
+              setCnpj={page.setNovoFornecedorCnpj}
+              setEmail={page.setNovoFornecedorEmail}
+              setPropostaFornecedorId={page.setPropostaFornecedorId}
+              setPropostaFile={page.setPropostaFile}
+              onSalvar={page.handleCadastrarFornecedor}
+              onCancelarEdicao={page.clearFornecedorForm}
+              onEditar={page.handleEditarFornecedor}
+              onExcluir={(id) => page.setConfirmDeleteId(id)}
+              onUpload={page.handleUploadProposta}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <ConfirmDialog
-        open={confirmDeleteId !== null}
+        open={page.confirmDeleteId !== null}
         title="Excluir fornecedor"
         message="Excluir este fornecedor? Esta ação não pode ser desfeita."
         confirmLabel="Excluir"
         danger
         onConfirm={() => {
-          if (confirmDeleteId) handleExcluirFornecedor(confirmDeleteId);
-          setConfirmDeleteId(null);
+          if (page.confirmDeleteId) void page.handleExcluirFornecedor(page.confirmDeleteId);
+          page.setConfirmDeleteId(null);
         }}
-        onCancel={() => setConfirmDeleteId(null)}
+        onCancel={() => page.setConfirmDeleteId(null)}
       />
     </div>
   );

@@ -77,3 +77,17 @@ Ordem estrita, uma PR/passo por página, cada uma: trocar emojis/SVGs→Lucide, 
 
 ## 6. Fora de escopo
 Autenticação/RBAC, i18n, dark/light toggle (app é dark-only por decisão), migração Tailwind v4, RSC/streaming (páginas permanecem `'use client'`).
+
+---
+
+## 7. Continuação UX SEI / funil (09/09/2026) — CONCLUÍDA
+
+Branch: `feat/ux-sprint2-funil` (sobre `feat/confiabilidade-master`).
+
+| Sprint | Escopo | Status |
+|---|---|---|
+| 1 P0 | Review humana SEI (`PATCH` + UI), upload auto-start análise, dashboard CTAs/refresh | Feito |
+| 2 P1 | Nav longest-prefix + Auditoria, Sheet drawer/chat mobile, abas Comparações, fundir wizard→upload | Feito |
+| 3 P2 | Breadcrumbs links, microcopy institucional, EmptyState, migração `btn-primary`→Button | Feito |
+
+Artefatos novos relevantes: `components/ui/Sheet.tsx`, `CorrectionReviewActions.tsx`, `ChatCopilot.tsx`, `useUploadAnalysisPipeline.ts`, `useComparacaoPage.ts`, `tests/test_correction_review_api.py`.

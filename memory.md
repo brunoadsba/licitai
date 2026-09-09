@@ -109,7 +109,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **TOCTOU**: `start_analysis` usa `with_for_update()` no Document (serializa starts concorrentes no Postgres; no-op SQLite); `start_comparacao` idem via `db.get(..., with_for_update=True)`.
   - **N+1 eliminado**: `list_comparacoes` pré-carrega fornecedores da página em 1 query (`montar_comparacao_response(c, db, fornecedores_precarregados)`).
   - **Observabilidade**: providers Groq/Gemini/Ollama logam `llm_usage` (prompt/completion/total tokens + latência) e o FailoverProvider loga `llm_call` por chamada; `/metrics` in-memory.
-  - **Frontend**: `api.ts` tipado via BFF `/api/proxy/v1`; polling com `skipCache`, backoff e pausa em aba oculta (`lib/polling.ts`); cópia SEI só `aprovada|ajustada` (`CorrectionCard`/`ItemDetail`).
+  - **Frontend**: `api.ts` tipado via BFF `/api/proxy/v1` (GET/POST/PUT/PATCH/DELETE); polling com `skipCache`, backoff e pausa em aba oculta (`lib/polling.ts`); cópia SEI só `aprovada|ajustada` (`CorrectionCard`/`ItemDetail`) **após revisão humana** (`PATCH /analysis/corrections/{id}` + UI Aprovar/Rejeitar/Ajustar).
   - **Quick wins**: `main.py` lifespan; `/livez`/`/readyz`/`/health`; warning quando item >8000 chars é truncado.
   - **Tooling**: `backend/pyproject.toml` (ruff); **CI GitHub Actions permanece DESABILITADO** (`ci.yml.disabled`) — não reabilitar sem pedido explícito.
   - **Pendências da auditoria que FORAM feitas na confiabilidade (08/09)**: Alembic (substitui create_all em staging/prod; create_all só SQLite development), fila durável, filtro SEI, checklist Art. 6 correto, agentes tipados. Ainda fora de escopo: multi-tenant/RBAC, LangGraph, fine-tune, K8s.
@@ -122,6 +122,11 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **Fase 3e (concluída, `af6dd94`)**: `comparacao/{page, [id]/page, versoes/page}`, `moldes/page` + `MoldeList/MoldeForm/RegraEditor/DryRunModal`, `gerar-tr/{page, PassoDados, PassoRequisitos, ResultadoTR}`, `RevisionsTimelineModal` (migrado para Radix Dialog) e `chat/{ChatMessage, CitationList}` — todos com emojis/SVGs inline → Lucide + primitivos `ui/`, grids empilháveis, toasts em ações; `versoes` e `ResultadoTR` com bug pré-existente `badge-success/warning/danger` corrigido para `badge-baixo/medio/critico`; `gerar-tr` com `alert()` → `toast.success`.
   - **Fase 4 (concluída, `59a4ebd`)**: motion com intenção — `Dialog`/`DropdownMenu`/`Tooltip` com keyframes `overlayIn/contentIn/menuIn` (sem `tailwindcss-animate`), `Dashboard` com stagger `framer-motion` (`MotionConfig reducedMotion="user"`), `Sidebar` drawer com spring (`stiffness 400, damping 40`, `AnimatePresence`); **aliases legados `primary`/`surface` removidos** do `tailwind.config.js` (grep provou zero uso em `.tsx`+`.ts`; único `surface-hover` remanescente é var semântica própria); `.glow` removido do `globals.css`; contraste do botão primário corrigido (`accent-600` 3.99:1 → `accent-700` 5.8:1, Lighthouse `color-contrast` resolvido); ordem de headings corrigida (`EmptyState h3→h2`, `Dashboard li h3→p`, `ItemDetail h3→h2`, `ChatPanel h3→h2`, `Upload h3→h2`, `RevisionsTimelineModal h4→h3`); `tsc` limpo, `next build` ok, **Lighthouse mobile 100/96/100** (a11y 100, best-practices 96 — único falho restante é 8× `Failed to load resource: 500` do proxy com backend offline, ambiental), QA visual **375/768/1280 sem overflow** (7 rotas + 404) e interações (dialog focus trap/Escape, drawer overlay/spring/Escape) verificados; dev server reiniciado (`100dvh`, `.next` preservado).
   - **Nota de ambiente (25/08)**: delegação via subagentes `task()` **indisponível** (billing do workspace opencode — "No payment method"); execução feita diretamente pelo orquestrador com gates por fase (tsc/build/QA visual via Chrome DevTools MCP).
+- **UX Sprint SEI / funil (09/09/2026 — branch `feat/ux-sprint2-funil`)**:
+  - **Sprint 1 (P0)**: revisão humana de correções — `PATCH /api/v1/analysis/corrections/{correction_id}` (`CorrectionReviewUpdate`), UI Aprovar/Rejeitar/Ajustar (`CorrectionReviewActions`), gate SEI no accordion do relatório, BFF com `PATCH`; upload chama `startAnalysis` pós-parse (`useUploadAnalysisPipeline`); dashboard com CTAs por status, Atualizar + poll leve, cards com `Link`.
+  - **Sprint 2 (P1)**: nav longest-prefix + grupo Auditoria; drawer mobile via `Sheet` (Radix focus trap); Copiloto em FAB+sheet no mobile (`ChatCopilot`); Comparações em abas Histórico/Nova/Fornecedores; `/upload` modos Rápido|Avançado; `/wizard` redireciona para `/upload`.
+  - **Sprint 3 (P2)**: breadcrumbs clicáveis; microcopy sem localhost/`.env`; EmptyState em listas vazias; `btn-primary` → `Button` nos empties críticos.
+  - Testes: `tests/test_correction_review_api.py` (7); `tsc --noEmit` limpo; smoke Docker `:3000`/`:8000`.
 
 ---
 
@@ -288,7 +293,8 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa de confiabilidade (08/09/2026)**: `feat/confiabilidade-master` (baseada em `feat/ux-modernization`). Plano mestre de confiabilidade implementado em código; CI permanece desabilitado. Suíte backend **215+ testes** verdes; Alembic head `20260908_003`; Compose com `worker`.
+- **Branch ativa UX SEI (09/09/2026)**: `feat/ux-sprint2-funil` (sobre `feat/confiabilidade-master` + runtime `025962a`). Inclui Sprints 1–3 da auditoria UX (review humana SEI, funil upload/nav/chat/comparação, polimento DS/copy). CI permanece desabilitado.
+- **Branch de confiabilidade (08–09/09/2026)**: `feat/confiabilidade-master` com runtime Docker confiável, modelos LLM atuais e E2E 17/17 (commit `025962a`).
 - **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
   - **Fase A (Parsing)**: títulos de seção determinísticos via sha256+NFC (`T-{digest%100000}` — sem `hash()`); alíneas (`a)`, `b)`) detectadas como subitem e itens romanos (`I.`, `II.`) como seção. **+3 testes**.
   - **Fase B (Extração por regras)**: `_texto_por_ancora` usa a partir da 1ª ocorrência; regex de inteiro ignora número de item e milhar monetário; monetário sem `_para_decimal`; datas inválidas rejeitadas (`datetime.date`); CNPJ valida dígitos verificadores (módulo 11); números por extenso compostos ("vinte e um"→21). **+10 testes**; fixture `test_fase4_fase5` corrigida para CNPJ com DV válido (`-95`).
@@ -418,20 +424,22 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Ver `PLANO.md` para backlog histórico. Runtime local na branch `ops/runtime-confiavel` (sobre `feat/confiabilidade-master`). CI **não** reabilitar sem pedido.
+> Ver `PLANO.md` para backlog histórico. Runtime local consolidado em `feat/confiabilidade-master` (`025962a`). UX SEI/funil em `feat/ux-sprint2-funil`. CI **não** reabilitar sem pedido.
 
 ### Agora (ops / Bruno — sem bloquear código)
 1. Quando conveniente: rotacionar chaves Gemini/Groq e `POSTGRES_PASSWORD` (adiado no MVP a pedido do usuário).
 2. Restore drill (`docs/ops/restore-drill.md`) quando houver janela.
-3. Abrir PR / merge: `ops/runtime-confiavel` → `feat/confiabilidade-master` (e depois base acordada).
+3. Abrir PR / merge: `feat/ux-sprint2-funil` → `feat/confiabilidade-master` (e depois base acordada).
 
 ### Produto / qualidade (não urgente)
 - Curadoria humana de stubs em `e2e/golden/feedback/` via `promote_feedback.py`.
 - Playwright live (`E2E_LIVE=1`) opcional.
 - Reabilitar CI só se o usuário pedir explicitamente.
+- Dualismo residual `.badge-*` CSS vs `Badge` React (migração gradual); PDF export do relatório.
 
 ### Fora de escopo (premissas travadas)
 - Multi-tenant / JWT / RBAC completo; LangGraph; fine-tune; Kubernetes.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
-> **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.
+> **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.  
+> **UX SEI (09/09/2026)**: review humana + funil upload/nav/chat/comparação entregues em `feat/ux-sprint2-funil`.

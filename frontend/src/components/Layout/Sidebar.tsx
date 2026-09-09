@@ -2,42 +2,72 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
 import { FileUp, GitCompareArrows, LayoutGrid, ScrollText, Sparkles, Layers, X } from 'lucide-react';
-import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useShell } from './ShellContext';
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/Sheet';
 
-const NAV_ITEMS = [
-  { href: '/', label: 'Painel', icon: LayoutGrid },
-  { href: '/upload', label: 'Enviar Documento', icon: FileUp },
-  { href: '/gerar-tr', label: 'Gerar TR', icon: Sparkles },
-  { href: '/comparacao', label: 'Comparações', icon: GitCompareArrows },
-  { href: '/comparacao/versoes', label: 'Versões de TR', icon: ScrollText },
-  { href: '/moldes', label: 'Moldes', icon: Layers },
+type NavItem = { href: string; label: string; icon: typeof LayoutGrid };
+
+const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
+  {
+    items: [
+      { href: '/', label: 'Painel', icon: LayoutGrid },
+      { href: '/upload', label: 'Enviar Documento', icon: FileUp },
+      { href: '/gerar-tr', label: 'Gerar TR', icon: Sparkles },
+    ],
+  },
+  {
+    label: 'Auditoria',
+    items: [
+      { href: '/comparacao', label: 'Comparações', icon: GitCompareArrows },
+      { href: '/comparacao/versoes', label: 'Versões de TR', icon: ScrollText },
+      { href: '/moldes', label: 'Moldes', icon: Layers },
+    ],
+  },
 ];
+
+const ALL_HREFS = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href));
+
+/** Active = longest matching prefix (evita Comparações + Versões juntos). */
+export function isNavActive(pathname: string, href: string, allHrefs: string[] = ALL_HREFS): boolean {
+  if (href === '/') return pathname === '/';
+  if (!pathname.startsWith(href)) return false;
+  const hasLongerMatch = allHrefs.some(
+    (other) => other !== href && other.length > href.length && pathname.startsWith(other),
+  );
+  return !hasLongerMatch;
+}
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex-1 space-y-1 p-4" aria-label="Navegação principal">
-      {NAV_ITEMS.map((item) => {
-        const isActive =
-          item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            onClick={onNavigate}
-            className={cn('sidebar-link', isActive && 'active')}
-            aria-current={isActive ? 'page' : undefined}
-          >
-            <item.icon className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
-            <span>{item.label}</span>
-          </Link>
-        );
-      })}
+    <nav className="flex-1 space-y-4 overflow-y-auto p-4" aria-label="Navegação principal">
+      {NAV_GROUPS.map((group) => (
+        <div key={group.label ?? 'main'} className="space-y-1">
+          {group.label && (
+            <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-widest text-content-subtle">
+              {group.label}
+            </p>
+          )}
+          {group.items.map((item) => {
+            const active = isNavActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={onNavigate}
+                className={cn('sidebar-link', active && 'active')}
+                aria-current={active ? 'page' : undefined}
+              >
+                <item.icon className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }
@@ -70,77 +100,55 @@ function SidebarFooter() {
   );
 }
 
+function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <>
+      <div className="border-b border-line-subtle p-6">
+        <Brand />
+      </div>
+      <NavLinks onNavigate={onNavigate} />
+      <SidebarFooter />
+    </>
+  );
+}
+
 export default function Sidebar() {
   const { sidebarOpen, closeSidebar } = useShell();
-  const pathname = usePathname();
-
-  useEffect(() => {
-    if (!sidebarOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') closeSidebar();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = '';
-    };
-  }, [sidebarOpen, closeSidebar]);
 
   return (
     <>
-      {/* Desktop: fixa à esquerda */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line-subtle bg-panel lg:flex">
-        <div className="border-b border-line-subtle p-6">
-          <Brand />
-        </div>
-        <NavLinks />
-        <SidebarFooter />
+        <SidebarBody />
       </aside>
 
-      {/* Mobile: drawer com overlay */}
-      <MotionConfig reducedMotion="user">
-        <AnimatePresence>
-          {sidebarOpen && (
-            <div
-              className="fixed inset-0 z-50 lg:hidden"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Menu de navegação"
+      <Sheet
+        open={sidebarOpen}
+        onOpenChange={(open) => {
+          if (!open) closeSidebar();
+        }}
+      >
+        <SheetContent
+          side="left"
+          hideClose
+          className="lg:hidden"
+          aria-label="Menu de navegação"
+        >
+          <SheetTitle className="sr-only">Menu de navegação</SheetTitle>
+          <div className="flex items-center justify-between border-b border-line-subtle p-4 pr-2">
+            <Brand />
+            <button
+              type="button"
+              onClick={closeSidebar}
+              aria-label="Fechar menu"
+              className="rounded-md p-2 text-content-muted outline-none transition-colors hover:bg-white/[0.06] hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
             >
-              <motion.button
-                aria-label="Fechar menu"
-                className="absolute inset-0 bg-black/70 backdrop-blur-[2px]"
-                onClick={closeSidebar}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              />
-              <motion.aside
-                className="absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r border-line-subtle bg-panel shadow-drawer"
-                initial={{ x: '-100%' }}
-                animate={{ x: 0 }}
-                exit={{ x: '-100%' }}
-                transition={{ type: 'spring', stiffness: 400, damping: 40 }}
-              >
-                <div className="flex items-center justify-between border-b border-line-subtle p-4 pr-2">
-                  <Brand />
-                  <button
-                    onClick={closeSidebar}
-                    aria-label="Fechar menu"
-                    className="rounded-md p-2 text-content-muted outline-none transition-colors hover:bg-white/[0.06] hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
-                  >
-                    <X className="h-5 w-5" aria-hidden />
-                  </button>
-                </div>
-                <NavLinks onNavigate={closeSidebar} />
-                <SidebarFooter />
-              </motion.aside>
-            </div>
-          )}
-        </AnimatePresence>
-      </MotionConfig>
+              <X className="h-5 w-5" aria-hidden />
+            </button>
+          </div>
+          <NavLinks onNavigate={closeSidebar} />
+          <SidebarFooter />
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

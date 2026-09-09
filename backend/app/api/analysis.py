@@ -5,6 +5,7 @@ Endpoints para análise de documentos e geração de relatórios.
 import logging
 import uuid
 from collections import Counter
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException
 from sqlalchemy import select
@@ -14,13 +15,14 @@ from sqlalchemy.orm import selectinload
 
 from app.config import settings
 from app.database import get_db
-from app.models.analysis import Analysis
+from app.models.analysis import Analysis, Correction
 from app.models.document import Document, DocumentItem
 from app.schemas.analysis import (
     AnalysisDetailResponse,
     AnalysisStartRequest,
     AnalysisStartResponse,
     CorrectionResponse,
+    CorrectionReviewUpdate,
     ReportResponse,
     ScoreDetail,
 )
@@ -200,6 +202,46 @@ async def start_analysis(
 
 
 SEI_APPLICABLE_STATUSES = frozenset({"aprovada", "ajustada"})
+
+
+@router.patch(
+    "/corrections/{correction_id}",
+    response_model=CorrectionResponse,
+    summary="Revisão humana de correção",
+    description=(
+        "Atualiza review_status de uma correção (aprovada/rejeitada/ajustada/pendente). "
+        "Somente aprovada e ajustada liberam cópia para o SEI."
+    ),
+)
+async def update_correction_review(
+    correction_id: uuid.UUID,
+    payload: CorrectionReviewUpdate,
+    db: AsyncSession = Depends(get_db),
+):
+    """Aplica decisão humana de revisão em uma correção."""
+    result = await db.execute(
+        select(Correction).where(Correction.id == correction_id)
+    )
+    correction = result.scalar_one_or_none()
+    if not correction:
+        raise HTTPException(status_code=404, detail="Correção não encontrada.")
+
+    correction.review_status = payload.review_status
+    correction.review_note = payload.review_note
+    if payload.review_status == "pendente":
+        correction.reviewed_at = None
+    else:
+        correction.reviewed_at = datetime.now(timezone.utc)
+
+    if payload.review_status == "ajustada":
+        if payload.suggested_text is not None:
+            correction.suggested_text = payload.suggested_text
+        if payload.justification is not None:
+            correction.justification = payload.justification
+
+    await db.commit()
+    await db.refresh(correction)
+    return CorrectionResponse.model_validate(correction)
 
 
 def _filter_corrections(

@@ -7,6 +7,7 @@ import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import ChatMessageView from './ChatMessage';
 import ChatInput from './ChatInput';
+import { cn } from '@/lib/utils';
 
 interface ChatPanelProps {
   documentId?: string;
@@ -14,6 +15,8 @@ interface ChatPanelProps {
   itemNumber?: string | null;
   title?: string;
   page?: string;
+  variant?: 'docked' | 'sheet';
+  onClose?: () => void;
 }
 
 export default function ChatPanel({
@@ -22,6 +25,8 @@ export default function ChatPanel({
   itemNumber,
   title,
   page,
+  variant = 'docked',
+  onClose,
 }: ChatPanelProps) {
   const {
     enabled,
@@ -51,28 +56,46 @@ export default function ChatPanel({
 
   const hasMessages = messages.length > 0;
   const chatError = error && !loading ? getErrorMessage(error, 'chat') : null;
+  const isSheet = variant === 'sheet';
 
   return (
     <section
       aria-label="Copiloto LicitAI"
-      className="glass-card flex h-[480px] flex-col lg:h-[calc(100dvh-340px)] lg:min-h-[360px]"
+      className={cn(
+        'flex flex-col',
+        isSheet
+          ? 'h-[min(80dvh,640px)] border-0 bg-transparent'
+          : 'glass-card h-[calc(100dvh-340px)] min-h-[360px]',
+      )}
     >
-      {/* Cabeçalho */}
-      <div className="flex items-center gap-3 border-b border-line-subtle px-4 py-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-accent-500/25 bg-accent-500/10">
-          <MessageCircle className="h-4 w-4 text-accent-400" aria-hidden />
+      {!isSheet && (
+        <div className="flex items-center gap-3 border-b border-line-subtle px-4 py-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-accent-500/25 bg-accent-500/10">
+            <MessageCircle className="h-4 w-4 text-accent-400" aria-hidden />
+          </div>
+          <div>
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-content-primary">
+              Copiloto LicitAI
+            </h2>
+            <p className="text-[11px] text-content-subtle">
+              Assistente consultivo com citação de fontes
+            </p>
+          </div>
+          <span className="badge badge-info ml-auto text-[9px]">beta</span>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-md p-1.5 text-content-muted outline-none hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-accent-500/60"
+              aria-label="Fechar Copiloto"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          )}
         </div>
-        <div>
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-content-primary">
-            Copiloto LicitAI
-          </h2>
-          <p className="text-[11px] text-content-subtle">Assistente consultivo com citação de fontes</p>
-        </div>
-        <span className="badge badge-info ml-auto text-[9px]">beta</span>
-      </div>
+      )}
 
-      {/* Mensagens */}
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4">
         {loading ? (
           <div className="space-y-2">
             <div className="skeleton h-12 w-2/3" />
@@ -133,8 +156,7 @@ export default function ChatPanel({
         )}
       </div>
 
-      {/* Input */}
-      <div className="px-4 pb-4">
+      <div className="border-t border-line-subtle px-4 py-3">
         <ChatInput disabled={!enabled || loading} sending={sending} onSend={send} />
       </div>
     </section>

@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { ArrowRightLeft, FileText } from 'lucide-react';
 import { listDocuments, diffDocuments, extractErrorMessage } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import type { DiffItemResponse, DocumentResponse } from '@/types';
 
 interface DiffResult {
@@ -52,7 +54,7 @@ export default function DiffVersoesPage() {
           setDocNovoId(trs[0].id);
         }
       } catch {
-        setError('Erro ao carregar lista de documentos TR.');
+        setError('Não foi possível carregar a lista de Termos de Referência.');
       } finally {
         setLoading(false);
       }
@@ -106,10 +108,17 @@ export default function DiffVersoesPage() {
         {loading ? (
           <Skeleton className="h-12" />
         ) : documents.length < 2 ? (
-          <p className="text-sm text-amber-400">
-            É necessário ter pelo menos 2 documentos TR cadastrados no sistema para comparar
-            versões.
-          </p>
+          <EmptyState
+            icon={FileText}
+            title="Poucos TRs para comparar"
+            description="Cadastre pelo menos dois Termos de Referência no Painel para comparar versões."
+            action={
+              <Link href="/upload">
+                <Button>Enviar Documento</Button>
+              </Link>
+            }
+            className="py-10"
+          />
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>

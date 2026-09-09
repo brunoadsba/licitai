@@ -7,6 +7,7 @@ import { ChevronLeft, LoaderCircle } from 'lucide-react';
 import { getComparacao, getMatriz, extractErrorMessage } from '@/lib/api';
 import { startPolling } from '@/lib/polling';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Button } from '@/components/ui/Button';
 import {
   COMPARACAO_STATUS_LABELS,
   CONFORMIDADE_LABELS,
@@ -134,8 +135,8 @@ export default function MatrizPage() {
     return (
       <div className="glass-card p-12 text-center">
         <p className="text-content-muted">Comparação não encontrada.</p>
-        <Link href="/comparacao" className="btn-primary mt-4 inline-flex">
-          Voltar
+        <Link href="/comparacao" className="mt-4 inline-flex">
+          <Button>Voltar</Button>
         </Link>
       </div>
     );

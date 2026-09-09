@@ -78,8 +78,8 @@ export default function DropZone({
             <Check className="h-8 w-8 text-green-400" strokeWidth={2} aria-hidden />
           </div>
           <div>
-            <p className="font-medium text-green-400">Documento enviado com sucesso!</p>
-            <p className="mt-1 text-sm text-content-muted">Redirecionando para análise…</p>
+            <p className="font-medium text-green-400">Análise iniciada!</p>
+            <p className="mt-1 text-sm text-content-muted">Abrindo a tela de análise…</p>
           </div>
         </div>
       ) : (

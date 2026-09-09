@@ -4,9 +4,9 @@ Schemas Pydantic para análises e relatórios.
 
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, model_validator
 
 
 def _ensure_tz(v: datetime) -> datetime:
@@ -16,6 +16,8 @@ def _ensure_tz(v: datetime) -> datetime:
 
 
 AwareDatetime = Annotated[datetime, BeforeValidator(_ensure_tz)]
+
+ReviewStatusLiteral = Literal["pendente", "aprovada", "rejeitada", "ajustada"]
 
 
 class CorrectionResponse(BaseModel):
@@ -38,6 +40,25 @@ class CorrectionResponse(BaseModel):
     review_status: str = "pendente"
     review_note: str | None = None
     reviewed_at: AwareDatetime | None = None
+
+
+class CorrectionReviewUpdate(BaseModel):
+    """Payload para revisão humana de uma correção (SEI)."""
+
+    review_status: ReviewStatusLiteral
+    review_note: str | None = Field(default=None, max_length=4000)
+    suggested_text: str | None = Field(default=None, max_length=50_000)
+    justification: str | None = Field(default=None, max_length=50_000)
+
+    @model_validator(mode="after")
+    def validate_ajustada_fields(self) -> "CorrectionReviewUpdate":
+        if self.review_status == "ajustada" and not (
+            self.suggested_text or self.justification or self.review_note
+        ):
+            raise ValueError(
+                "Para status 'ajustada', informe suggested_text, justification ou review_note."
+            )
+        return self
 
 
 class AnalysisStartRequest(BaseModel):

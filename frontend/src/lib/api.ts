@@ -15,6 +15,7 @@ import type {
   ComparacaoListResponse,
   ComparacaoResponse,
   ComparacaoStartResponse,
+  CorrectionResponse,
   DiffResponse,
   DryRunResponse,
   DocumentDetailResponse,
@@ -212,6 +213,27 @@ export async function getAnalysis(
     skipCache: options?.skipCache,
     signal: options?.signal,
   });
+}
+
+export type CorrectionReviewPayload = {
+  review_status: 'pendente' | 'aprovada' | 'rejeitada' | 'ajustada';
+  review_note?: string | null;
+  suggested_text?: string | null;
+  justification?: string | null;
+};
+
+export async function updateCorrectionReview(
+  correctionId: string,
+  payload: CorrectionReviewPayload
+): Promise<CorrectionResponse> {
+  return fetchAPI<CorrectionResponse>(
+    `/analysis/corrections/${encodeURIComponent(correctionId)}`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: jsonBody(payload),
+    }
+  );
 }
 
 export async function getReport(analysisId: string): Promise<ReportResponse> {

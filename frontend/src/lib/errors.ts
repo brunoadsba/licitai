@@ -49,7 +49,7 @@ export function getErrorMessage(err: unknown, ctx: ErrorContext): FriendlyError 
       return {
         title: 'Falha no envio',
         message:
-          'Não foi possível enviar o documento. O servidor pode estar indisponível ou o arquivo pode estar corrompido. Verifique a conexão com o backend em 127.0.0.1:8000 e tente novamente.',
+          'Não foi possível enviar o documento. Verifique a conexão e tente novamente. Se o problema persistir, contate o suporte CODEBA.',
       };
     }
 
@@ -57,7 +57,7 @@ export function getErrorMessage(err: unknown, ctx: ErrorContext): FriendlyError 
       return {
         title: 'Não foi possível carregar',
         message:
-          'Não foi possível carregar os documentos. O backend pode estar offline. Verifique se o servidor está rodando em 127.0.0.1:8000 e recarregue a página.',
+          'Não foi possível carregar os documentos. Atualize a página ou tente novamente em instantes.',
       };
 
     case 'analysis': {
@@ -67,13 +67,13 @@ export function getErrorMessage(err: unknown, ctx: ErrorContext): FriendlyError 
         return {
           title: 'Análise demorada',
           message:
-            'A análise demorou mais que o esperado. A cota gratuita do provedor de IA pode ter esgotado. Aguarde alguns minutos e tente novamente.',
+            'A análise demorou mais que o esperado. Aguarde alguns minutos e tente novamente.',
         };
       }
       return {
         title: 'Falha na análise',
         message:
-          'Não foi possível concluir a análise. Tente novamente; se o problema persistir, verifique as chaves de IA no .env.',
+          'Não foi possível concluir a análise. Tente novamente; se o problema persistir, contate o suporte CODEBA.',
       };
     }
 

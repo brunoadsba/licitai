@@ -11,7 +11,7 @@ import AlertBanner from '@/components/ui/AlertBanner';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import RevisionsTimelineModal from '@/components/RevisionsTimelineModal';
-import ChatPanel from '@/components/chat/ChatPanel';
+import ChatCopilot from '@/components/chat/ChatCopilot';
 import AnalysisProgress from '@/components/analysis/AnalysisProgress';
 import ItemList from '@/components/analysis/ItemList';
 import ItemDetail from '@/components/analysis/ItemDetail';
@@ -132,6 +132,16 @@ export default function AnalysisPage() {
     return text;
   }
 
+  function handleReviewUpdated(updated: CorrectionResponse) {
+    setAnalysis((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        corrections: prev.corrections.map((c) => (c.id === updated.id ? updated : c)),
+      };
+    });
+  }
+
   if (loading) {
     return (
       <div className="animate-fade-in space-y-4">
@@ -148,8 +158,8 @@ export default function AnalysisPage() {
     return (
       <div className="glass-card p-12 text-center">
         <p className="text-content-muted">Documento não encontrado.</p>
-        <Link href="/" className="btn-primary mt-4 inline-flex">
-          Voltar
+        <Link href="/" className="mt-4 inline-flex">
+          <Button>Voltar</Button>
         </Link>
       </div>
     );
@@ -268,6 +278,7 @@ export default function AnalysisPage() {
             corrections={getItemCorrections(selectedItem.id)}
             getUpdatedItemText={getUpdatedItemText}
             showCorrections={!!analysis}
+            onReviewUpdated={handleReviewUpdated}
           />
         ) : (
           <div className="glass-card col-span-1 p-12 text-center lg:col-span-8">
@@ -277,7 +288,7 @@ export default function AnalysisPage() {
       </div>
 
       {/* Copiloto LicitAI */}
-      <ChatPanel
+      <ChatCopilot
         documentId={documentId}
         analysisId={analysis?.id}
         itemNumber={selectedItem?.item_number}

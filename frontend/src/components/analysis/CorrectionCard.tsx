@@ -1,24 +1,26 @@
 'use client';
 
-import type { CorrectionResponse } from '@/types';
+import type { CorrectionResponse, ReviewStatus } from '@/types';
 import { CATEGORY_LABELS, SEVERITY_LABELS } from '@/types';
 import { AGENT_ORIGIN_CONFIG, getCategoryBadge, getSeverityBadge } from '@/lib/badges';
 import { useCopy } from '@/lib/useCopy';
+import CorrectionReviewActions from '@/components/analysis/CorrectionReviewActions';
 import { Check, ClipboardCopy, TriangleAlert } from 'lucide-react';
 
 interface CorrectionCardProps {
   correction: CorrectionResponse;
   index: number;
+  onReviewUpdated?: (correction: CorrectionResponse) => void;
 }
 
-const REVIEW_STATUS_LABELS: Record<NonNullable<CorrectionResponse['review_status']>, string> = {
+const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
   pendente: 'Pendente',
   aprovada: 'Aprovada',
   rejeitada: 'Rejeitada',
   ajustada: 'Ajustada',
 };
 
-const REVIEW_STATUS_BADGE: Record<NonNullable<CorrectionResponse['review_status']>, string> = {
+const REVIEW_STATUS_BADGE: Record<ReviewStatus, string> = {
   pendente: 'badge-medio',
   aprovada: 'badge-baixo',
   rejeitada: 'badge-critico',
@@ -31,9 +33,13 @@ export function isSeiCopyAllowed(status: CorrectionResponse['review_status']): b
 }
 
 /**
- * Card DE → PARA de uma correção, com botões de cópia para o SEI.
+ * Card DE → PARA de uma correção, com revisão humana e cópia para o SEI.
  */
-export default function CorrectionCard({ correction, index }: CorrectionCardProps) {
+export default function CorrectionCard({
+  correction,
+  index,
+  onReviewUpdated,
+}: CorrectionCardProps) {
   const { copy, isCopied } = useCopy();
   const agent = correction.agent_origin ? AGENT_ORIGIN_CONFIG[correction.agent_origin] : null;
   const AgentIcon = agent?.icon;
@@ -45,7 +51,6 @@ export default function CorrectionCard({ correction, index }: CorrectionCardProp
       className="glass-card animate-slide-up p-5"
       style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}
     >
-      {/* Header da correção */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {agent && AgentIcon && (
@@ -67,7 +72,6 @@ export default function CorrectionCard({ correction, index }: CorrectionCardProp
           </span>
         </div>
 
-        {/* Botão principal de copiar o PARA — só se aprovada/ajustada */}
         <button
           type="button"
           disabled={!canCopyPara}
@@ -96,10 +100,8 @@ export default function CorrectionCard({ correction, index }: CorrectionCardProp
         </button>
       </div>
 
-      {/* Problema */}
       <p className="mb-4 text-sm text-content-secondary">{correction.problem}</p>
 
-      {/* DE → PARA */}
       <div className="mb-4 space-y-2">
         <div className="diff-removed">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-red-400/70">
@@ -133,7 +135,13 @@ export default function CorrectionCard({ correction, index }: CorrectionCardProp
         </div>
       </div>
 
-      {/* Justificativa e Fundamento Legal */}
+      {onReviewUpdated && (
+        <CorrectionReviewActions
+          correction={correction}
+          onReviewUpdated={onReviewUpdated}
+        />
+      )}
+
       <div className="relative rounded-lg border border-line-subtle bg-canvas/40 p-3">
         <div className="mb-1 flex items-center justify-between">
           <p className="text-xs font-semibold uppercase tracking-wider text-content-subtle">
@@ -158,7 +166,6 @@ export default function CorrectionCard({ correction, index }: CorrectionCardProp
         )}
       </div>
 
-      {/* Risco */}
       <div className="mt-3 flex items-start gap-2">
         <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" aria-hidden />
         <p className="text-xs text-yellow-400/70">{correction.risk}</p>

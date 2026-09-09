@@ -34,10 +34,10 @@ export default function AnalysisProgress({ analysis }: AnalysisProgressProps) {
           <div>
             <h3 className="flex items-center gap-2 text-sm font-semibold text-content-primary">
               <Bot className="h-4 w-4 text-accent-400" aria-hidden />
-              Orquestrador Multi-Agente em execução
+              Análise em andamento
             </h3>
             <p className="text-xs text-content-muted">
-              Avaliando conformidade do TR com 4 agentes especializados (Lei 14.133/21 &amp; TCU)
+              Revisando o TR sob os eixos jurídico, técnico, redacional e estrutural (Lei 14.133/21)
             </p>
           </div>
         </div>

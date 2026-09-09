@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Menu, ShieldCheck, ShieldAlert, ShieldQuestion } from 'lucide-react';
@@ -9,6 +10,7 @@ import { useShell } from './ShellContext';
 const BREADCRUMB_MAP: Record<string, string> = {
   '/': 'Painel',
   '/upload': 'Enviar Documento',
+  '/wizard': 'Enviar Documento',
   '/gerar-tr': 'Gerar TR',
   '/analysis': 'Análise',
   '/report': 'Relatório',
@@ -48,10 +50,13 @@ function useBackendStatus(): BackendStatus {
   return status;
 }
 
-const STATUS_CONFIG: Record<BackendStatus, { label: string; icon: typeof ShieldCheck; className: string }> = {
+const STATUS_CONFIG: Record<
+  BackendStatus,
+  { label: string; icon: typeof ShieldCheck; className: string }
+> = {
   checking: { label: 'Verificando…', icon: ShieldQuestion, className: 'text-content-subtle' },
-  online: { label: 'Backend ativo', icon: ShieldCheck, className: 'text-green-400' },
-  offline: { label: 'Backend offline', icon: ShieldAlert, className: 'text-red-400' },
+  online: { label: 'Sistema ativo', icon: ShieldCheck, className: 'text-green-400' },
+  offline: { label: 'Sistema indisponível', icon: ShieldAlert, className: 'text-red-400' },
 };
 
 function Breadcrumb({ pathname }: { pathname: string }) {
@@ -70,16 +75,28 @@ function Breadcrumb({ pathname }: { pathname: string }) {
   });
 
   return (
-    <nav aria-label="Trilha de navegação" className="flex items-center gap-1.5 text-xs text-content-subtle">
+    <nav
+      aria-label="Trilha de navegação"
+      className="flex items-center gap-1.5 text-xs text-content-subtle"
+    >
+      <Link
+        href="/"
+        className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
+      >
+        Painel
+      </Link>
       {crumbs.map((c) => (
         <span key={c.path} className="flex items-center gap-1.5">
+          <span aria-hidden>/</span>
           {c.last ? (
             <span className="text-content-muted">{c.label}</span>
           ) : (
-            <>
-              <span>{c.label}</span>
-              <span aria-hidden>/</span>
-            </>
+            <Link
+              href={c.path}
+              className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
+            >
+              {c.label}
+            </Link>
           )}
         </span>
       ))}
@@ -108,7 +125,6 @@ export default function Header() {
           >
             <Menu className="h-5 w-5" aria-hidden />
           </button>
-          {/* Logo CODEBA visível no mobile (sidebar oculta) */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo-codeba.png"
@@ -127,7 +143,7 @@ export default function Header() {
 
         <div
           className="flex shrink-0 items-center gap-2 rounded-lg border border-line-subtle bg-white/[0.03] px-3 py-1.5"
-          title={`Provedor LLM com failover · banco de dados verificado a cada 30s`}
+          title="Disponibilidade do serviço verificada a cada 30s"
         >
           <StatusIcon className={cn('h-3.5 w-3.5', statusConfig.className)} aria-hidden />
           <span className="text-xs text-content-muted">{statusConfig.label}</span>

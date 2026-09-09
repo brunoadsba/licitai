@@ -10,6 +10,7 @@ interface ItemDetailProps {
   corrections: CorrectionResponse[];
   getUpdatedItemText: (item: DocumentItemResponse, corrections: CorrectionResponse[]) => string;
   showCorrections?: boolean;
+  onReviewUpdated?: (correction: CorrectionResponse) => void;
 }
 
 /**
@@ -20,6 +21,7 @@ export default function ItemDetail({
   corrections,
   getUpdatedItemText,
   showCorrections = true,
+  onReviewUpdated,
 }: ItemDetailProps) {
   const { copy, isCopied } = useCopy();
   const seiCorrections = corrections.filter((c) => isSeiCopyAllowed(c.review_status));
@@ -90,7 +92,12 @@ export default function ItemDetail({
         ) : (
           <div className="space-y-3">
             {corrections.map((correction, idx) => (
-              <CorrectionCard key={correction.id} correction={correction} index={idx} />
+              <CorrectionCard
+                key={correction.id}
+                correction={correction}
+                index={idx}
+                onReviewUpdated={onReviewUpdated}
+              />
             ))}
           </div>
         ))}

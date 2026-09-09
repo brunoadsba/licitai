@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { GitCompareArrows, MailCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { COMPARACAO_STATUS_LABELS } from '@/types';
 
 interface Comparacao {
@@ -63,8 +64,12 @@ export default function ComparacaoList({
 
   if (comparacoes.length === 0) {
     return (
-      <div className="glass-card p-12 text-center">
-        <p className="text-content-muted">Nenhuma comparação realizada ainda.</p>
+      <div className="glass-card">
+        <EmptyState
+          icon={GitCompareArrows}
+          title="Nenhuma comparação ainda"
+          description="Inicie uma auditoria na aba Nova auditoria após cadastrar fornecedores e propostas."
+        />
       </div>
     );
   }
@@ -74,9 +79,12 @@ export default function ComparacaoList({
       {comparacoes.map((cmp) => {
         const enviado = feedbackEnviadosIds.includes(cmp.id);
         return (
-          <div key={cmp.id} className="glass-card-interactive p-5">
+          <div key={cmp.id} className="glass-card p-5">
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="min-w-0 flex-1">
+              <Link
+                href={`/comparacao/${cmp.id}`}
+                className="min-w-0 flex-1 outline-none focus-visible:ring-2 focus-visible:ring-accent-500/60"
+              >
                 <div className="flex flex-wrap items-center gap-3">
                   <span
                     className={`badge ${
@@ -98,7 +106,7 @@ export default function ComparacaoList({
                     </>
                   )}
                 </div>
-              </div>
+              </Link>
               {cmp.status === 'completed' && (
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
                   <Button

@@ -15,8 +15,8 @@ export default function NotFound() {
         O endereço acessado não existe ou o recurso foi removido.
       </p>
       <div className="mt-6">
-        <Link href="/" className="btn-primary">
-          Voltar ao Painel
+        <Link href="/">
+          <Button>Voltar ao Painel</Button>
         </Link>
       </div>
     </div>

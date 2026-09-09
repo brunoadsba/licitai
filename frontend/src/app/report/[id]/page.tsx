@@ -70,8 +70,8 @@ export default function ReportPage() {
         <AlertBanner variant="error" title={errInfo.title}>
           {errInfo.message}
         </AlertBanner>
-        <Link href="/" className="btn-primary inline-flex">
-          Voltar ao Painel
+        <Link href="/">
+          <Button>Voltar ao Painel</Button>
         </Link>
       </div>
     );
@@ -81,8 +81,8 @@ export default function ReportPage() {
     return (
       <div className="glass-card p-12 text-center">
         <p className="text-content-muted">Relatório não encontrado.</p>
-        <Link href="/" className="btn-primary mt-4 inline-flex">
-          Voltar
+        <Link href="/" className="mt-4 inline-flex">
+          <Button>Voltar</Button>
         </Link>
       </div>
     );

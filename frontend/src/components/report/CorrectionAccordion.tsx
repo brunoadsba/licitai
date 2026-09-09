@@ -5,6 +5,7 @@ import type { CorrectionResponse } from '@/types';
 import { CATEGORY_LABELS, SEVERITY_LABELS } from '@/types';
 import { getCategoryBadge, getSeverityBadge } from '@/lib/badges';
 import { useCopy } from '@/lib/useCopy';
+import { isSeiCopyAllowed } from '@/components/analysis/CorrectionCard';
 import { Check, ChevronDown, ClipboardCopy, TriangleAlert } from 'lucide-react';
 
 interface CorrectionAccordionProps {
@@ -36,6 +37,7 @@ export default function CorrectionAccordion({ corrections, total }: CorrectionAc
 
       {corrections.map((correction, idx) => {
         const isExpanded = expanded.has(correction.id);
+        const canCopyPara = isSeiCopyAllowed(correction.review_status);
 
         return (
           <div
@@ -83,8 +85,18 @@ export default function CorrectionAccordion({ corrections, total }: CorrectionAc
                         PARA (sugerido)
                       </p>
                       <button
-                        onClick={() => copy(correction.suggested_text, `rep_para_${correction.id}`)}
-                        className="inline-flex items-center gap-1 rounded-md border border-green-500/30 bg-green-500/20 px-2 py-1 text-xs font-medium text-green-300 outline-none transition-colors hover:bg-green-500/30 focus-visible:ring-2 focus-visible:ring-green-500/60"
+                        type="button"
+                        disabled={!canCopyPara}
+                        title={
+                          canCopyPara
+                            ? undefined
+                            : 'Disponível apenas para correções aprovadas ou ajustadas'
+                        }
+                        onClick={() => {
+                          if (!canCopyPara) return;
+                          copy(correction.suggested_text, `rep_para_${correction.id}`);
+                        }}
+                        className="inline-flex items-center gap-1 rounded-md border border-green-500/30 bg-green-500/20 px-2 py-1 text-xs font-medium text-green-300 outline-none transition-colors hover:bg-green-500/30 focus-visible:ring-2 focus-visible:ring-green-500/60 disabled:cursor-not-allowed disabled:border-line-subtle disabled:bg-canvas/40 disabled:text-content-subtle disabled:hover:bg-canvas/40"
                       >
                         {isCopied(`rep_para_${correction.id}`) ? (
                           <>

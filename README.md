@@ -20,19 +20,22 @@ Sistema especialista para análise automatizada de Termos de Referência (TR) de
   - **Retrieval híbrido RRF**: combina busca semântica + textual com fusão por rank recíproco
   - **Comparador Visual de Versões de TR** (`/comparacao/versoes`): Alinhamento por item com identificação de `alterado`, `adicionado` e `removido`
 - **Correções no formato DE → PARA** com fundamentação legal
-- **Fluxo SEI (cópia filtrada)**:
-  - Cópia para o SEI **somente** com correções `aprovada` ou `ajustada` (revisão cruzada)
+- **Fluxo SEI (cópia filtrada + revisão humana)**:
+  - Revisão cruzada LLM + **revisão humana** (Aprovar / Rejeitar / Ajustar) via `PATCH /api/v1/analysis/corrections/{id}`
+  - Cópia para o SEI **somente** com correções `aprovada` ou `ajustada`
   - **Copiar Texto Corrigido (PARA)** / **Item Inteiro** / **Parecer & Justificativa**
 - **Relatório** com pontuação (0-10), nível de risco e parecer final
+- **Upload honesto**: após o parse, a análise LLM inicia automaticamente (“Enviar e Analisar”)
 - **3 provedores de IA**: Groq (free tier), Google Gemini (free tier), Ollama (local) — com failover automático
 - **Auditoria TR × Propostas** (módulo aditivo de conformidade):
+  - UI em abas: Histórico / Nova auditoria / Fornecedores
   - **Moldes de regras configuráveis** (RF02): 10 tipos de âncoras (numéricas, por extenso, booleanas, legais, data, percentual, monetária, **CNPJ**, **prazo relativo** e **CEP**) com extração determinística + fallback LLM
   - **Editor visual de moldes** no frontend (`/moldes`): cria/edita regras, com **Duplicação de Molde em 1-clique** e **Validação Dry-Run em tempo real**
   - **Moldes padrão de seed**: TR geral, serviços continuados e obras públicas (`scripts/seed_moldes.py`)
   - **Matriz de conformidade** (RF03): compara TR vs propostas dos fornecedores com status **OK / ATENÇÃO / FALHA**
   - **Notificação de Pendências por E-mail (RF04)**: Envio automático via SMTP para fornecedores com pendências na matriz
 - **Copiloto LicitAI (chat consultivo)**:
-  - Painel de chat integrado à tela de análise (`/analysis/[id]`) com contexto do documento/análise/item selecionado
+  - Desktop: painel docked; **mobile: FAB + sheet** full-height com focus trap
   - **Respostas sempre ancoradas em fontes citadas** (RAG jurídico, análise, correções, itens do documento) ou recusa explícita
   - Badges de ancoragem/confiança, provedor e latência; acordeão de fontes; feedback 👍/👎
   - API `/api/v1/chat` (health, conversas, mensagens, feedback) com validação de tamanho e guards 404/400/422

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FileText, FileUp, Trash2 } from 'lucide-react';
+import { FileText, FileUp, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, MotionConfig } from 'framer-motion';
 import { deleteDocument, listDocuments } from '@/lib/api';
@@ -10,36 +10,10 @@ import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { Button } from '@/components/ui/Button';
-import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import DocumentListItem from '@/components/dashboard/DocumentListItem';
 import type { DocumentResponse } from '@/types';
-import { STATUS_LABELS } from '@/types';
-
-const STATUS_TONES: Record<string, 'info' | 'medium' | 'low' | 'critical'> = {
-  uploaded: 'info',
-  parsing: 'medium',
-  parsed: 'medium',
-  analyzing: 'medium',
-  completed: 'low',
-  error: 'critical',
-};
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
 
 export default function DashboardClient({
   initialDocuments,
@@ -54,6 +28,9 @@ export default function DashboardClient({
   const [refreshing, setRefreshing] = useState(false);
 
   const errorInfo = error ? getErrorMessage(error, 'documents') : null;
+  const hasInFlight = documents.some(
+    (d) => d.status === 'parsing' || d.status === 'analyzing' || d.status === 'uploaded',
+  );
 
   async function handleRefresh() {
     try {
@@ -62,11 +39,20 @@ export default function DashboardClient({
       setDocuments(data.documents);
       setError(null);
     } catch {
-      setError('Erro ao carregar documentos. Verifique se o backend está rodando.');
+      setError('Não foi possível carregar os documentos. Atualize a página ou tente novamente.');
     } finally {
       setRefreshing(false);
     }
   }
+
+  useEffect(() => {
+    if (!hasInFlight) return;
+    const id = window.setInterval(() => {
+      void handleRefresh();
+    }, 8000);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasInFlight]);
 
   async function handleDelete(id: string) {
     try {
@@ -80,7 +66,10 @@ export default function DashboardClient({
 
   const stats = [
     { label: 'Total', value: documents.length },
-    { label: 'Em análise', value: documents.filter((d) => d.status === 'analyzing' || d.status === 'parsing').length },
+    {
+      label: 'Em análise',
+      value: documents.filter((d) => d.status === 'analyzing' || d.status === 'parsing').length,
+    },
     { label: 'Concluídos', value: documents.filter((d) => d.status === 'completed').length },
   ];
 
@@ -97,14 +86,26 @@ export default function DashboardClient({
             Gerencie e analise seus Termos de Referência
           </p>
         </div>
-        {!(documents.length === 0 && !error) && (
-          <Link href="/upload">
-            <Button>
-              <FileUp className="h-4 w-4" aria-hidden />
-              Enviar Documento
-            </Button>
-          </Link>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant="secondary"
+            loading={refreshing}
+            onClick={() => void handleRefresh()}
+            aria-label="Atualizar lista de documentos"
+          >
+            <RefreshCw className="h-4 w-4" aria-hidden />
+            Atualizar
+          </Button>
+          {!(documents.length === 0 && !error) && (
+            <Link href="/upload">
+              <Button>
+                <FileUp className="h-4 w-4" aria-hidden />
+                Enviar Documento
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
       <dl className="grid grid-cols-2 gap-4 lg:grid-cols-3">
@@ -158,73 +159,11 @@ export default function DashboardClient({
               variants={{ hidden: {}, show: { transition: { staggerChildren: 0.04 } } }}
             >
               {documents.map((doc) => (
-                <motion.li
+                <DocumentListItem
                   key={doc.id}
-                  variants={{
-                    hidden: { opacity: 0, y: 8 },
-                    show: { opacity: 1, y: 0 },
-                  }}
-                  className="glass-card-interactive p-5"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-4 sm:flex-nowrap">
-                    <div className="flex min-w-0 flex-1 items-center gap-4">
-                      <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border ${
-                          doc.file_type === 'pdf'
-                            ? 'border-red-500/20 bg-red-500/10 text-red-400'
-                            : 'border-sky-500/20 bg-sky-500/10 text-sky-400'
-                        }`}
-                        aria-hidden
-                      >
-                        <FileText className="h-5 w-5" strokeWidth={1.5} />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-content-primary">
-                          {doc.filename_original}
-                        </p>
-                        <div className="tnum mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-content-subtle">
-                          <span>{formatFileSize(doc.file_size_bytes)}</span>
-                          <span aria-hidden>·</span>
-                          <span>{doc.total_items} itens</span>
-                          {doc.status === 'completed' && doc.tokens_estimated ? (
-                            <>
-                              <span aria-hidden>·</span>
-                              <span className="text-content-muted">
-                                ~{doc.tokens_estimated.toLocaleString('pt-BR')} tokens
-                              </span>
-                            </>
-                          ) : null}
-                          <span aria-hidden>·</span>
-                          <span>{formatDate(doc.created_at)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2.5">
-                      <Badge tone={STATUS_TONES[doc.status] ?? 'info'}>
-                        {STATUS_LABELS[doc.status] || doc.status}
-                      </Badge>
-                      {doc.status === 'parsed' && (
-                        <Link href={`/analysis/${doc.id}`}>
-                          <Button size="sm">Analisar</Button>
-                        </Link>
-                      )}
-                      {doc.status === 'completed' && (
-                        <Link href={`/analysis/${doc.id}`}>
-                          <Button size="sm" variant="secondary">
-                            Ver Resultado
-                          </Button>
-                        </Link>
-                      )}
-                      <button
-                        onClick={() => setConfirmDelete(doc)}
-                        className="rounded-lg p-2 text-content-subtle outline-none transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:ring-2 focus-visible:ring-accent-500/60"
-                        aria-label={`Remover ${doc.filename_original}`}
-                      >
-                        <Trash2 className="h-4 w-4" aria-hidden />
-                      </button>
-                    </div>
-                  </div>
-                </motion.li>
+                  doc={doc}
+                  onRequestDelete={setConfirmDelete}
+                />
               ))}
             </motion.ul>
           </MotionConfig>
