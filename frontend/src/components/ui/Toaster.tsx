@@ -1,19 +1,29 @@
 'use client';
 
 import { Toaster as SonnerToaster } from 'sonner';
+import { useTheme } from '@/components/theme/ThemeProvider';
 
-/** Toaster global do app — montar uma vez no layout raiz (DESIGN.md §5). */
+/** Toaster global — acompanha tema claro/escuro. */
 export function Toaster() {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
   return (
     <SonnerToaster
-      theme="dark"
+      theme={isDark ? 'dark' : 'light'}
       position="bottom-right"
       toastOptions={{
-        style: {
-          background: '#171C25',
-          border: '1px solid rgba(255,255,255,0.10)',
-          color: '#F2F5F7',
-        },
+        style: isDark
+          ? {
+              background: '#111827',
+              border: '1px solid rgba(148,163,184,0.16)',
+              color: '#F1F5F9',
+            }
+          : {
+              background: '#ffffff',
+              border: '1px solid rgba(15,23,42,0.12)',
+              color: '#0F172A',
+            },
       }}
       mobileOffset="16px"
     />

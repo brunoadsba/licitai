@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { Menu, ShieldCheck, ShieldAlert, ShieldQuestion } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useShell } from './ShellContext';
+import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 const BREADCRUMB_MAP: Record<string, string> = {
   '/': 'Painel',
@@ -141,12 +142,15 @@ export default function Header() {
           </div>
         </div>
 
-        <div
-          className="flex shrink-0 items-center gap-2 rounded-full border border-line-subtle bg-white/[0.04] px-3 py-1.5 shadow-rim"
-          title="Disponibilidade do serviço verificada a cada 30s"
-        >
-          <StatusIcon className={cn('h-3.5 w-3.5', statusConfig.className)} aria-hidden />
-          <span className="text-xs text-content-muted">{statusConfig.label}</span>
+        <div className="flex shrink-0 items-center gap-2">
+          <ThemeToggle />
+          <div
+            className="flex items-center gap-2 rounded-full border border-line-subtle bg-white/[0.04] px-3 py-1.5 shadow-rim dark:bg-white/[0.04]"
+            title="Disponibilidade do serviço verificada a cada 30s"
+          >
+            <StatusIcon className={cn('h-3.5 w-3.5', statusConfig.className)} aria-hidden />
+            <span className="text-xs text-content-muted">{statusConfig.label}</span>
+          </div>
         </div>
       </div>
     </header>

@@ -14,11 +14,12 @@
 
 ## 1. Tema e Atmosfera
 
-**Direção**: "Port authority midnight" — tinta/graphite editorial + teal CODEBA luminoso. Superfícies em slate (`#111827`), não navy saturado. Conteúdo emerge por luminância e rim light.
+**Direção**: claro + escuro com a mesma identidade CODEBA (teal + navy). Toggle no header; preferência em `localStorage` (`licitai-theme`).
 
-- **Momento-assinatura**: painel de análise onde o diff DE→PARA é o herói visual — acento teal só em interação/estado.
-- **Material base**: ink canvas `#06080F` + panel `#0A0F18` + surface `#111827`.
-- **Vidro**: tint + `backdrop-blur` + borda slate-semitransparente + rim + filete teal no topo do card.
+- **Escuro**: ink `#06080F` / graphite surfaces / teal luminoso.
+- **Claro**: canvas `#F3F6FB` (azul-acinzentado frio, sem cream) / panel branco / texto slate / accent teal `#247070`–`#3AA4A4`.
+- Classes: `html.light` | `html.dark` (`darkMode: 'class'` no Tailwind).
+- FOUC: script inline no `<head>` antes da hidratação.
 
 ## 2. Cor — derivada da identidade CODEBA
 

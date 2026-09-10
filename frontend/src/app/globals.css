@@ -1,7 +1,6 @@
 /* ============================================================
-   LicitAI — Sistema de Análise de Termos de Referência
-   Estilos globais — dark premium (ink + teal CODEBA)
-   Tokens em :root → mapeados no tailwind.config.js
+   LicitAI — tema claro + escuro (tokens CODEBA)
+   html.light | html.dark — ver ThemeProvider
    ============================================================ */
 
 @tailwind base;
@@ -9,8 +8,29 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    /* Ink / graphite — menos navy saturado, mais profundidade editorial */
+  /* ── Claro (padrão sem classe = light; script aplica light|dark) ── */
+  :root,
+  html.light {
+    --canvas: #f3f6fb;
+    --panel: #ffffff;
+    --surface: #ffffff;
+    --surface-hover: #e8eef6;
+    --border-subtle: rgba(15, 23, 42, 0.08);
+    --border-strong: rgba(15, 23, 42, 0.14);
+    --text-primary: #0f172a;
+    --text-secondary: #334155;
+    --text-muted: #64748b;
+    --text-subtle: #94a3b8;
+    --codeba-navy: #051853;
+    --codeba-teal: #3aa4a4;
+    --accent-glow: rgba(36, 112, 112, 0.18);
+    --glass-sheen: rgba(5, 24, 83, 0.03);
+    --glass-line: rgba(36, 112, 112, 0.22);
+    --overlay-hover: rgba(15, 23, 42, 0.04);
+    --card-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.06);
+  }
+
+  html.dark {
     --canvas: #06080f;
     --panel: #0a0f18;
     --surface: #111827;
@@ -24,6 +44,10 @@
     --codeba-navy: #051853;
     --codeba-teal: #3aa4a4;
     --accent-glow: rgba(58, 164, 164, 0.22);
+    --glass-sheen: rgba(255, 255, 255, 0.04);
+    --glass-line: rgba(58, 164, 164, 0.25);
+    --overlay-hover: rgba(255, 255, 255, 0.04);
+    --card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
   }
 
   html {
@@ -34,8 +58,25 @@
     @apply bg-canvas text-content-secondary font-sans antialiased;
     min-height: 100vh;
     min-height: 100dvh;
-    /* Atmosfera premium: halo teal + wash navy CODEBA (sem roxo) */
     background-color: var(--canvas);
+    background-attachment: fixed;
+  }
+
+  html.light body {
+    background-image:
+      radial-gradient(
+        ellipse 90% 55% at 12% -8%,
+        rgba(58, 164, 164, 0.10),
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse 70% 45% at 100% 0%,
+        rgba(5, 24, 83, 0.07),
+        transparent 50%
+      );
+  }
+
+  html.dark body {
     background-image:
       radial-gradient(
         ellipse 90% 55% at 15% -10%,
@@ -52,7 +93,6 @@
         rgba(58, 164, 164, 0.04),
         transparent 60%
       );
-    background-attachment: fixed;
   }
 
   ::selection {
@@ -68,18 +108,19 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-slate-500/25;
+    background: color-mix(in srgb, var(--text-subtle) 45%, transparent);
+    border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-400/35;
+    background: color-mix(in srgb, var(--text-muted) 55%, transparent);
   }
 }
 
 @layer components {
   .glass-card {
-    @apply relative overflow-hidden rounded-xl border border-line-subtle
-           backdrop-blur-md shadow-rim;
-    background-color: color-mix(in srgb, var(--surface) 78%, transparent);
+    @apply relative overflow-hidden rounded-xl border border-line-subtle backdrop-blur-md;
+    background-color: color-mix(in srgb, var(--surface) 92%, transparent);
+    box-shadow: var(--card-shadow);
   }
 
   .glass-card::before {
@@ -87,8 +128,8 @@
     @apply pointer-events-none absolute inset-0;
     background: linear-gradient(
       135deg,
-      rgba(255, 255, 255, 0.04) 0%,
-      transparent 40%,
+      var(--glass-sheen) 0%,
+      transparent 42%,
       transparent 100%
     );
   }
@@ -99,7 +140,7 @@
     background: linear-gradient(
       90deg,
       transparent,
-      rgba(58, 164, 164, 0.25),
+      var(--glass-line),
       transparent
     );
   }
@@ -108,12 +149,9 @@
     @apply glass-card cursor-pointer transition-all duration-200 ease-out;
   }
   .glass-card-interactive:hover {
-    @apply border-white/[0.14];
-    background-color: color-mix(in srgb, var(--surface-hover) 88%, transparent);
+    background-color: color-mix(in srgb, var(--surface-hover) 94%, transparent);
+    border-color: color-mix(in srgb, var(--text-muted) 35%, transparent);
     transform: translateY(-1px);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      0 8px 28px rgba(0, 0, 0, 0.35);
   }
 
   .btn-primary {
@@ -123,7 +161,7 @@
     background: linear-gradient(180deg, #3eb8b0 0%, #2a8f88 100%);
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.18),
-      0 1px 2px rgba(0, 0, 0, 0.25);
+      0 1px 2px rgba(0, 0, 0, 0.18);
   }
   .btn-primary:hover:not(:disabled) {
     background: linear-gradient(180deg, #4ac4bc 0%, #319a92 100%);
@@ -141,10 +179,13 @@
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5
            text-sm font-medium text-content-secondary transition-all duration-150
-           ease-out outline-none border border-line-strong bg-white/[0.03];
+           ease-out outline-none border border-line-strong;
+    background-color: var(--overlay-hover);
   }
   .btn-secondary:hover:not(:disabled) {
-    @apply border-white/[0.18] bg-white/[0.06] text-content-primary;
+    @apply text-content-primary;
+    border-color: color-mix(in srgb, var(--text-muted) 45%, transparent);
+    background-color: color-mix(in srgb, var(--text-muted) 12%, transparent);
   }
   .btn-secondary:active:not(:disabled) {
     transform: scale(0.98);
@@ -157,9 +198,10 @@
   }
 
   .input-field {
-    @apply w-full rounded-lg border border-line-strong bg-white/[0.03]
-           px-3.5 py-2.5 text-sm text-content-primary placeholder-content-subtle
-           transition-all duration-150 outline-none;
+    @apply w-full rounded-lg border border-line-strong px-3.5 py-2.5 text-sm
+           text-content-primary placeholder-content-subtle transition-all duration-150
+           outline-none;
+    background-color: color-mix(in srgb, var(--surface) 80%, transparent);
   }
   .input-field:focus {
     border-color: rgba(58, 164, 164, 0.5);
@@ -172,21 +214,29 @@
            outline-none;
   }
   .sidebar-link:hover {
-    @apply bg-white/[0.04] text-content-primary;
+    @apply text-content-primary;
+    background-color: var(--overlay-hover);
   }
   .sidebar-link:focus-visible {
     box-shadow: inset 0 0 0 2px rgba(58, 164, 164, 0.55);
   }
   .sidebar-link.active {
-    color: theme('colors.accent.300');
+    color: theme('colors.accent.700');
     background-color: color-mix(in srgb, theme('colors.accent.500') 12%, transparent);
+    box-shadow:
+      inset 2px 0 0 theme('colors.accent.500'),
+      inset 0 0 0 1px color-mix(in srgb, theme('colors.accent.500') 14%, transparent);
+  }
+  html.dark .sidebar-link.active {
+    color: theme('colors.accent.300');
     box-shadow:
       inset 2px 0 0 theme('colors.accent.400'),
       inset 0 0 0 1px color-mix(in srgb, theme('colors.accent.500') 12%, transparent);
   }
 
   .skeleton {
-    @apply animate-pulse rounded-lg bg-white/[0.06];
+    @apply animate-pulse rounded-lg;
+    background-color: color-mix(in srgb, var(--text-subtle) 18%, transparent);
   }
 
   .diff-removed {
@@ -197,7 +247,8 @@
   }
 
   .progress-bar {
-    @apply h-2 overflow-hidden rounded-full border border-line-subtle bg-white/[0.06];
+    @apply h-2 overflow-hidden rounded-full border border-line-subtle;
+    background-color: color-mix(in srgb, var(--text-subtle) 16%, transparent);
   }
   .progress-bar-fill {
     @apply h-full rounded-full bg-accent-500 transition-all duration-300 ease-out;
