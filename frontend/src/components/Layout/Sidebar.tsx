@@ -112,7 +112,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 function Brand() {
   return (
     <Link href="/" className="group block" aria-label="CODEBA — Autoridade Portuária, ir para o Painel">
-      <div className="flex items-center justify-center rounded-xl bg-white px-3 py-2.5 shadow-sm transition-shadow group-hover:shadow-md">
+      <div className="flex items-center justify-center rounded-xl border border-white/10 bg-white px-3 py-2.5 shadow-soft transition-all group-hover:border-accent-400/30 group-hover:shadow-accent">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/logo-codeba.png"
@@ -122,8 +122,8 @@ function Brand() {
           className="h-8 w-auto object-contain"
         />
       </div>
-      <p className="mt-2.5 text-center text-[10px] font-medium uppercase tracking-widest text-content-subtle">
-        Revisar TR • SEI
+      <p className="mt-2.5 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-content-subtle">
+        Revisar TR · SEI
       </p>
     </Link>
   );
@@ -131,8 +131,8 @@ function Brand() {
 
 function SidebarFooter() {
   return (
-    <div className="border-t border-line-subtle p-4">
-      <p className="text-[11px] leading-relaxed text-content-subtle">
+    <div className="border-t border-line-subtle p-4" style={{ background: 'linear-gradient(to top, rgba(58,164,164,0.04), transparent)' }}>
+      <p className="text-[11px] leading-relaxed text-content-muted">
         IA sugere; você decide. Só o aprovado vai ao SEI.
       </p>
     </div>
@@ -156,7 +156,7 @@ export default function Sidebar() {
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line-subtle bg-panel lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line-subtle bg-panel/95 backdrop-blur-xl lg:flex">
         <SidebarBody />
       </aside>
 

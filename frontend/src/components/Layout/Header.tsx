@@ -115,7 +115,7 @@ export default function Header() {
   const title = BREADCRUMB_MAP[pathname] ?? BREADCRUMB_MAP['/' + (parts[0] ?? '')] ?? 'Painel';
 
   return (
-    <header className="sticky top-0 z-30 border-b border-line-subtle bg-panel/80 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b border-line-subtle bg-panel/70 backdrop-blur-2xl">
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <button
@@ -131,7 +131,7 @@ export default function Header() {
             alt="CODEBA"
             width={90}
             height={24}
-            className="h-6 w-auto rounded bg-white px-1.5 py-0.5 object-contain lg:hidden"
+            className="h-6 w-auto rounded-md border border-white/10 bg-white px-1.5 py-0.5 object-contain lg:hidden"
           />
           <div className="min-w-0">
             <Breadcrumb pathname={pathname} />
@@ -142,7 +142,7 @@ export default function Header() {
         </div>
 
         <div
-          className="flex shrink-0 items-center gap-2 rounded-lg border border-line-subtle bg-white/[0.03] px-3 py-1.5"
+          className="flex shrink-0 items-center gap-2 rounded-full border border-line-subtle bg-white/[0.04] px-3 py-1.5 shadow-rim"
           title="Disponibilidade do serviço verificada a cada 30s"
         >
           <StatusIcon className={cn('h-3.5 w-3.5', statusConfig.className)} aria-hidden />

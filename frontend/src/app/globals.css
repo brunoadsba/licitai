@@ -1,6 +1,6 @@
 /* ============================================================
    LicitAI — Sistema de Análise de Termos de Referência
-   Estilos globais — dark premium refinado (ver DESIGN.md)
+   Estilos globais — dark premium (ink + teal CODEBA)
    Tokens em :root → mapeados no tailwind.config.js
    ============================================================ */
 
@@ -10,18 +10,20 @@
 
 @layer base {
   :root {
-    --canvas: #080e1e;
-    --panel: #0f1f3a;
-    --surface: #152a4d;
-    --surface-hover: #1c355e;
-    --border-subtle: rgba(255, 255, 255, 0.07);
-    --border-strong: rgba(255, 255, 255, 0.11);
-    --text-primary: #f2f5f7;
-    --text-secondary: #c3cbd4;
-    --text-muted: #8a93a0;
-    --text-subtle: #5c6570;
+    /* Ink / graphite — menos navy saturado, mais profundidade editorial */
+    --canvas: #06080f;
+    --panel: #0a0f18;
+    --surface: #111827;
+    --surface-hover: #1a2436;
+    --border-subtle: rgba(148, 163, 184, 0.10);
+    --border-strong: rgba(148, 163, 184, 0.16);
+    --text-primary: #f1f5f9;
+    --text-secondary: #cbd5e1;
+    --text-muted: #94a3b8;
+    --text-subtle: #64748b;
     --codeba-navy: #051853;
     --codeba-teal: #3aa4a4;
+    --accent-glow: rgba(58, 164, 164, 0.22);
   }
 
   html {
@@ -32,20 +34,32 @@
     @apply bg-canvas text-content-secondary font-sans antialiased;
     min-height: 100vh;
     min-height: 100dvh;
-    /* Atmosfera: brilho radial sutil do acento no topo — profundidade sem gradiente chamativo */
-    background-image: radial-gradient(
-      ellipse 80% 50% at 50% -20%,
-      rgba(42, 175, 160, 0.05),
-      transparent
-    );
+    /* Atmosfera premium: halo teal + wash navy CODEBA (sem roxo) */
+    background-color: var(--canvas);
+    background-image:
+      radial-gradient(
+        ellipse 90% 55% at 15% -10%,
+        rgba(58, 164, 164, 0.09),
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse 70% 45% at 95% 0%,
+        rgba(5, 24, 83, 0.45),
+        transparent 50%
+      ),
+      radial-gradient(
+        ellipse 50% 40% at 50% 110%,
+        rgba(58, 164, 164, 0.04),
+        transparent 60%
+      );
+    background-attachment: fixed;
   }
 
   ::selection {
-    background: rgba(42, 175, 160, 0.25);
+    background: rgba(58, 164, 164, 0.28);
     color: var(--text-primary);
   }
 
-  /* Scrollbar discreta */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -54,27 +68,39 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply rounded-full bg-white/10;
+    @apply rounded-full bg-slate-500/25;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-white/15;
+    @apply bg-slate-400/35;
   }
 }
 
 @layer components {
-  /* ── Card com material de vidro real (tint + blur + rim) ─────────── */
   .glass-card {
     @apply relative overflow-hidden rounded-xl border border-line-subtle
-           bg-white/[0.03] backdrop-blur-md shadow-rim;
+           backdrop-blur-md shadow-rim;
+    background-color: color-mix(in srgb, var(--surface) 78%, transparent);
   }
 
   .glass-card::before {
     content: '';
     @apply pointer-events-none absolute inset-0;
-    background: radial-gradient(
-      ellipse at top left,
-      rgba(42, 175, 160, 0.06),
-      transparent 55%
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.04) 0%,
+      transparent 40%,
+      transparent 100%
+    );
+  }
+
+  .glass-card::after {
+    content: '';
+    @apply pointer-events-none absolute inset-x-0 top-0 h-px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(58, 164, 164, 0.25),
+      transparent
     );
   }
 
@@ -82,25 +108,31 @@
     @apply glass-card cursor-pointer transition-all duration-200 ease-out;
   }
   .glass-card-interactive:hover {
-    @apply border-white/[0.12] bg-white/[0.05];
+    @apply border-white/[0.14];
+    background-color: color-mix(in srgb, var(--surface-hover) 88%, transparent);
     transform: translateY(-1px);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 8px 28px rgba(0, 0, 0, 0.35);
   }
 
-  /* ── Botões ──────────────────────────────────────────────────────── */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5
            text-sm font-medium text-white transition-all duration-150 ease-out
            outline-none;
-    background-color: theme('colors.accent.700');
+    background: linear-gradient(180deg, #3eb8b0 0%, #2a8f88 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 1px 2px rgba(0, 0, 0, 0.25);
   }
   .btn-primary:hover:not(:disabled) {
-    background-color: theme('colors.accent.800');
+    background: linear-gradient(180deg, #4ac4bc 0%, #319a92 100%);
   }
   .btn-primary:active:not(:disabled) {
     transform: scale(0.98);
   }
   .btn-primary:focus-visible {
-    box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px rgba(42, 175, 160, 0.6);
+    box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px rgba(58, 164, 164, 0.55);
   }
   .btn-primary:disabled {
     @apply cursor-not-allowed opacity-50;
@@ -109,35 +141,31 @@
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5
            text-sm font-medium text-content-secondary transition-all duration-150
-           ease-out outline-none border border-line-strong bg-white/[0.04];
+           ease-out outline-none border border-line-strong bg-white/[0.03];
   }
   .btn-secondary:hover:not(:disabled) {
-    @apply border-white/[0.16] bg-white/[0.07] text-content-primary;
+    @apply border-white/[0.18] bg-white/[0.06] text-content-primary;
   }
   .btn-secondary:active:not(:disabled) {
     transform: scale(0.98);
   }
   .btn-secondary:focus-visible {
-    box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px rgba(42, 175, 160, 0.6);
+    box-shadow: 0 0 0 2px var(--canvas), 0 0 0 4px rgba(58, 164, 164, 0.55);
   }
   .btn-secondary:disabled {
     @apply cursor-not-allowed opacity-50;
   }
 
-  /* Badges: use o componente React `Badge` (`tone`), não classes CSS. */
-
-  /* ── Inputs ──────────────────────────────────────────────────────── */
   .input-field {
     @apply w-full rounded-lg border border-line-strong bg-white/[0.03]
            px-3.5 py-2.5 text-sm text-content-primary placeholder-content-subtle
            transition-all duration-150 outline-none;
   }
   .input-field:focus {
-    border-color: rgba(42, 175, 160, 0.45);
-    box-shadow: 0 0 0 3px rgba(42, 175, 160, 0.18);
+    border-color: rgba(58, 164, 164, 0.5);
+    box-shadow: 0 0 0 3px rgba(58, 164, 164, 0.16);
   }
 
-  /* ── Navegação lateral ───────────────────────────────────────────── */
   .sidebar-link {
     @apply flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-sm
            font-medium text-content-muted transition-all duration-150
@@ -147,19 +175,20 @@
     @apply bg-white/[0.04] text-content-primary;
   }
   .sidebar-link:focus-visible {
-    box-shadow: inset 0 0 0 2px rgba(42, 175, 160, 0.6);
+    box-shadow: inset 0 0 0 2px rgba(58, 164, 164, 0.55);
   }
   .sidebar-link.active {
-    @apply bg-accent-500/10 text-accent-400;
-    box-shadow: inset 2px 0 0 theme('colors.accent.500');
+    color: theme('colors.accent.300');
+    background-color: color-mix(in srgb, theme('colors.accent.500') 12%, transparent);
+    box-shadow:
+      inset 2px 0 0 theme('colors.accent.400'),
+      inset 0 0 0 1px color-mix(in srgb, theme('colors.accent.500') 12%, transparent);
   }
 
-  /* ── Skeleton ────────────────────────────────────────────────────── */
   .skeleton {
     @apply animate-pulse rounded-lg bg-white/[0.06];
   }
 
-  /* ── Diff DE→PARA ────────────────────────────────────────────────── */
   .diff-removed {
     @apply rounded-r-md border-l-4 border-red-500/50 bg-red-500/10 px-4 py-2;
   }
@@ -167,7 +196,6 @@
     @apply rounded-r-md border-l-4 border-green-500/50 bg-green-500/10 px-4 py-2;
   }
 
-  /* ── Progresso ───────────────────────────────────────────────────── */
   .progress-bar {
     @apply h-2 overflow-hidden rounded-full border border-line-subtle bg-white/[0.06];
   }
@@ -185,12 +213,10 @@
 }
 
 @layer utilities {
-  /* Números alinhados (notas, tamanhos, datas) — DESIGN.md §3 */
   .tnum {
     font-variant-numeric: tabular-nums;
   }
 
-  /* Skip-to-content: visível só ao focar via teclado */
   .skip-link {
     @apply absolute left-4 top-4 z-[100] -translate-y-16 rounded-lg bg-accent-600
            px-4 py-2 text-sm font-medium text-white transition-transform
@@ -208,7 +234,6 @@
   }
 }
 
-/* Exportar relatório via diálogo de impressão do navegador */
 @media print {
   .no-print {
     display: none !important;
@@ -229,5 +254,9 @@
     background: #fff !important;
     box-shadow: none !important;
   }
-}
 
+  .glass-card::before,
+  .glass-card::after {
+    display: none !important;
+  }
+}

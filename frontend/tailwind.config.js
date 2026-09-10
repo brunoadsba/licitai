@@ -22,19 +22,19 @@ module.exports = {
           teal: '#3AA4A4',
           gray: '#606163',
         },
-        // Acento único teal CODEBA — única cor cromática interativa
+        // Acento único teal CODEBA — luminoso, sem roxo
         accent: {
           50: '#ECFCF9',
           100: '#D0F7F0',
           200: '#A3EEE3',
-          300: '#71DFCF',
+          300: '#6FDDD0',
           400: '#43C9B9',
-          500: '#2AAFA0',
-          600: '#1F8E83',
-          700: '#1B7268',
-          800: '#185B54',
-          900: '#14453F',
-          950: '#0A2E2A',
+          500: '#3AA4A4',
+          600: '#2E8B8B',
+          700: '#247070',
+          800: '#1C5858',
+          900: '#154242',
+          950: '#0B2828',
         },
         content: {
           primary: 'var(--text-primary)',
@@ -47,25 +47,23 @@ module.exports = {
           strong: 'var(--border-strong)',
         },
         risk: {
-          low: '#22c55e',
-          medium: '#eab308',
-          high: '#f97316',
-          critical: '#ef4444',
+          low: '#34d399',
+          medium: '#fbbf24',
+          high: '#fb923c',
+          critical: '#f87171',
         },
       },
       fontFamily: {
         sans: ['var(--font-geist-sans)', 'system-ui', '-apple-system', 'sans-serif'],
         mono: ['var(--font-geist-mono)', 'ui-monospace', 'SF Mono', 'Menlo', 'monospace'],
       },
-      borderRadius: {
-        // raio padrão de botões/inputs sobe de xl→md conforme DESIGN.md §4
-      },
       boxShadow: {
-        // Elevação por luminância + rim light — sombras escuras quase invisíveis em dark
-        rim: 'inset 0 1px 0 rgba(255,255,255,0.06)',
+        rim: 'inset 0 1px 0 rgba(255,255,255,0.07)',
+        soft: '0 4px 24px rgba(0,0,0,0.28)',
         dialog:
-          '0 8px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06)',
-        drawer: '8px 0 40px rgba(0,0,0,0.4)',
+          '0 12px 48px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.07)',
+        drawer: '8px 0 40px rgba(0,0,0,0.45)',
+        accent: '0 0 0 1px rgba(58,164,164,0.25), 0 8px 24px rgba(58,164,164,0.12)',
       },
       animation: {
         'fade-in': 'fadeIn 0.3s cubic-bezier(0.32, 0.72, 0, 1)',
