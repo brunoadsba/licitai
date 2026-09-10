@@ -132,6 +132,10 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - Badges unificados: `Badge` + `getCategoryTone`/`getSeverityTone`; classes `.badge-*` removidas do `globals.css`.
   - Relatório: botão **Exportar PDF** (`window.print()`), CSS `@media print` / `.no-print` no shell.
   - `backend/tests/conftest.py` força SQLite async para pytest local independente do `.env`.
+- **Validação E2E pós-consolidação em `main` (10/09/2026)**:
+  - API: `E2E_BASE_URL=http://127.0.0.1:8000 PYTHONPATH=backend pytest e2e/tests` → **17/17** em ~3m15s (Compose healthy).
+  - Playwright live: `E2E_LIVE=1 E2E_BASE_URL=http://127.0.0.1:3000` (+ `E2E_ANALYSIS_ID` de análise `completed_with_errors`) → **4/4** (`home`, `upload`, `report`, `gerar-tr`) em ~1,5s.
+  - Unitário review SEI: `pytest backend/tests/test_correction_review_api.py` → **7/7** (via `conftest` SQLite).
 
 ---
 
@@ -306,7 +310,7 @@ A IA atua estritamente sob as seguintes diretrizes:
   - **Fase C (RAG)**: FTS5 com `remove_diacritics 2` (busca sem acento); retrieval híbrido RRF (semântico + textual com try/except); warn de dimensão de embedding; cache LRU 256 de query-embeddings. **+2 testes**.
   - **Fase D (Banco)**: `db/init.sql` sincronizado com os models (corrigido `);` faltante em `document_items`, `items_snapshot JSON`, `analysis_mode`, `agent_origin`, `embedding TEXT`, removido ivfflat); constraint `uq_comparacao_fornecedor_regra`; script `dedupe_comparacao_resultados.py`; paginação `page`/`page_size` em documents/fornecedores/comparison (backward-compatible; `analysis.py` sem paginação — frontend espera lista crua). Evolução 08/09: Alembic + `jobs`/`schema_meta`/`archived_at`/CHECKs.
   - **Fase E (Validação)**: corpus reingerido no banco real (**7 documentos, 315 chunks, 100% com embedding**); benchmark sem regressão; `db/init.sql` validado via parser oficial do PostgreSQL (**16 testes `test_init_sql.py`**).
-- **Suíte de Testes (08/09)**: **215+ unitários** (golden FakeLLM, jobs, OCR subprocess, privacy, grounding, reliability P0, chat, feedback stub). E2E Playwright smoke existe em `frontend/e2e/` (não é gate CI).
+- **Suíte de Testes (10/09)**: **215+ unitários** (golden FakeLLM, jobs, OCR, privacy, grounding, chat, review SEI). E2E API Docker **17/17**; Playwright smoke live **4/4** (`frontend/e2e/smoke.spec.ts`, `E2E_LIVE=1`). CI permanece desabilitado.
 - **Copiloto LicitAI (chat consultivo) implementado (06/08/2026)**: módulo backend isolado + API `/api/v1/chat` + frontend integrado na tela de análise; thumbs-down grava stub em `e2e/golden/feedback/` (promover com `promote_feedback.py`).
 - **Backend FastAPI**: provedor configurável (`LLM_PROVIDER`), failover + limiter; fora de `APP_ENV=development` exige `API_TOKEN` e Postgres. Análises/comparações **só avançam com worker**.
 - **Modernização UX/UI** na branch `feat/ux-modernization` (25/08) mergeada na linha de confiabilidade; CI permanece desabilitado.
@@ -437,9 +441,11 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 3. ~~Merge UX → confiabilidade-master~~ — FF merge em 10/09/2026; CSP incluído.
 4. ~~Polish badges/print/pytest~~ — merge FF `feat/polish-badges-print-pytest` → `feat/confiabilidade-master` (10/09).
 5. ~~Consolidar em `main`~~ — FF `feat/confiabilidade-master` → `main`; demais branches removidas (10/09).
+6. ~~Revalidar E2E pós-merge~~ — API 17/17 (~3m15s) + Playwright live 4/4 (10/09).
+
 ### Produto / qualidade (não urgente)
 - Curadoria humana de stubs em `e2e/golden/feedback/` via `promote_feedback.py` (**0 stubs** em 10/09).
-- Playwright live (`E2E_LIVE=1`) opcional.
+- ~~Playwright live (`E2E_LIVE=1`)~~ — 4/4 em 10/09 contra frontend Compose `:3000`.
 - Reabilitar CI só se o usuário pedir explicitamente.
 - ~~Dualismo badges~~ — unificado em `Badge` + `getCategoryTone`/`getSeverityTone` (10/09).
 - ~~PDF export relatório~~ — botão Exportar PDF via `window.print()` + CSS `@media print` (10/09).
@@ -452,4 +458,5 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 > **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.  
 > **UX SEI (09/09/2026)**: review humana + funil upload/nav/chat/comparação.  
 > **Polish (10/09/2026)**: Badge unificado, Exportar PDF do relatório, conftest pytest.  
-> **Main única (10/09/2026)**: consolidação FF em `main`; feature branches apagadas.
+> **Main única (10/09/2026)**: consolidação FF em `main`; feature branches apagadas.  
+> **E2E revalidado (10/09/2026)**: API 17/17 (~3m15s) + Playwright live 4/4.
