@@ -434,16 +434,17 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Ver `PLANO.md` para backlog histórico. Branch ativa de valor: **`feat/valor-elaborador-mvp`**. CI **não** reabilitar sem pedido.
+> Ver `PLANO.md` para backlog histórico. Branch ativa: **`main`** (FF de `feat/excelencia-piloto` em 10/09/2026). CI **não** reabilitar sem pedido.
 
-### Valor elaborador (Fases 0–4 — implementado)
+### Valor elaborador (Fases 0–4 — implementado, em `main`)
 - Fila Prioridade (alto/crítico + estrutural), pacote SEI, TR HTML corrigido, fluxo Atualizar TR (`?diffFrom=`), ops piloto (`docs/ops/piloto.md`, `scripts/backup_daily.sh`, `scripts/ops_alerts.sh`).
 - Extensão Chrome tenta `corrected-html` pós-revisão antes do HTML bruto.
 
-### Excelência piloto (Fases A–G — código em `feat/excelencia-piloto`)
+### Excelência piloto (Fases A–G — mergeado em `main`)
 - **Feito (A–F + DOCX + cron neste host):** medição, HTML robusto, Art. 6, modo `economic`, `reanalyze-partial`, DOCX (`corrected-docx`), `install_ops_cron.sh` aplicado, backup dry-run OK.
 - **Pendente (humano):** gate 14 dias; rotação de secrets; rotina quinzenal CODEBA ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)). Ver bloco **Como elevar confiabilidade** abaixo.
 - **Fora de escopo:** CI, K8s, fine-tune, multi-tenant, LangGraph.
+- Branches locais `feat/excelencia-piloto` e `feat/valor-elaborador-mvp` removidas após FF em `main`.
 
 ### Como elevar confiabilidade do MVP (Bruno / CODEBA — 10/09/2026)
 
