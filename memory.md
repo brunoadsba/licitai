@@ -298,8 +298,8 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (10/09/2026)**: `feat/confiabilidade-master` (inclui UX SEI/funil + polish badges/print/pytest). CI permanece desabilitado.
-- **Branch de confiabilidade (08–10/09/2026)**: runtime Docker confiável, modelos LLM atuais, E2E 17/17 (`025962a`), UX Sprints 1–3, CSP Next.js, restore drill documentado, unificação `Badge` + Exportar PDF + `backend/tests/conftest.py`.
+- **Branch ativa (10/09/2026)**: `main` — única branch remota de trabalho; features anteriores (confiabilidade, UX SEI, polish) foram mergeadas via FF. CI permanece desabilitado.
+- **Histórico consolidado (08–10/09/2026)**: runtime Docker confiável, modelos LLM atuais, E2E 17/17, UX Sprints 1–3, CSP Next.js, restore drill documentado, unificação `Badge` + Exportar PDF + `backend/tests/conftest.py`.
 - **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
   - **Fase A (Parsing)**: títulos de seção determinísticos via sha256+NFC (`T-{digest%100000}` — sem `hash()`); alíneas (`a)`, `b)`) detectadas como subitem e itens romanos (`I.`, `II.`) como seção. **+3 testes**.
   - **Fase B (Extração por regras)**: `_texto_por_ancora` usa a partir da 1ª ocorrência; regex de inteiro ignora número de item e milhar monetário; monetário sem `_para_decimal`; datas inválidas rejeitadas (`datetime.date`); CNPJ valida dígitos verificadores (módulo 11); números por extenso compostos ("vinte e um"→21). **+10 testes**; fixture `test_fase4_fase5` corrigida para CNPJ com DV válido (`-95`).
@@ -429,14 +429,14 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Ver `PLANO.md` para backlog histórico. Linha ativa: `feat/confiabilidade-master` (UX + polish 10/09). CI **não** reabilitar sem pedido.
+> Ver `PLANO.md` para backlog histórico. Linha ativa: **`main`** (única branch). CI **não** reabilitar sem pedido.
 
 ### Agora (ops / Bruno — sem bloquear código)
 1. Quando conveniente: rotacionar chaves Gemini/Groq e `POSTGRES_PASSWORD` (adiado no MVP a pedido do usuário).
 2. ~~Restore drill~~ — executado 10/09/2026 em staging isolado (`pgvector/pgvector:pg16`); ver `docs/ops/restore-drill.md` (RTO ~3s; backup `licitai_20260910T104546Z`).
 3. ~~Merge UX → confiabilidade-master~~ — FF merge em 10/09/2026; CSP incluído.
 4. ~~Polish badges/print/pytest~~ — merge FF `feat/polish-badges-print-pytest` → `feat/confiabilidade-master` (10/09).
-
+5. ~~Consolidar em `main`~~ — FF `feat/confiabilidade-master` → `main`; demais branches removidas (10/09).
 ### Produto / qualidade (não urgente)
 - Curadoria humana de stubs em `e2e/golden/feedback/` via `promote_feedback.py` (**0 stubs** em 10/09).
 - Playwright live (`E2E_LIVE=1`) opcional.
