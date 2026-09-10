@@ -59,3 +59,6 @@ scratch/
 
 # QA artifacts (screenshots de verificação visual)
 .opomo-qa/
+
+# Backups operacionais (dumps/tars)
+backups/
