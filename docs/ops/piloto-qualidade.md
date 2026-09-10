@@ -7,6 +7,7 @@ Rotina quinzenal para manter precision em **alto/crítico** e Art. 6º.
 ## Checklist quinzenal
 
 1. Selecionar 5 TRs reais anonimizados (sem dados pessoais/sigilosos desnecessários).
+   Preferir `fixtures/trs-codeba/piloto-unico/` (ver [MANIFEST](../../fixtures/trs-codeba/MANIFEST.md)).
 2. Rodar análise em modo **economic** (padrão do upload).
 3. Anotar:
    - taxa de rejeição humana em correções `alto|critico`

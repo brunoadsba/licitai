@@ -452,7 +452,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 | Entrega | Por quê |
 |---------|---------|
-| ≥10 TRs reais anonimizados (completos, com gaps, prazo ambíguo, marca/direcionamento, mínimos) | Diversifica golden/benchmark além dos sintéticos `e2e/golden/` |
+| ≥10 TRs reais anonimizados (completos, com gaps, prazo ambíguo, marca/direcionamento, mínimos) | Diversifica golden/benchmark além dos sintéticos `e2e/golden/` — base local: `fixtures/trs-codeba/` (PDFs gitignored; 6/10 objetos; ver MANIFEST) |
 | Gate 14 dias de uso real ([gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)) | Prova utilidade no fluxo: Enviar → Prioridade + Art. 6 → aprovar → pacote SEI/HTML/DOCX |
 | Aprovação/rejeição consciente em alto/crítico (+ thumbs-down → `promote_feedback.py`) | Sinal de precision; alimenta stubs em `e2e/golden/feedback/` |
 | Colar/anexar export no SEI real (ou minuta de teste) | Valida se HTML/DOCX/pacote serve no processo, não só na UI |

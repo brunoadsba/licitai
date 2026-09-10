@@ -47,8 +47,10 @@ e2e/fixtures/sample-tr.docx
 frontend/npm-dev.log
 frontend/dev-server.log
 
-# Documentos reais (CODEBA)
+# Documentos reais (CODEBA) — nunca versionar PDFs de TR
 tr_modelo.pdf
+Base de Dados com TR para teste/
+fixtures/trs-codeba/**/*.pdf
 # Duplicata da logo (a oficial vive em frontend/public/logo-codeba.png)
 Logo CODEBA.png
 

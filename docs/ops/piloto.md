@@ -12,7 +12,7 @@ Checklist operacional do elaborador de TR em ambiente single-user.
 | Backup dry-run | **Feito** (`scripts/backup_daily.sh` → `backups/licitai_*`) |
 | Gate 14 dias de uso real CODEBA | **Pendente** (Bruno / elaboradores) — [gate-piloto-14d.md](gate-piloto-14d.md) |
 | Rotação de secrets | **Pendente** (manual) |
-| Benchmark quinzenal com 5 TRs CODEBA | **Pendente** (rotina) — [piloto-qualidade.md](piloto-qualidade.md) |
+| Benchmark quinzenal com 5 TRs CODEBA | **Pendente** (rotina) — [piloto-qualidade.md](piloto-qualidade.md) · fixtures em `fixtures/trs-codeba/` |
 | CI GitHub / K8s / fine-tune / multi-tenant | **Fora de escopo** (não fazer) |
 
 ## Secrets (manual Bruno)
