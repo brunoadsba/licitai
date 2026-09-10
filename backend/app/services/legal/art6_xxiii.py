@@ -47,14 +47,22 @@ ART6_XXIII_ELEMENTS: tuple[Art6Element, ...] = (
         description=(
             "descrição da solução como um todo, considerado todo o ciclo de vida do objeto"
         ),
-        keywords=("solucao como um todo", "solução como um todo", "ciclo de vida"),
+        keywords=(
+            "solucao como um todo",
+            "solução como um todo",
+            "ciclo de vida",
+            "descricao da solucao",
+            "descrição da solução",
+            "solucao de tic",
+            "solução de tic",
+        ),
     ),
     Art6Element(
         key="requisitos",
         alinea="d",
         title="Requisitos da contratação",
         description="requisitos da contratação",
-        keywords=("requisitos", "especificac", "requisitos da contratacao"),
+        keywords=("requisitos", "especificac", "requisitos da contratacao", "especificações técnicas"),
     ),
     Art6Element(
         key="modelo_execucao",
@@ -64,7 +72,14 @@ ART6_XXIII_ELEMENTS: tuple[Art6Element, ...] = (
             "modelo de execução do objeto, que consiste na definição de como o contrato "
             "deverá produzir os resultados pretendidos desde o seu início até o seu encerramento"
         ),
-        keywords=("modelo de execucao", "modelo de execução", "execucao do objeto", "execução do objeto"),
+        keywords=(
+            "modelo de execucao",
+            "modelo de execução",
+            "execucao do objeto",
+            "execução do objeto",
+            "forma de prestacao",
+            "forma de prestação",
+        ),
     ),
     Art6Element(
         key="modelo_gestao",
@@ -74,21 +89,42 @@ ART6_XXIII_ELEMENTS: tuple[Art6Element, ...] = (
             "modelo de gestão do contrato, que descreve como a execução do objeto "
             "será acompanhada e fiscalizada pelo órgão ou entidade"
         ),
-        keywords=("modelo de gestao", "modelo de gestão", "fiscalizacao", "fiscalização"),
+        keywords=(
+            "modelo de gestao",
+            "modelo de gestão",
+            "fiscalizacao",
+            "fiscalização",
+            "gestao do contrato",
+            "gestão do contrato",
+        ),
     ),
     Art6Element(
         key="criterios_medicao_pagamento",
         alinea="g",
         title="Critérios de medição e de pagamento",
         description="critérios de medição e de pagamento",
-        keywords=("medicao", "medição", "pagamento", "criterios de medicao"),
+        keywords=(
+            "medicao",
+            "medição",
+            "pagamento",
+            "criterios de medicao",
+            "critérios de medição",
+        ),
     ),
     Art6Element(
         key="selecao_fornecedor",
         alinea="h",
         title="Forma e critérios de seleção do fornecedor",
         description="forma e critérios de seleção do fornecedor",
-        keywords=("selecao", "seleção", "criterio de julgamento", "critério de julgamento", "fornecedor"),
+        keywords=(
+            "selecao",
+            "seleção",
+            "criterio de julgamento",
+            "critério de julgamento",
+            "fornecedor",
+            "forma de selecao",
+            "forma de seleção",
+        ),
     ),
     Art6Element(
         key="estimativa_valor",
@@ -98,14 +134,32 @@ ART6_XXIII_ELEMENTS: tuple[Art6Element, ...] = (
             "estimativas do valor da contratação, acompanhadas dos preços unitários "
             "referenciais, das memórias de cálculo e dos documentos que lhes dão suporte"
         ),
-        keywords=("estimativa", "valor da contratacao", "precos", "preços", "orcament"),
+        keywords=(
+            "estimativa",
+            "valor da contratacao",
+            "precos",
+            "preços",
+            "orcament",
+            "pesquisa de precos",
+            "pesquisa de preços",
+        ),
     ),
     Art6Element(
         key="adequacao_orcamentaria",
         alinea="j",
         title="Adequação orçamentária",
         description="adequação orçamentária",
-        keywords=("adequacao orcamentaria", "adequação orçamentária", "dotacao", "dotação", "orcamentaria"),
+        keywords=(
+            "adequacao orcamentaria",
+            "adequação orçamentária",
+            "dotacao",
+            "dotação",
+            "orcamentaria",
+            "recursos orcamentarios",
+            "recursos orçamentários",
+            "fonte de recursos",
+            "classificacao orcamentaria",
+        ),
     ),
 )
 

@@ -10,7 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.document import Document, DocumentItem
 from app.schemas.generator import TRGeneratorItemResponse, TRGeneratorRequest, TRGeneratorResponse
 from app.services.analyzer.json_utils import parse_json_response
-from app.services.generator.validator import FALLBACK_POR_ELEMENTO, validate_tr_completeness
+from app.services.generator.validator import (
+    build_contextual_fallback,
+    art6_coverage_ratio,
+    validate_tr_completeness,
+)
 from app.services.legal.art6_xxiii import art6_checklist_prompt_block
 from app.services.llm.provider import get_llm_provider
 from app.services.rag.retriever import retrieve
@@ -114,9 +118,23 @@ Gere o JSON com todas as 10 seções completas, com linguagem jurídica formal, 
     if faltantes:
         logger.warning("TR gerado incompleto, faltantes: %s", faltantes)
         for key in faltantes:
-            fb = FALLBACK_POR_ELEMENTO.get(key)
+            fb = build_contextual_fallback(
+                key,
+                objeto=request.objeto,
+                justificativa=request.justificativa,
+                valor_txt=valor_txt,
+                prazo_meses=request.prazo_meses,
+                criterio=criterio_nome,
+                tipo_nome=tipo_nome,
+            )
             if fb:
-                secoes_json.append(fb.copy())
+                secoes_json.append(fb)
+        faltantes = validate_tr_completeness(secoes_json)
+        if faltantes:
+            logger.warning("TR ainda incompleto após fallback contextual: %s", faltantes)
+
+    coverage = art6_coverage_ratio(secoes_json)
+    logger.info("TR gerado art6_coverage=%.3f secoes=%s", coverage, len(secoes_json))
 
     # 2. Persistir no banco de dados como um novo Document
     doc_id = uuid.uuid4()
@@ -133,11 +151,13 @@ Gere o JSON com todas as 10 seções completas, com linguagem jurídica formal, 
         total_items=len(secoes_json),
         status="parsed",
         generation_manifest={
-            "prompt_version": "v2-art6-aj",
+            "prompt_version": "v3-art6-coverage-90",
             "corpus_version": str(valid_refs_count),
             "tipo_contratacao": request.tipo_contratacao,
             "rag_chunk_ids": [str(c.id) for c in chunks if getattr(c, "id", None)],
             "llm_provider": provider.__class__.__name__,
+            "art6_coverage": coverage,
+            "art6_meets_target": coverage >= 0.9,
         },
     )
     db.add(doc)
@@ -175,4 +195,6 @@ Gere o JSON com todas as 10 seções completas, com linguagem jurídica formal, 
         total_itens=len(items_res),
         html_completo="".join(html_parts),
         itens=items_res,
+        art6_coverage=coverage,
+        art6_meets_target=coverage >= 0.9,
     )

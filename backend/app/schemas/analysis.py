@@ -145,6 +145,8 @@ class AnalysisDetailResponse(BaseModel):
     corrections: list[CorrectionResponse] = []
     tokens_estimated: int | None = None
     art6_checklist: list[Art6ChecklistItem] = []
+    art6_coverage: float | None = None
+    art6_meets_target: bool | None = None
 
 
 class ScoreDetail(BaseModel):
@@ -170,6 +172,8 @@ class ReportResponse(BaseModel):
     analyzed_at: AwareDatetime | None = None
     tokens_estimated: int | None = None
     art6_checklist: list[Art6ChecklistItem] = []
+    art6_coverage: float | None = None
+    art6_meets_target: bool | None = None
 
 
 class SeiPackEntry(BaseModel):

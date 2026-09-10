@@ -381,22 +381,32 @@ export default function ReportPage() {
       )}
 
       {/* Lista expandível de correções */}
-      {(report.art6_checklist ?? []).some((i) => i.status !== 'present') && (
-        <div className="glass-card space-y-2 border-amber-500/20 p-4">
+      {(report.art6_checklist ?? []).length > 0 && (
+        <div
+          className={`glass-card space-y-2 p-4 ${
+            (report.art6_meets_target ?? false)
+              ? 'border-green-500/20'
+              : 'border-amber-500/20'
+          }`}
+        >
           <h2 className="text-lg font-semibold tracking-tight text-content-primary">
-            Art. 6º, XXIII — gaps
+            Art. 6º, XXIII — cobertura{' '}
+            {Math.round((report.art6_coverage ?? 0) * 100)}%
+            {report.art6_meets_target ? ' (meta ≥90%)' : ' (abaixo de 90%)'}
           </h2>
-          <ul className="flex flex-wrap gap-2">
-            {(report.art6_checklist ?? [])
-              .filter((i) => i.status !== 'present')
-              .map((g) => (
-                <li key={g.key}>
-                  <Badge tone={g.status === 'missing' ? 'critical' : 'medium'}>
-                    {g.alinea}) {g.label}
-                  </Badge>
-                </li>
-              ))}
-          </ul>
+          {(report.art6_checklist ?? []).some((i) => i.status !== 'present') && (
+            <ul className="flex flex-wrap gap-2">
+              {(report.art6_checklist ?? [])
+                .filter((i) => i.status !== 'present')
+                .map((g) => (
+                  <li key={g.key}>
+                    <Badge tone={g.status === 'missing' ? 'critical' : 'medium'}>
+                      {g.alinea}) {g.label}
+                    </Badge>
+                  </li>
+                ))}
+            </ul>
+          )}
         </div>
       )}
 

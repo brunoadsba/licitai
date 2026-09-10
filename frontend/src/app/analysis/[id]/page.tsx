@@ -453,7 +453,11 @@ export default function AnalysisPage() {
       )}
 
       {analysis && (analysis.status === 'completed' || analysis.status === 'completed_with_errors') && (
-        <Art6ChecklistPanel items={analysis.art6_checklist ?? []} />
+        <Art6ChecklistPanel
+          items={analysis.art6_checklist ?? []}
+          coverage={analysis.art6_coverage}
+          meetsTarget={analysis.art6_meets_target}
+        />
       )}
 
       {/* Layout principal: itens à esquerda, detalhes à direita (empilha no mobile) */}

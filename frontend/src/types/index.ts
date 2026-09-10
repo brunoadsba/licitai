@@ -89,6 +89,8 @@ export interface AnalysisDetailResponse {
   corrections: CorrectionResponse[];
   tokens_estimated?: number | null;
   art6_checklist?: Art6ChecklistItem[];
+  art6_coverage?: number | null;
+  art6_meets_target?: boolean | null;
 }
 
 export interface Art6ChecklistItem {
@@ -119,6 +121,8 @@ export interface ReportResponse {
   analyzed_at: string | null;
   tokens_estimated?: number | null;
   art6_checklist?: Art6ChecklistItem[];
+  art6_coverage?: number | null;
+  art6_meets_target?: boolean | null;
 }
 
 // ---- Auditoria TR × Propostas ----

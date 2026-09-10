@@ -443,6 +443,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ### Excelência piloto (Fases A–G — mergeado em `main`)
 - **Feito (A–F + DOCX + cron neste host):** medição, HTML robusto, Art. 6, modo `economic`, `reanalyze-partial`, DOCX (`corrected-docx`), `install_ops_cron.sh` aplicado, backup dry-run OK.
+- **Art. 6 coverage ≥90% (branch `feat/art6-coverage-90`):** métrica `art6_coverage`/`art6_meets_target` na API+UI; validador heading-first; fallback contextual no `/gerar-tr`; script `backend/scripts/score_art6_fixtures.py`. Baseline piloto CODEBA (heurística PDF): média **~71%**, **2/12 ≥90%** (lacunas típicas: solução como um todo + adequação orçamentária).
 - **Pendente (humano):** gate 14 dias; rotação de secrets; rotina quinzenal CODEBA ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)). Ver bloco **Como elevar confiabilidade** abaixo.
 - **Fora de escopo:** CI, K8s, fine-tune, multi-tenant, LangGraph.
 - Branches locais `feat/excelencia-piloto` e `feat/valor-elaborador-mvp` removidas após FF em `main`.

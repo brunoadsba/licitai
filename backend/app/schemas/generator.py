@@ -44,3 +44,5 @@ class TRGeneratorResponse(BaseModel):
     total_itens: int
     html_completo: str
     itens: list[TRGeneratorItemResponse]
+    art6_coverage: float | None = None
+    art6_meets_target: bool | None = None

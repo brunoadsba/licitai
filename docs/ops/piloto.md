@@ -49,6 +49,11 @@ Modo padrão do piloto: **economic** (jurídico + Art. 6). Orçamento opcional: 
 
 - [piloto-qualidade.md](piloto-qualidade.md) — rotina quinzenal (**execução pendente**)
 - [gate-piloto-14d.md](gate-piloto-14d.md) — critérios de uso real (**janela não iniciada**)
+- Meta estrutural Art. 6º: **≥90%** (`art6_coverage` na API/UI). Score local sem LLM:
+
+```bash
+PYTHONPATH=backend python backend/scripts/score_art6_fixtures.py
+```
 
 ## Checklist 14 dias (valor) — pendente de medição
 

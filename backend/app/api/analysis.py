@@ -34,7 +34,7 @@ from app.schemas.analysis import (
     SeiPackEntry,
     SeiPackResponse,
 )
-from app.services.analyzer.art6_status import build_art6_checklist
+from app.services.analyzer.art6_status import build_art6_checklist, summarize_art6_coverage
 from app.services.analyzer.corrected_document import (
     build_corrected_docx,
     build_corrected_html,
@@ -404,10 +404,11 @@ async def get_analysis(
         resp.corrections = [CorrectionResponse.model_validate(c) for c in filtered]
     resp.tokens_estimated = estimate_tokens(analysis)
     items = list(analysis.document.items or []) if analysis.document else []
-    resp.art6_checklist = [
-        Art6ChecklistItem(**row)
-        for row in build_art6_checklist(items, analysis.corrections)
-    ]
+    checklist_rows = build_art6_checklist(items, analysis.corrections)
+    resp.art6_checklist = [Art6ChecklistItem(**row) for row in checklist_rows]
+    summary = summarize_art6_coverage(checklist_rows)
+    resp.art6_coverage = summary["art6_coverage"]
+    resp.art6_meets_target = summary["art6_meets_target"]
     return resp
 
 
@@ -672,10 +673,9 @@ async def get_report(
     severity_counts = dict(Counter(c.severity for c in corrections))
 
     items = list(analysis.document.items or []) if analysis.document else []
-    art6 = [
-        Art6ChecklistItem(**row)
-        for row in build_art6_checklist(items, analysis.corrections)
-    ]
+    art6_rows = build_art6_checklist(items, analysis.corrections)
+    art6 = [Art6ChecklistItem(**row) for row in art6_rows]
+    art6_summary = summarize_art6_coverage(art6_rows)
 
     return ReportResponse(
         analysis_id=analysis.id,
@@ -692,6 +692,8 @@ async def get_report(
         analyzed_at=analysis.completed_at,
         tokens_estimated=estimate_tokens(analysis),
         art6_checklist=art6,
+        art6_coverage=art6_summary["art6_coverage"],
+        art6_meets_target=art6_summary["art6_meets_target"],
     )
 
 

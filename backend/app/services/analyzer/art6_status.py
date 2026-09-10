@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from app.services.generator.validator import validate_tr_completeness
+from app.services.generator.validator import ART6_COVERAGE_TARGET, validate_tr_completeness
 from app.services.legal.art6_xxiii import ART6_XXIII_ELEMENTS
 
 
@@ -52,3 +52,16 @@ def build_art6_checklist(
             }
         )
     return out
+
+
+def summarize_art6_coverage(checklist: list[dict], target: float = ART6_COVERAGE_TARGET) -> dict:
+    """Métrica explícita rumo a ≥90% de alíneas a–j presentes."""
+    total = len(checklist) or len(ART6_XXIII_ELEMENTS)
+    present = sum(1 for row in checklist if row.get("status") == "present")
+    coverage = round(present / total, 3) if total else 0.0
+    return {
+        "art6_present": present,
+        "art6_total": total,
+        "art6_coverage": coverage,
+        "art6_meets_target": coverage >= target,
+    }
