@@ -24,7 +24,7 @@ Sistema especialista para análise automatizada de Termos de Referência (TR) de
   - Revisão cruzada LLM + **revisão humana** (Aprovar / Rejeitar / Ajustar) via `PATCH /api/v1/analysis/corrections/{id}`
   - Cópia para o SEI **somente** com correções `aprovada` ou `ajustada`
   - **Copiar Texto Corrigido (PARA)** / **Item Inteiro** / **Parecer & Justificativa**
-- **Relatório** com pontuação (0-10), nível de risco e parecer final
+- **Relatório** com pontuação (0-10), nível de risco, parecer final e **Exportar PDF** (impressão do navegador)
 - **Upload honesto**: após o parse, a análise LLM inicia automaticamente (“Enviar e Analisar”)
 - **3 provedores de IA**: Groq (free tier), Google Gemini (free tier), Ollama (local) — com failover automático
 - **Auditoria TR × Propostas** (módulo aditivo de conformidade):
@@ -287,9 +287,15 @@ cd backend
 .\.venv\Scripts\python.exe -m pytest tests -q
 ```
 
-- **156 testes** cobrindo parser, extractor, retriever, rules/comparador/matriz, multi-agente, schema do banco, chat/Copiloto e demais módulos.
-- Testes do Copiloto usam **provider fake** (determinístico) — nunca chamam Gemini/Groq/Ollama reais nem dependem de `.env`.
+```bash
+# Linux / WSL
+cd /caminho/licitai
+PYTHONPATH=backend backend/.venv/bin/python -m pytest backend/tests -q
+```
 
+- Cobertura: parser, extractor, retriever, rules/comparador/matriz, multi-agente, schema, chat/Copiloto, revisão humana SEI (`test_correction_review_api.py`), demais módulos.
+- `backend/tests/conftest.py` força `DATABASE_URL=sqlite+aiosqlite:///:memory:` **antes** do import de `app.*`, para o pytest não herdar `postgresql://` síncrono do `.env`.
+- Testes do Copiloto usam **provider fake** (determinístico) — nunca chamam Gemini/Groq/Ollama reais.
 ### Validação do schema PostgreSQL (`db/init.sql`)
 
 Sem Docker, o `db/init.sql` é validado contra a **gramática oficial do PostgreSQL** via `pglast` (libpg_query) em `tests/test_init_sql.py` (16 testes):

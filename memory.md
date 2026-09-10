@@ -242,7 +242,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `src/lib/utils.ts`: `cn()` (clsx + tailwind-merge).
 - `src/lib/api.ts`: Cliente HTTP via **BFF** `/api/proxy/v1` (token só no servidor); `skipCache` em polling.
 - `src/lib/polling.ts`: Polling com deadline, backoff, limite de falhas, pausa em aba oculta.
-- `src/lib/badges.tsx`: Badges de categoria/severidade/agente (`AGENT_ORIGIN_CONFIG` com Lucide).
+- `src/lib/badges.tsx`: `getCategoryTone` / `getSeverityTone` + `AGENT_ORIGIN_CONFIG` (Lucide) — consome o primitivo `Badge` (`tone`).
 - `src/lib/useCopy.ts`: Hook `useCopy()` com feedback de cópia (2s).
 - `src/components/ui/`: primitivos do design system (Button, Input, Card, Badge, Dialog, Toaster, etc.).
 - `src/components/Layout/`: `Sidebar.tsx` (drawer mobile), `Header.tsx` (polling `/readyz`), `ShellContext.tsx`.
@@ -266,7 +266,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
     - Cópia SEI **somente** com correções `aprovada`/`ajustada` (badge de `review_status`)
     - Status `completed_with_errors` com banner de cobertura incompleta
     - `Copiar Texto Corrigido (PARA)` / `Copiar Item Inteiro` / justificativa
-  - `report/[id]/page.tsx`: Relatório consolidado com gauges SVG de nota (0-10), gráficos de barras de distribuição por categoria/severidade, botão `Copiar Parecer para o SEI` e acordeão de correções com atalhos de cópia (419→258 LOC, via `ScoreGauge`/`CorrectionAccordion`).
+  - `report/[id]/page.tsx`: Relatório consolidado com gauges SVG, distribuição por categoria/severidade, **Exportar PDF** (`window.print()` + `@media print`), `Copiar Parecer para o SEI` e acordeão de correções.
   - `comparacao/page.tsx`: Listagem de comparações + criação (seleção de TR, molde e propostas) + cadastro de fornecedor + upload de proposta vinculado (542→279 LOC, via `components/comparacao/`).
   - `comparacao/[id]/page.tsx`: Matriz de conformidade regras × fornecedores com polling a cada 3s durante execução.
   - `moldes/page.tsx`: Editor visual de moldes de regras (cria/edita regras com campos dinâmicos por tipo de âncora, preview do JSON, delete protegido) — 592→216 LOC via `components/moldes/`.
@@ -294,8 +294,8 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa UX SEI (09/09/2026)**: `feat/ux-sprint2-funil` (sobre `feat/confiabilidade-master` + runtime `025962a`). Inclui Sprints 1–3 da auditoria UX (review humana SEI, funil upload/nav/chat/comparação, polimento DS/copy). CI permanece desabilitado.
-- **Branch de confiabilidade (08–09/09/2026)**: `feat/confiabilidade-master` com runtime Docker confiável, modelos LLM atuais e E2E 17/17 (commit `025962a`).
+- **Branch ativa (10/09/2026)**: `feat/confiabilidade-master` (inclui UX SEI/funil + polish badges/print/pytest). CI permanece desabilitado.
+- **Branch de confiabilidade (08–10/09/2026)**: runtime Docker confiável, modelos LLM atuais, E2E 17/17 (`025962a`), UX Sprints 1–3, CSP Next.js, restore drill documentado, unificação `Badge` + Exportar PDF + `backend/tests/conftest.py`.
 - **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
   - **Fase A (Parsing)**: títulos de seção determinísticos via sha256+NFC (`T-{digest%100000}` — sem `hash()`); alíneas (`a)`, `b)`) detectadas como subitem e itens romanos (`I.`, `II.`) como seção. **+3 testes**.
   - **Fase B (Extração por regras)**: `_texto_por_ancora` usa a partir da 1ª ocorrência; regex de inteiro ignora número de item e milhar monetário; monetário sem `_para_decimal`; datas inválidas rejeitadas (`datetime.date`); CNPJ valida dígitos verificadores (módulo 11); números por extenso compostos ("vinte e um"→21). **+10 testes**; fixture `test_fase4_fase5` corrigida para CNPJ com DV válido (`-95`).
@@ -425,25 +425,26 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Ver `PLANO.md` para backlog histórico. Runtime local consolidado em `feat/confiabilidade-master` (`025962a`). UX SEI/funil em `feat/ux-sprint2-funil`. CI **não** reabilitar sem pedido.
+> Ver `PLANO.md` para backlog histórico. Linha ativa: `feat/confiabilidade-master` (UX + polish 10/09). CI **não** reabilitar sem pedido.
 
 ### Agora (ops / Bruno — sem bloquear código)
 1. Quando conveniente: rotacionar chaves Gemini/Groq e `POSTGRES_PASSWORD` (adiado no MVP a pedido do usuário).
 2. ~~Restore drill~~ — executado 10/09/2026 em staging isolado (`pgvector/pgvector:pg16`); ver `docs/ops/restore-drill.md` (RTO ~3s; backup `licitai_20260910T104546Z`).
-3. ~~Merge UX → confiabilidade-master~~ — FF merge em 10/09/2026 (`e77d2b3`); CSP incluído.
+3. ~~Merge UX → confiabilidade-master~~ — FF merge em 10/09/2026; CSP incluído.
+4. ~~Polish badges/print/pytest~~ — merge FF `feat/polish-badges-print-pytest` → `feat/confiabilidade-master` (10/09).
 
 ### Produto / qualidade (não urgente)
 - Curadoria humana de stubs em `e2e/golden/feedback/` via `promote_feedback.py` (**0 stubs** em 10/09).
 - Playwright live (`E2E_LIVE=1`) opcional.
 - Reabilitar CI só se o usuário pedir explicitamente.
-- Dualismo residual `.badge-*` CSS vs `Badge` React (migração gradual); PDF export do relatório.
-+ ~~Dualismo badges~~ — unificado em `Badge` + `getCategoryTone`/`getSeverityTone` (10/09).
-+ ~~PDF export relatório~~ — botão Exportar PDF via `window.print()` + CSS `@media print` (10/09).
-+ ~~Pytest local review API~~ — `backend/tests/conftest.py` força `sqlite+aiosqlite` antes do import do app (10/09).
+- ~~Dualismo badges~~ — unificado em `Badge` + `getCategoryTone`/`getSeverityTone` (10/09).
+- ~~PDF export relatório~~ — botão Exportar PDF via `window.print()` + CSS `@media print` (10/09).
+- ~~Pytest local review API~~ — `backend/tests/conftest.py` força `sqlite+aiosqlite` antes do import do app (10/09).
 
 ### Fora de escopo (premissas travadas)
 - Multi-tenant / JWT / RBAC completo; LangGraph; fine-tune; Kubernetes.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
 > **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.  
-> **UX SEI (09/09/2026)**: review humana + funil upload/nav/chat/comparação entregues em `feat/ux-sprint2-funil`.
+> **UX SEI (09/09/2026)**: review humana + funil upload/nav/chat/comparação.  
+> **Polish (10/09/2026)**: Badge unificado, Exportar PDF do relatório, conftest pytest.
