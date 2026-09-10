@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Clock, FileBarChart, Play, ChevronLeft, ClipboardCopy, FileCode2, FileDown } from 'lucide-react';
+import { Clock, FileBarChart, Play, ChevronLeft, ClipboardCopy, FileCode2, FileDown, FileType } from 'lucide-react';
 import {
   getDocument,
   startAnalysis,
@@ -11,6 +11,7 @@ import {
   getAnalysis,
   getSeiPack,
   getCorrectedHtml,
+  downloadCorrectedDocx,
   reanalyzePartial,
   extractErrorMessage,
 } from '@/lib/api';
@@ -57,7 +58,7 @@ export default function AnalysisPage() {
   const [error, setError] = useState<string | null>(null);
   const [revisionsModalOpen, setRevisionsModalOpen] = useState(false);
   const [priorityMode, setPriorityMode] = useState<PriorityMode>('priority');
-  const [exporting, setExporting] = useState<'pack' | 'html' | null>(null);
+  const [exporting, setExporting] = useState<'pack' | 'html' | 'docx' | null>(null);
   const { copy, isCopied } = useCopy();
 
   useEffect(() => {
@@ -225,6 +226,25 @@ export default function AnalysisPage() {
     }
   }
 
+  async function handleDownloadDocx() {
+    if (!analysis) return;
+    try {
+      setExporting('docx');
+      const result = await downloadCorrectedDocx(analysis.id);
+      if (result.skipped > 0) {
+        toast.message(
+          `DOCX baixado (${result.applied} aplicadas; ${result.skipped} skips).`,
+        );
+      } else {
+        toast.success(`DOCX baixado (${result.applied} correções)`);
+      }
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Não foi possível gerar o DOCX.'));
+    } finally {
+      setExporting(null);
+    }
+  }
+
   function getItemCorrections(itemId: string): CorrectionResponse[] {
     if (!analysis?.corrections) return [];
     return filterPriorityCorrections(
@@ -345,6 +365,14 @@ export default function AnalysisPage() {
               >
                 <FileCode2 className="h-4 w-4" aria-hidden />
                 {isCopied('corrected_html') ? 'HTML copiado' : 'Copiar TR corrigido'}
+              </Button>
+              <Button
+                variant="secondary"
+                loading={exporting === 'docx'}
+                onClick={() => void handleDownloadDocx()}
+              >
+                <FileType className="h-4 w-4" aria-hidden />
+                Baixar DOCX
               </Button>
             </>
           )}

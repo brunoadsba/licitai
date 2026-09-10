@@ -16,6 +16,7 @@ from app.models.analysis import Analysis, Correction
 from app.models.document import Document, DocumentItem
 from app.services.analyzer.corrected_document import (
     apply_sei_corrections_to_text,
+    build_corrected_docx,
     build_corrected_html,
     build_sei_pack_text,
 )
@@ -313,3 +314,34 @@ def test_build_helpers_unit():
     assert applied_h == []
     text = build_sei_pack_text(document_name="TR", entries=[])
     assert "Nenhuma correção" in text
+
+
+def test_build_corrected_docx_bytes():
+    item_id = uuid.uuid4()
+
+    class FakeCorr:
+        id = uuid.uuid4()
+        review_status = "aprovada"
+        original_text = "antigo"
+        suggested_text = "novo"
+
+    payload, applied, skipped = build_corrected_docx(
+        filename="TR-teste.pdf",
+        items=[
+            type(
+                "I",
+                (),
+                {
+                    "id": item_id,
+                    "item_order": 0,
+                    "item_number": "1.1",
+                    "title": "Objeto",
+                    "content": "Texto antigo aqui.",
+                },
+            )()
+        ],
+        corrections_by_item={item_id: [FakeCorr()]},
+    )
+    assert payload[:2] == b"PK"  # zip/docx
+    assert len(applied) == 1
+    assert skipped == []

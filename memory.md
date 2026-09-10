@@ -441,16 +441,14 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 - Extensão Chrome tenta `corrected-html` pós-revisão antes do HTML bruto.
 
 ### Excelência piloto (Fases A–G — código em `feat/excelencia-piloto`)
-- **Feito (A–F):** medição (`pending-summary`, `review_*`, Painel saúde), HTML robusto + skips, Art. 6 checklist, modo `economic` + `reanalyze-partial` + `ANALYSIS_MAX_LLM_CALLS`, `promote_feedback` + `smoke_llm.sh`, `ops_alerts` com delta `llm_errors`.
-- **Pendente (humano/ops):** gate 14 dias ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)); cron backup/alertas; rotação de secrets; rotina quinzenal CODEBA ([docs/ops/piloto-qualidade.md](docs/ops/piloto-qualidade.md)).
-- **Pendente condicional:** DOCX nativo — só se HTML/pacote SEI falhar no uso real.
+- **Feito (A–F + DOCX + cron neste host):** medição, HTML robusto, Art. 6, modo `economic`, `reanalyze-partial`, DOCX (`corrected-docx`), `install_ops_cron.sh` aplicado, backup dry-run OK.
+- **Pendente (humano):** gate 14 dias; rotação de secrets; rotina quinzenal CODEBA ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)).
 - **Fora de escopo:** CI, K8s, fine-tune, multi-tenant, LangGraph.
 
-### Agora (ops / Bruno — sem bloquear código)
-1. Rotacionar chaves Gemini/Groq e `POSTGRES_PASSWORD` / `API_TOKEN` quando conveniente.
-2. Agendar cron: `scripts/backup_daily.sh` + `scripts/ops_alerts.sh`.
-3. Iniciar gate 14 dias e anotar métricas em [docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md).
-4. Pin de modelo Gemini explícito no `.env` se a conta permitir; `./scripts/smoke_llm.sh` após troca.
+### Agora (ops / Bruno)
+1. Rotacionar secrets quando conveniente.
+2. Iniciar gate 14 dias ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)).
+3. Cron já instalado neste WSL — conferir `crontab -l | grep LICITAI`.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
 > **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.  

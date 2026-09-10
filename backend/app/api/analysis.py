@@ -8,6 +8,7 @@ from collections import Counter
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,6 +36,7 @@ from app.schemas.analysis import (
 )
 from app.services.analyzer.art6_status import build_art6_checklist
 from app.services.analyzer.corrected_document import (
+    build_corrected_docx,
     build_corrected_html,
     build_sei_pack_text,
 )
@@ -559,6 +561,77 @@ async def get_corrected_html(
             if s.get("correction_id") is not None
         ],
         html=html_doc,
+    )
+
+
+@router.get(
+    "/{analysis_id}/corrected-docx",
+    summary="TR DOCX corrigido",
+    description=(
+        "Download .docx com replaces DE→PARA das correções aprovadas/ajustadas."
+    ),
+    responses={
+        200: {
+            "content": {
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {}
+            }
+        }
+    },
+)
+async def get_corrected_docx(
+    analysis_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Analysis)
+        .options(
+            selectinload(Analysis.corrections),
+            selectinload(Analysis.document).selectinload(Document.items),
+        )
+        .where(Analysis.id == analysis_id)
+    )
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Análise não encontrada.")
+
+    if analysis.status not in ("completed", "completed_with_errors"):
+        raise HTTPException(
+            status_code=409,
+            detail="Aguarde a análise concluir antes de exportar o TR corrigido.",
+        )
+
+    filtered = _filter_corrections(analysis.corrections, for_sei=True)
+    if not filtered:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhuma correção aprovada ou ajustada para montar o TR corrigido.",
+        )
+
+    by_item: dict = {}
+    for c in filtered:
+        by_item.setdefault(c.document_item_id, []).append(c)
+
+    payload, _applied, _skipped = build_corrected_docx(
+        filename=analysis.document.filename_original,
+        items=list(analysis.document.items or []),
+        corrections_by_item=by_item,
+    )
+    safe_name = "".join(
+        ch if ch.isalnum() or ch in ("-", "_", ".") else "_"
+        for ch in (analysis.document.filename_original or "tr")
+    )
+    if not safe_name.lower().endswith(".docx"):
+        safe_name = f"{safe_name}.docx"
+    return Response(
+        content=payload,
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ),
+        headers={
+            "Content-Disposition": f'attachment; filename="{safe_name}"',
+            "X-Applied-Corrections": str(len(_applied)),
+            "X-Skipped-Corrections": str(len(_skipped)),
+        },
     )
 
 

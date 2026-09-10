@@ -316,6 +316,39 @@ export async function getCorrectedHtml(analysisId: string): Promise<CorrectedHtm
   );
 }
 
+/** Baixa TR corrigido em .docx via BFF (blob). */
+export async function downloadCorrectedDocx(analysisId: string): Promise<{
+  filename: string;
+  skipped: number;
+  applied: number;
+}> {
+  const url = `${API_BASE}/api/proxy/v1/analysis/${encodeURIComponent(analysisId)}/corrected-docx`;
+  const response = await fetch(url, { cache: 'no-store' });
+  if (!response.ok) {
+    let detail = 'Falha ao baixar DOCX.';
+    try {
+      const err = await response.json();
+      if (err?.detail) detail = typeof err.detail === 'string' ? err.detail : detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(detail, response.status);
+  }
+  const blob = await response.blob();
+  const cd = response.headers.get('Content-Disposition') || '';
+  const match = /filename="?([^"]+)"?/i.exec(cd);
+  const filename = match?.[1] || `tr-corrigido-${analysisId.slice(0, 8)}.docx`;
+  const applied = Number(response.headers.get('X-Applied-Corrections') || '0');
+  const skipped = Number(response.headers.get('X-Skipped-Corrections') || '0');
+  const objectUrl = URL.createObjectURL(blob);
+  const a = window.document.createElement('a');
+  a.href = objectUrl;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(objectUrl);
+  return { filename, applied, skipped };
+}
+
 export async function getDocumentAnalyses(documentId: string): Promise<AnalysisDetailResponse[]> {
   return fetchAPI<AnalysisDetailResponse[]>(`/analysis/document/${encodeURIComponent(documentId)}`);
 }

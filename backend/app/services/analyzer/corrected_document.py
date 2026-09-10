@@ -119,6 +119,40 @@ def build_corrected_html(
     return "".join(parts), all_applied, all_skipped
 
 
+def build_corrected_docx(
+    *,
+    filename: str,
+    items: list,
+    corrections_by_item: dict,
+) -> tuple[bytes, list[dict], list[dict]]:
+    """Gera .docx (python-docx) com os mesmos replaces do HTML."""
+    from io import BytesIO
+
+    from docx import Document as DocxDocument
+
+    doc = DocxDocument()
+    doc.add_heading(filename.upper(), level=0)
+    all_applied: list[dict] = []
+    all_skipped: list[dict] = []
+    for item in sorted(items, key=lambda i: getattr(i, "item_order", 0) or 0):
+        item_id = getattr(item, "id", None)
+        corrs = corrections_by_item.get(item_id, []) if item_id else []
+        content, applied, skipped = apply_sei_corrections_to_text(
+            getattr(item, "content", "") or "", corrs
+        )
+        all_applied.extend(applied)
+        all_skipped.extend(skipped)
+        number = str(getattr(item, "item_number", "") or "")
+        title = str(getattr(item, "title", "") or "")
+        heading = f"{number} {title}".strip()
+        doc.add_heading(heading or "Item", level=1)
+        for para in (content or "").split("\n"):
+            doc.add_paragraph(para)
+    buf = BytesIO()
+    doc.save(buf)
+    return buf.getvalue(), all_applied, all_skipped
+
+
 def build_sei_pack_text(
     *,
     document_name: str,

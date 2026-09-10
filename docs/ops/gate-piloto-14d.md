@@ -22,8 +22,8 @@ Anotar no fim de cada semana no Painel (card saúde + pendências) e em planilha
 3. Usar fluxo: Enviar TR (modo econômico) → Prioridade + Art. 6 → aprovar → pacote SEI / HTML.
 4. Ao fim de 14 dias, preencher a tabela acima e decidir DOCX.
 
-## DOCX (não implementar agora)
+## DOCX
 
-Implementar export `.docx` **somente se** o HTML/pacote SEI for insuficiente no SEI real (colar quebrado, formatação crítica).
+**Status (código):** disponível — `GET /api/v1/analysis/{id}/corrected-docx` e botão **Baixar DOCX** na análise.
 
-Critério para abrir DOCX: feedback documentado de ≥2 elaboradores CODEBA pedindo Word nativo após tentar HTML.
+Continua recomendável validar no SEI real se o HTML/pacote basta; o DOCX cobre o caso em que o Word nativo é necessário.
