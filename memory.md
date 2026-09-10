@@ -149,7 +149,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `README.md`: Guia completo de instalação, segurança e arquitetura.
 - `memory.md`: Memória contínua do projeto.
 - `PLANO.md`: Plano do backlog pendente — fases priorizadas (hardening, qualidade, RF04, RAG v1.0, polimentos, v2.0) com tarefas, esforço e critérios de aceite.
-- `docs/ops/`: Deploy imutável, restore drill, SLOs.
+- `docs/ops/`: Deploy imutável, restore drill, SLOs, piloto, gate 14d, cron.
+- `fixtures/trs-codeba/`: Base local de TRs CODEBA para piloto/benchmark (**PDFs gitignored**). Ver README + MANIFEST.
 - `scripts/apply_reliability_schema.sql` + `scripts/smoke_readyz.sh`: migrate/smoke Postgres local.
 - `db/init.sql`: Script de criação das extensões, tabelas (`documents`, `document_items`, `analyses`, `corrections`, `jobs`, `schema_meta`, `fornecedores`, `moldes`, `comparacoes`, `comparacao_resultados`, chat), índices e triggers no PostgreSQL.
 - `e2e/`: Diretório de testes End-to-End com fixtures, scripts e testes.
@@ -303,7 +304,7 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (10/09/2026)**: `main` — única branch remota de trabalho; features anteriores (confiabilidade, UX SEI, polish) foram mergeadas via FF. CI permanece desabilitado.
+- **Branch ativa (10/09/2026)**: `main` — única branch remota de trabalho; excelência piloto + fixtures TR CODEBA mergeados. CI permanece desabilitado.
 - **Histórico consolidado (08–10/09/2026)**: runtime Docker confiável, modelos LLM atuais, E2E 17/17, UX Sprints 1–3, CSP Next.js, restore drill documentado, unificação `Badge` + Exportar PDF + `backend/tests/conftest.py`.
 - **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
   - **Fase A (Parsing)**: títulos de seção determinísticos via sha256+NFC (`T-{digest%100000}` — sem `hash()`); alíneas (`a)`, `b)`) detectadas como subitem e itens romanos (`I.`, `II.`) como seção. **+3 testes**.
@@ -446,27 +447,39 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 - **Fora de escopo:** CI, K8s, fine-tune, multi-tenant, LangGraph.
 - Branches locais `feat/excelencia-piloto` e `feat/valor-elaborador-mvp` removidas após FF em `main`.
 
+### Base TR CODEBA local (10/09/2026 — `fixtures/trs-codeba/`)
+
+- Migrado de `Base de Dados com TR para teste/` → `fixtures/trs-codeba/`.
+- **Estrutura:** `piloto-unico/` (6 canônicos via hardlink) · `objetos/01…06/` (versões `v01`/`v02`/`v03` + `alt`) · `pendente/07…10/` (obra, contínuo, TI, incompleto).
+- **Contagem:** 11 PDFs · **6 objetos distintos** · meta ≥10.
+- **Piloto canônico:** Guarda = v02; Emergência = v03 SEI.
+- **Diff:** cadeias Guarda e Emergência.
+- **Git:** `fixtures/trs-codeba/**/*.pdf` e pasta antiga no `.gitignore`; README/MANIFEST versionados.
+- Docs: [fixtures/trs-codeba/README.md](fixtures/trs-codeba/README.md), [MANIFEST.md](fixtures/trs-codeba/MANIFEST.md), [piloto-qualidade.md](docs/ops/piloto-qualidade.md).
+
 ### Como elevar confiabilidade do MVP (Bruno / CODEBA — 10/09/2026)
 
 > **Resumo:** para elevar confiabilidade, precisa principalmente de **10+ TRs CODEBA anonimizados e variados**, **14 dias de uso real com aprovação/rejeição consciente**, **teste do export no SEI**, e **uma quinzena com 5 TRs medindo qualidade**. **Ofícios** entram como complemento do pacote processual, **não** como eixo principal.
 
 | Entrega | Por quê |
 |---------|---------|
-| ≥10 TRs reais anonimizados (completos, com gaps, prazo ambíguo, marca/direcionamento, mínimos) | Diversifica golden/benchmark além dos sintéticos `e2e/golden/` — base local: `fixtures/trs-codeba/` (PDFs gitignored; 6/10 objetos; ver MANIFEST) |
+| ≥10 TRs reais anonimizados (completos, com gaps, prazo ambíguo, marca/direcionamento, mínimos) | Diversifica golden/benchmark além dos sintéticos `e2e/golden/` — base local: `fixtures/trs-codeba/` (PDFs gitignored; **6/10** objetos; completar `pendente/07…10`) |
 | Gate 14 dias de uso real ([gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)) | Prova utilidade no fluxo: Enviar → Prioridade + Art. 6 → aprovar → pacote SEI/HTML/DOCX |
 | Aprovação/rejeição consciente em alto/crítico (+ thumbs-down → `promote_feedback.py`) | Sinal de precision; alimenta stubs em `e2e/golden/feedback/` |
 | Colar/anexar export no SEI real (ou minuta de teste) | Valida se HTML/DOCX/pacote serve no processo, não só na UI |
-| Benchmark quinzenal com 5 TRs ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)) | Evita regressão silenciosa (rejeições, Art. 6, `completed_with_errors`) |
+| Benchmark quinzenal com 5 TRs ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)) | Preferir `fixtures/trs-codeba/piloto-unico/`; evita regressão silenciosa |
 
 ### Agora (ops / Bruno)
 1. Rotacionar secrets quando conveniente.
 2. Iniciar gate 14 dias ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)).
 3. Cron já instalado neste WSL — conferir `crontab -l | grep LICITAI`.
-4. Reunir 10+ TRs CODEBA anonimizados e iniciar rotina quinzenal de qualidade.
+4. Completar `fixtures/trs-codeba/pendente/07…10` (+4 objetos) e rodar quinzena com `piloto-unico/`.
+5. Anonimizar e-mails nos TRs de Emergência antes de free-tier cloud.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
 > **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.  
 > **UX SEI (09/09/2026)**: review humana + funil upload/nav/chat/comparação.  
 > **Polish (10/09/2026)**: Badge unificado, Exportar PDF do relatório, conftest pytest.  
 > **Main única (10/09/2026)**: consolidação FF em `main`; feature branches apagadas.  
-> **E2E revalidado (10/09/2026)**: API 17/17 (~3m15s) + Playwright live 4/4.
+> **E2E revalidado (10/09/2026)**: API 17/17 (~3m15s) + Playwright live 4/4.  
+> **Fixtures TR CODEBA (10/09/2026)**: `fixtures/trs-codeba/` organizado; 6/10 objetos; PDFs fora do Git.
