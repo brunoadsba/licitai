@@ -445,9 +445,26 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 - **Feito (A–F + DOCX + cron neste host):** medição, HTML robusto, Art. 6, modo `economic`, `reanalyze-partial`, DOCX (`corrected-docx`), `install_ops_cron.sh` aplicado, backup dry-run OK.
 - **Art. 6 coverage ≥90%:** métrica `art6_coverage`/`art6_meets_target` na API+UI; validador heading-first; fallback contextual no `/gerar-tr`; script `backend/scripts/score_art6_fixtures.py`. Baseline piloto CODEBA (heurística PDF): média **~71%**, **2/12 ≥90%**.
 - **UI (10/09):** paleta premium ink + teal CODEBA; **tema claro/escuro** (`ThemeProvider`, toggle Sol/Lua no Header, anti-FOUC).
-- **Pendente (humano):** gate 14 dias; rotação de secrets; rotina quinzenal CODEBA ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)). Ver bloco **Como elevar confiabilidade** abaixo.
-- **Fora de escopo:** CI, K8s, fine-tune, multi-tenant, LangGraph.
+- **Pendente (humano):** ver bloco **Pendências em aberto (10/09/2026)** abaixo.
+- **Fora de escopo (não fazer agora):** CI, K8s, fine-tune/ML supervisionado, multi-tenant, LangGraph.
 - Branches de feature locais removidas após FF em `main`.
+
+### Pendências em aberto (10/09/2026)
+
+> Código do piloto (excelência, DOCX, Art. 6 coverage, tema claro/escuro, fixtures 12 TRs) está em **`main`**. O gargalo é **uso humano + dados rotulados** — não mais feature de produto.
+
+| # | Pendência | Tipo | Detalhe / doc |
+|---|-----------|------|----------------|
+| 1 | **Gate 14 dias** de uso real CODEBA | Humano | Enviar → Prioridade/Art. 6 → aprovar/rejeitar → SEI/HTML/DOCX; medir métricas. [gate-piloto-14d.md](docs/ops/gate-piloto-14d.md) |
+| 2 | **Benchmark quinzenal** (5 TRs) | Humano | Rodízio em `fixtures/trs-codeba/piloto-unico/`. [piloto-qualidade.md](docs/ops/piloto-qualidade.md) |
+| 3 | **Validar export no SEI real** | Humano | Colar/anexar HTML/DOCX/pacote em minuta ou processo de teste |
+| 4 | **Rotação de secrets** | Ops manual | `GROQ_API_KEY` / `GEMINI_API_KEY` / `POSTGRES_PASSWORD` / `API_TOKEN` |
+| 5 | **Anonimizar** e-mails nos TRs de Emergência | Dados | Antes de free-tier cloud |
+| 6 | Subir **`art6_coverage`** nos TRs reais (~71% → ≥90%) | Uso + curadoria | Já medível na UI/API; lacunas típicas: solução como um todo + adequação orçamentária |
+| 7 | **RILC CODEBA completo** no RAG (hoje é recorte) | Dados / ingestão | Prioridade alta se for reforçar corpus; 14.133 e 13.303 já estão em `backend/data/laws/` |
+| 8 | **Fine-tune / treino ML** | Bloqueado | Só após gate + dataset de aprovar/rejeitar/thumbs-down (`promote_feedback.py`). Treinar agora sem rótulos estáveis não é o próximo passo |
+
+**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`.
 
 ### UI / Design system (10/09/2026)
 
