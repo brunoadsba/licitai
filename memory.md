@@ -71,12 +71,13 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **Grounding obrigatório** (`CHAT_REQUIRE_GROUNDING`): resposta factual exige citação válida ou recusa explícita; `suggested_actions` do LLM são **descartadas** no MVP (zero escrita em entidades de negócio).
   - Fake provider determinístico para testes/demo (`CHAT_FORCE_FAKE_PROVIDER`); testes usam `app.dependency_overrides[get_chat_llm]` — nunca LLM real.
   - Recuperação de fontes com **savepoints** (`begin_nested`): falha de consulta (ex: tabela FTS ausente) não envenena a transação da conversa.
-  - Frontend: `hooks/useChat.ts`, `components/chat/{ChatPanel,ChatMessage,ChatInput,CitationList}.tsx`, integrado em `analysis/[id]/page.tsx` (contexto `page:analysis`, `document_id`, `analysis_id`, `item_number`).
+  - Frontend: `hooks/useChat.ts`, `components/chat/{ChatCopilot,ChatPanel,ChatMessage,ChatInput,CitationList}.tsx` — desktop docked; mobile FAB+Sheet; integrado em `analysis/[id]/page.tsx` (contexto `page:analysis`, `document_id`, `analysis_id`, `item_number`).
   - Settings em `config.py`: `chat_enabled`, `chat_require_grounding`, `chat_top_k_sources`, `chat_max_message_length`, `chat_max_sources_stored`, `chat_force_fake_provider`.
   - Tabelas `chat_conversations`/`chat_messages` em `db/init.sql` + migração `db/migrations/20260806_add_chat.sql`; contrato validado no `test_init_sql.py` (+4 testes).
 - **Qualidade da análise (Fase 2)**:
   - Checklist canônico das **alíneas a–j** do Art. 6º, XXIII (`services/legal/art6_xxiii.py`) — **não** inventar garantia/sanções/cronograma como se fossem o inciso XXIII; prompts/agentes/validador/gerador compartilham a mesma fonte.
   - Revisão cruzada fail-closed das correções (`services/analyzer/review.py`): status/índice inválido não aprova; achados jurídicos altos sem review válida ficam `pendente` e fora do score/cópia SEI.
+  - **Revisão humana (09/09)**: `PATCH /api/v1/analysis/corrections/{correction_id}` permite `aprovada|rejeitada|ajustada|pendente` (+ texto/nota em `ajustada`); UI em `CorrectionReviewActions`.
   - Benchmark de qualidade (`scripts/benchmark.py` + `scripts/benchmark_fixtures.py`): análise + revisão reais com retry/backoff para rate limit; métricas recall/precisão/F1 por TR e por item; relatório em `backend/benchmark_report.json`.
   - Golden set local (`e2e/golden/tr_001`…`tr_010`) + FakeLLM determinístico (`analyzer/fake_llm_golden.py`): precision ≥ 0.88 / recall ≥ 0.80 (TP/FP/FN reais; FP deliberado em `tr_010`).
 - **Confiabilidade LicitAI — plano mestre implementado (08/09/2026, branch `feat/confiabilidade-master`)**:
