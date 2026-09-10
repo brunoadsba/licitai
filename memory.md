@@ -128,6 +128,10 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **Sprint 2 (P1)**: nav longest-prefix + grupo Auditoria; drawer mobile via `Sheet` (Radix focus trap); Copiloto em FAB+sheet no mobile (`ChatCopilot`); Comparações em abas Histórico/Nova/Fornecedores; `/upload` modos Rápido|Avançado; `/wizard` redireciona para `/upload`.
   - **Sprint 3 (P2)**: breadcrumbs clicáveis; microcopy sem localhost/`.env`; EmptyState em listas vazias; `btn-primary` → `Button` nos empties críticos.
   - Testes: `tests/test_correction_review_api.py` (7); `tsc --noEmit` limpo; smoke Docker `:3000`/`:8000`.
+- **Polish UI/testes (10/09/2026 — `feat/polish-badges-print-pytest`, mergeado em `feat/confiabilidade-master`)**:
+  - Badges unificados: `Badge` + `getCategoryTone`/`getSeverityTone`; classes `.badge-*` removidas do `globals.css`.
+  - Relatório: botão **Exportar PDF** (`window.print()`), CSS `@media print` / `.no-print` no shell.
+  - `backend/tests/conftest.py` força SQLite async para pytest local independente do `.env`.
 
 ---
 
