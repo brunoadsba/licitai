@@ -451,4 +451,5 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
 > **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.  
 > **UX SEI (09/09/2026)**: review humana + funil upload/nav/chat/comparação.  
-> **Polish (10/09/2026)**: Badge unificado, Exportar PDF do relatório, conftest pytest.
+> **Polish (10/09/2026)**: Badge unificado, Exportar PDF do relatório, conftest pytest.  
+> **Main única (10/09/2026)**: consolidação FF em `main`; feature branches apagadas.
