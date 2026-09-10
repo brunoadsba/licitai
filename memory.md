@@ -442,13 +442,26 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ### Excelência piloto (Fases A–G — código em `feat/excelencia-piloto`)
 - **Feito (A–F + DOCX + cron neste host):** medição, HTML robusto, Art. 6, modo `economic`, `reanalyze-partial`, DOCX (`corrected-docx`), `install_ops_cron.sh` aplicado, backup dry-run OK.
-- **Pendente (humano):** gate 14 dias; rotação de secrets; rotina quinzenal CODEBA ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)).
+- **Pendente (humano):** gate 14 dias; rotação de secrets; rotina quinzenal CODEBA ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)). Ver bloco **Como elevar confiabilidade** abaixo.
 - **Fora de escopo:** CI, K8s, fine-tune, multi-tenant, LangGraph.
+
+### Como elevar confiabilidade do MVP (Bruno / CODEBA — 10/09/2026)
+
+> **Resumo:** para elevar confiabilidade, precisa principalmente de **10+ TRs CODEBA anonimizados e variados**, **14 dias de uso real com aprovação/rejeição consciente**, **teste do export no SEI**, e **uma quinzena com 5 TRs medindo qualidade**. **Ofícios** entram como complemento do pacote processual, **não** como eixo principal.
+
+| Entrega | Por quê |
+|---------|---------|
+| ≥10 TRs reais anonimizados (completos, com gaps, prazo ambíguo, marca/direcionamento, mínimos) | Diversifica golden/benchmark além dos sintéticos `e2e/golden/` |
+| Gate 14 dias de uso real ([gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)) | Prova utilidade no fluxo: Enviar → Prioridade + Art. 6 → aprovar → pacote SEI/HTML/DOCX |
+| Aprovação/rejeição consciente em alto/crítico (+ thumbs-down → `promote_feedback.py`) | Sinal de precision; alimenta stubs em `e2e/golden/feedback/` |
+| Colar/anexar export no SEI real (ou minuta de teste) | Valida se HTML/DOCX/pacote serve no processo, não só na UI |
+| Benchmark quinzenal com 5 TRs ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)) | Evita regressão silenciosa (rejeições, Art. 6, `completed_with_errors`) |
 
 ### Agora (ops / Bruno)
 1. Rotacionar secrets quando conveniente.
 2. Iniciar gate 14 dias ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)).
 3. Cron já instalado neste WSL — conferir `crontab -l | grep LICITAI`.
+4. Reunir 10+ TRs CODEBA anonimizados e iniciar rotina quinzenal de qualidade.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
 > **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.  
