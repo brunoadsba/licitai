@@ -201,8 +201,9 @@ licitacao/
 ├── .env.example             # Template (API_TOKEN server-side; sem NEXT_PUBLIC_*)
 ├── db/init.sql              # Schema PostgreSQL (alinhado ao Alembic)
 ├── memory.md                # Memória contínua (contexto p/ agentes)
-├── docs/ops/                # Deploy, restore drill, SLOs
-├── scripts/                 # apply_reliability_schema.sql, smoke_readyz.sh
+├── docs/ops/                # Deploy, restore, SLOs, piloto, gate 14d, cron
+├── fixtures/trs-codeba/     # TRs CODEBA locais (PDFs gitignored)
+├── scripts/                 # backup, cron, smoke_readyz, score_art6_fixtures
 ├── backend/
 │   ├── Dockerfile
 │   ├── alembic/             # Migrações (head 20260908_003)

@@ -496,19 +496,20 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 | Colar/anexar export no SEI real (ou minuta de teste) | Valida se HTML/DOCX/pacote serve no processo, não só na UI |
 | Benchmark quinzenal com 5 TRs ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)) | Rodízio em `fixtures/trs-codeba/piloto-unico/` |
 
-### Agora (ops / Bruno)
-1. Rotacionar secrets quando conveniente.
-2. Iniciar gate 14 dias ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)).
-3. Cron já instalado neste WSL — conferir `crontab -l | grep LICITAI`.
-4. Rodar quinzena com 5 TRs de `piloto-unico/` (há 12 disponíveis).
-5. Anonimizar e-mails nos TRs de Emergência antes de free-tier cloud.
+### Agora (ops / Bruno) — ordem sugerida
+1. Iniciar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)) com TRs de `piloto-unico/`.
+2. Em paralelo: **1ª quinzena** de qualidade (5 TRs) + validar 1 export no SEI.
+3. Rotacionar secrets quando conveniente; anonimizar Emergência antes de cloud.
+4. Opcional (corpus): ingerir **RILC CODEBA completo** no RAG.
+5. **Não** abrir fine-tune até existir volume de feedback humano curado.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
 > **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.  
 > **UX SEI (09/09/2026)**: review humana + funil upload/nav/chat/comparação.  
 > **Polish (10/09/2026)**: Badge unificado, Exportar PDF do relatório, conftest pytest.  
 > **Main única (10/09/2026)**: consolidação FF em `main`; feature branches apagadas.  
-> **E2E revalidado (10/09/2026)**: API 17/17 (~3m15s) + Playwright live 4/4; E2E Art.6 coverage **17/17** (~1m31s).  
+> **E2E revalidado (10/09/2026)**: API 17/17 (~3m15s e ~1m31s pós-Art.6).  
 > **Fixtures TR CODEBA (10/09/2026)**: `fixtures/trs-codeba/` — **12 objetos** (meta ≥10); PDFs fora do Git.  
 > **Art. 6 coverage (10/09/2026)**: métrica ≥90% na API/UI; baseline fixtures ~71%.  
-> **UI tema claro/escuro (10/09/2026)**: toggle no header; commits `19aadbd`, `0126313`.
+> **UI tema claro/escuro (10/09/2026)**: toggle no header; commits `19aadbd`, `0126313`.  
+> **Pendências (10/09/2026)**: gate 14d, quinzena, SEI real, secrets, anonimizar, RILC completo opcional; ML bloqueado até dataset.
