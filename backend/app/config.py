@@ -70,6 +70,8 @@ class Settings(BaseSettings):
     max_concurrent_analyses: int = 2
     # Limite global de chamadas LLM concorrentes no processo.
     llm_global_concurrency: int = 6
+    # Soft budget: 0 = ilimitado. Estima ~4 calls/item (multi), ~2 (economic), ~1 (single).
+    analysis_max_llm_calls: int = 0
 
     # --- Copiloto (Chat Consultivo) ---
     chat_enabled: bool = True

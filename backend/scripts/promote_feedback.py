@@ -40,6 +40,24 @@ def list_stubs() -> list[Path]:
 def promote(stub_path: Path, *, apply: bool) -> Path:
     data = json.loads(stub_path.read_text(encoding="utf-8"))
     tr_id = _next_tr_id()
+
+    expected_findings: list[dict] = []
+    analysis_id = data.get("analysis_id")
+    # Pré-preenche a partir de payload opcional de correções (export manual/API).
+    for c in data.get("approved_corrections") or []:
+        if not isinstance(c, dict):
+            continue
+        expected_findings.append(
+            {
+                "item_number": c.get("item_number") or "?",
+                "category": c.get("category") or "juridica",
+                "severity": c.get("severity") or "alto",
+                "original_text": (c.get("original_text") or "")[:500],
+                "suggested_text": (c.get("suggested_text") or "")[:500],
+                "source": "approved_or_adjusted",
+            }
+        )
+
     fixture = {
         "id": tr_id,
         "descricao": (
@@ -54,13 +72,15 @@ def promote(stub_path: Path, *, apply: bool) -> Path:
             }
         ],
         "expected_checklist": [],
-        "expected_findings": [],
+        "expected_findings": expected_findings,
         "source_feedback": {
             "stub": stub_path.name,
             "comment": data.get("comment"),
             "conversation_id": data.get("conversation_id"),
+            "analysis_id": analysis_id,
         },
         "status": "needs_human_curation",
+        "needs_human_curation": True,
     }
     out = GOLDEN_DIR / f"{tr_id}.json"
     if apply:

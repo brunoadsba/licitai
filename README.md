@@ -2,7 +2,13 @@
 
 Sistema especialista para análise automatizada de Termos de Referência (TR) de licitações públicas usando Inteligência Artificial.
 
-## ✨ Funcionalidades (MVP)
+## Job único (piloto)
+
+Produto focado no **elaborador de TR**: enviar documento → revisar achados prioritários (IA sugere; você decide) → copiar só o aprovado/ajustado para o SEI. Módulos de auditoria TR×propostas ficam em “Mais ferramentas”.
+
+Ops e pendências do piloto (gate 14 dias, cron, DOCX condicional): ver [docs/ops/piloto.md](docs/ops/piloto.md).
+
+## Funcionalidades (MVP)
 
 - **Upload** de documentos PDF, DOCX e ODT
 - **Parsing automático** com detecção de itens numerados, tabelas e anexos
@@ -23,6 +29,8 @@ Sistema especialista para análise automatizada de Termos de Referência (TR) de
 - **Fluxo SEI (cópia filtrada + revisão humana)**:
   - Revisão cruzada LLM + **revisão humana** (Aprovar / Rejeitar / Ajustar) via `PATCH /api/v1/analysis/corrections/{id}`
   - Cópia para o SEI **somente** com correções `aprovada` ou `ajustada`
+  - **Fila Prioridade** (alto/crítico + Art. 6º/estrutural) na análise
+  - **Copiar pacote SEI** (`GET /analysis/{id}/sei-pack`) e **Copiar TR corrigido** HTML (`GET /analysis/{id}/corrected-html`)
   - **Copiar Texto Corrigido (PARA)** / **Item Inteiro** / **Parecer & Justificativa**
 - **Relatório** com pontuação (0-10), nível de risco, parecer final e **Exportar PDF** (impressão do navegador)
 - **Upload honesto**: após o parse, a análise LLM inicia automaticamente (“Enviar e Analisar”)

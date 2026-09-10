@@ -63,7 +63,8 @@ class CorrectionReviewUpdate(BaseModel):
 
 class AnalysisStartRequest(BaseModel):
     """Payload para iniciar uma análise."""
-    mode: str = "multi_agent"
+
+    mode: Literal["multi_agent", "single", "economic"] = "economic"
 
 
 class AnalysisStartResponse(BaseModel):
@@ -71,6 +72,33 @@ class AnalysisStartResponse(BaseModel):
     analysis_id: uuid.UUID
     job_id: uuid.UUID | None = None
     message: str
+
+
+class Art6ChecklistItem(BaseModel):
+    """Status de uma alínea do Art. 6º, XXIII."""
+
+    key: str
+    alinea: str
+    label: str
+    status: Literal["present", "missing", "uncertain"]
+
+
+class PendingSummaryItem(BaseModel):
+    document_id: uuid.UUID
+    analysis_id: uuid.UUID
+    filename: str
+    pending_priority: int
+    status: str
+
+
+class PendingSummaryResponse(BaseModel):
+    total: int
+    items: list[PendingSummaryItem]
+
+
+class CorrectedHtmlSkip(BaseModel):
+    correction_id: uuid.UUID
+    reason: str
 
 
 class AnalysisResponse(BaseModel):
@@ -116,6 +144,7 @@ class AnalysisDetailResponse(BaseModel):
     created_at: AwareDatetime
     corrections: list[CorrectionResponse] = []
     tokens_estimated: int | None = None
+    art6_checklist: list[Art6ChecklistItem] = []
 
 
 class ScoreDetail(BaseModel):
@@ -140,3 +169,39 @@ class ReportResponse(BaseModel):
     final_opinion: str | None = None
     analyzed_at: AwareDatetime | None = None
     tokens_estimated: int | None = None
+    art6_checklist: list[Art6ChecklistItem] = []
+
+
+class SeiPackEntry(BaseModel):
+    """Uma entrada do pacote SEI."""
+
+    correction_id: uuid.UUID
+    item_number: str
+    title: str | None = None
+    suggested_text: str
+    justification: str
+    legal_basis: str | None = None
+    severity: str
+    category: str
+
+
+class SeiPackResponse(BaseModel):
+    """Pacote ordenado para colar no SEI."""
+
+    analysis_id: uuid.UUID
+    document_id: uuid.UUID
+    document_name: str
+    total: int
+    text: str
+    entries: list[SeiPackEntry]
+
+
+class CorrectedHtmlResponse(BaseModel):
+    """TR HTML com correções aprovadas/ajustadas aplicadas."""
+
+    document_id: uuid.UUID
+    analysis_id: uuid.UUID
+    document_name: str
+    applied_corrections: int
+    skipped_corrections: list[CorrectedHtmlSkip] = []
+    html: str

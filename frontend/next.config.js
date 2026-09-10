@@ -61,6 +61,10 @@ const nextConfig = {
         source: '/readyz',
         destination: `${BACKEND_URL}/readyz`,
       },
+      {
+        source: '/metrics',
+        destination: `${BACKEND_URL}/metrics`,
+      },
     ];
   },
 };

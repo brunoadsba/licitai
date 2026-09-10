@@ -1,18 +1,36 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Clock, FileBarChart, Play, ChevronLeft } from 'lucide-react';
-import { getDocument, startAnalysis, getDocumentAnalyses, getAnalysis, extractErrorMessage } from '@/lib/api';
+import { Clock, FileBarChart, Play, ChevronLeft, ClipboardCopy, FileCode2, FileDown } from 'lucide-react';
+import {
+  getDocument,
+  startAnalysis,
+  getDocumentAnalyses,
+  getAnalysis,
+  getSeiPack,
+  getCorrectedHtml,
+  reanalyzePartial,
+  extractErrorMessage,
+} from '@/lib/api';
 import { startPolling } from '@/lib/polling';
 import { getErrorMessage } from '@/lib/errors';
+import { useCopy } from '@/lib/useCopy';
+import {
+  countPendingPriority,
+  filterItemsForPriorityMode,
+  filterPriorityCorrections,
+  type PriorityMode,
+} from '@/lib/priorityQueue';
 import AlertBanner from '@/components/ui/AlertBanner';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import RevisionsTimelineModal from '@/components/RevisionsTimelineModal';
 import ChatCopilot from '@/components/chat/ChatCopilot';
 import AnalysisProgress from '@/components/analysis/AnalysisProgress';
+import Art6ChecklistPanel from '@/components/analysis/Art6ChecklistPanel';
+import DiffUpdatePanel from '@/components/analysis/DiffUpdatePanel';
 import ItemList from '@/components/analysis/ItemList';
 import ItemDetail from '@/components/analysis/ItemDetail';
 import { isSeiCopyAllowed } from '@/components/analysis/CorrectionCard';
@@ -22,10 +40,13 @@ import type {
   AnalysisDetailResponse,
   CorrectionResponse,
 } from '@/types';
+import { toast } from 'sonner';
 
 export default function AnalysisPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const documentId = params.id as string;
+  const diffFrom = searchParams.get('diffFrom');
 
   const [document, setDocument] = useState<DocumentDetailResponse | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisDetailResponse | null>(null);
@@ -35,6 +56,9 @@ export default function AnalysisPage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [revisionsModalOpen, setRevisionsModalOpen] = useState(false);
+  const [priorityMode, setPriorityMode] = useState<PriorityMode>('priority');
+  const [exporting, setExporting] = useState<'pack' | 'html' | null>(null);
+  const { copy, isCopied } = useCopy();
 
   useEffect(() => {
     selectedItemRef.current = selectedItem;
@@ -105,7 +129,7 @@ export default function AnalysisPage() {
     try {
       setAnalyzing(true);
       setError(null);
-      const result = await startAnalysis(documentId);
+      const result = await startAnalysis(documentId, 'economic');
 
       const newAnalysis = await getAnalysis(result.analysis_id, { skipCache: true });
       setAnalysis(newAnalysis);
@@ -116,9 +140,97 @@ export default function AnalysisPage() {
     }
   }
 
+  async function handleReanalyzePartial() {
+    if (!analysis) return;
+    try {
+      setAnalyzing(true);
+      setError(null);
+      const result = await reanalyzePartial(analysis.id);
+      const newAnalysis = await getAnalysis(result.analysis_id, { skipCache: true });
+      setAnalysis(newAnalysis);
+      toast.success('Reanálise parcial enfileirada');
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Não foi possível reanalisar parcialmente.'));
+    } finally {
+      setAnalyzing(false);
+    }
+  }
+
+  function downloadText(filename: string, text: string) {
+    const blob = new Blob([text], { type: 'text/markdown;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = window.document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleCopySeiPack() {
+    if (!analysis) return;
+    try {
+      setExporting('pack');
+      const pack = await getSeiPack(analysis.id);
+      if (pack.total === 0) {
+        toast.message('Nenhuma correção aprovada/ajustada ainda.');
+        return;
+      }
+      await navigator.clipboard.writeText(pack.text);
+      copy(pack.text, 'sei_pack');
+      toast.success(`Pacote SEI copiado (${pack.total} correções)`);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Não foi possível montar o pacote SEI.'));
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function handleDownloadSeiPack() {
+    if (!analysis) return;
+    try {
+      setExporting('pack');
+      const pack = await getSeiPack(analysis.id);
+      if (pack.total === 0) {
+        toast.message('Nenhuma correção aprovada/ajustada ainda.');
+        return;
+      }
+      downloadText(`pacote-sei-${analysis.id.slice(0, 8)}.md`, pack.text);
+      toast.success('Pacote SEI baixado');
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Não foi possível baixar o pacote SEI.'));
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function handleCopyCorrectedHtml() {
+    if (!analysis) return;
+    try {
+      setExporting('html');
+      const data = await getCorrectedHtml(analysis.id);
+      await navigator.clipboard.writeText(data.html);
+      copy(data.html, 'corrected_html');
+      const skipped = data.skipped_corrections?.length ?? 0;
+      if (skipped > 0) {
+        toast.message(
+          `TR copiado com ${data.applied_corrections} aplicadas; ${skipped} não encontradas no texto.`,
+        );
+      } else {
+        toast.success(`TR corrigido copiado (${data.applied_corrections} correções)`);
+      }
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Não foi possível montar o TR corrigido.'));
+    } finally {
+      setExporting(null);
+    }
+  }
+
   function getItemCorrections(itemId: string): CorrectionResponse[] {
     if (!analysis?.corrections) return [];
-    return analysis.corrections.filter((c) => c.document_item_id === itemId);
+    return filterPriorityCorrections(
+      analysis.corrections.filter((c) => c.document_item_id === itemId),
+      priorityMode,
+    );
   }
 
   function getUpdatedItemText(item: DocumentItemResponse, corrections: CorrectionResponse[]): string {
@@ -166,6 +278,13 @@ export default function AnalysisPage() {
   }
 
   const errorInfo = error ? getErrorMessage(error, 'analysis') : null;
+  const pendingPriority = analysis?.corrections
+    ? countPendingPriority(analysis.corrections)
+    : 0;
+  const visibleItems =
+    document && analysis
+      ? filterItemsForPriorityMode(document.items, analysis.corrections, priorityMode)
+      : document?.items ?? [];
 
   return (
     <div className="animate-fade-in space-y-6">
@@ -188,10 +307,47 @@ export default function AnalysisPage() {
           </h1>
           <p className="tnum mt-1 text-sm text-content-muted">
             {document.total_items} itens · {document.file_type.toUpperCase()}
+            {analysis && (
+              <>
+                {' '}
+                · {pendingPriority} aguardando revisão prioritária
+              </>
+            )}
+          </p>
+          <p className="mt-1 text-xs text-content-subtle">
+            IA sugere; você decide. Só o aprovado vai ao SEI.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {(analysis?.status === 'completed' || analysis?.status === 'completed_with_errors') && (
+            <>
+              <Button
+                variant="secondary"
+                loading={exporting === 'pack'}
+                onClick={() => void handleCopySeiPack()}
+              >
+                <ClipboardCopy className="h-4 w-4" aria-hidden />
+                {isCopied('sei_pack') ? 'Pacote copiado' : 'Copiar pacote SEI'}
+              </Button>
+              <Button
+                variant="secondary"
+                loading={exporting === 'pack'}
+                onClick={() => void handleDownloadSeiPack()}
+              >
+                <FileDown className="h-4 w-4" aria-hidden />
+                Baixar .md
+              </Button>
+              <Button
+                variant="secondary"
+                loading={exporting === 'html'}
+                onClick={() => void handleCopyCorrectedHtml()}
+              >
+                <FileCode2 className="h-4 w-4" aria-hidden />
+                {isCopied('corrected_html') ? 'HTML copiado' : 'Copiar TR corrigido'}
+              </Button>
+            </>
+          )}
           <Button variant="secondary" onClick={() => setRevisionsModalOpen(true)}>
             <Clock className="h-4 w-4" aria-hidden />
             <span className="hidden sm:inline">Histórico de Edições</span>
@@ -247,9 +403,14 @@ export default function AnalysisPage() {
           variant="warning"
           title="Análise concluída com cobertura incompleta"
           action={
-            <Button size="sm" onClick={handleStartAnalysis} loading={analyzing}>
-              Reanalisar
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" onClick={() => void handleReanalyzePartial()} loading={analyzing}>
+                Reanalisar faltantes
+              </Button>
+              <Button size="sm" onClick={handleStartAnalysis} loading={analyzing}>
+                Reanalisar
+              </Button>
+            </div>
           }
         >
           {analysis.error_message ||
@@ -263,13 +424,52 @@ export default function AnalysisPage() {
         </AlertBanner>
       )}
 
+      {analysis && (analysis.status === 'completed' || analysis.status === 'completed_with_errors') && (
+        <Art6ChecklistPanel items={analysis.art6_checklist ?? []} />
+      )}
+
       {/* Layout principal: itens à esquerda, detalhes à direita (empilha no mobile) */}
+      {analysis && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-content-muted">Fila:</span>
+          <Button
+            size="sm"
+            variant={priorityMode === 'priority' ? 'primary' : 'secondary'}
+            onClick={() => setPriorityMode('priority')}
+          >
+            Prioridade
+          </Button>
+          <Button
+            size="sm"
+            variant={priorityMode === 'all' ? 'primary' : 'secondary'}
+            onClick={() => setPriorityMode('all')}
+          >
+            Ver todas
+          </Button>
+          <span className="text-xs text-content-subtle">
+            Prioridade = alto/crítico + estrutural (Art. 6º)
+          </span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
+        {diffFrom && (
+          <DiffUpdatePanel
+            oldDocumentId={diffFrom}
+            newDocumentId={documentId}
+            onPickItemNumber={(itemNumber) => {
+              const match = document.items.find((i) => i.item_number === itemNumber);
+              if (match) setSelectedItem(match);
+            }}
+          />
+        )}
+
         <ItemList
-          items={document.items}
+          items={visibleItems}
           selectedId={selectedItem?.id ?? null}
           getCorrections={getItemCorrections}
           onSelect={setSelectedItem}
+          className={diffFrom ? 'lg:col-span-3' : undefined}
         />
 
         {selectedItem ? (
@@ -279,9 +479,12 @@ export default function AnalysisPage() {
             getUpdatedItemText={getUpdatedItemText}
             showCorrections={!!analysis}
             onReviewUpdated={handleReviewUpdated}
+            className={diffFrom ? 'lg:col-span-6' : undefined}
           />
         ) : (
-          <div className="glass-card col-span-1 p-12 text-center lg:col-span-8">
+          <div
+            className={`glass-card col-span-1 p-12 text-center ${diffFrom ? 'lg:col-span-6' : 'lg:col-span-8'}`}
+          >
             <p className="text-content-muted">Selecione um item para ver os detalhes.</p>
           </div>
         )}

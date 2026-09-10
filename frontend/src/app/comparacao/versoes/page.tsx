@@ -213,6 +213,22 @@ export default function DiffVersoesPage() {
             </div>
           </div>
 
+          {docNovoId && docAntigoId && (
+            <div className="glass-card flex flex-wrap items-center justify-between gap-3 border-accent-500/20 p-4">
+              <div>
+                <p className="text-sm font-medium text-content-primary">Próximo passo</p>
+                <p className="text-xs text-content-muted">
+                  Analise a versão nova e revise só os achados prioritários antes de colar no SEI.
+                </p>
+              </div>
+              <Link
+                href={`/analysis/${docNovoId}?diffFrom=${encodeURIComponent(docAntigoId)}`}
+              >
+                <Button size="sm">Revisar versão nova</Button>
+              </Link>
+            </div>
+          )}
+
           {/* Lista de Itens comparados */}
           <div className="space-y-4">
             <h2 className="text-lg font-semibold tracking-tight text-content-primary">

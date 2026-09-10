@@ -21,10 +21,22 @@ from app.schemas.analysis import (
     AnalysisDetailResponse,
     AnalysisStartRequest,
     AnalysisStartResponse,
+    Art6ChecklistItem,
     CorrectionResponse,
     CorrectionReviewUpdate,
+    CorrectedHtmlResponse,
+    CorrectedHtmlSkip,
+    PendingSummaryItem,
+    PendingSummaryResponse,
     ReportResponse,
     ScoreDetail,
+    SeiPackEntry,
+    SeiPackResponse,
+)
+from app.services.analyzer.art6_status import build_art6_checklist
+from app.services.analyzer.corrected_document import (
+    build_corrected_html,
+    build_sei_pack_text,
 )
 from app.services.jobs import enqueue
 from app.services.privacy import (
@@ -32,6 +44,7 @@ from app.services.privacy import (
     assert_cloud_allowed_for_document,
     resolve_classification,
 )
+from app.utils.metrics import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +110,12 @@ async def start_analysis(
     db: AsyncSession = Depends(get_db),
 ):
     """Enfileira análise na fila durável (processada por `python -m app.worker`)."""
-    mode = payload.mode if payload and payload.mode else "multi_agent"
+    mode = payload.mode if payload and payload.mode else "economic"
+    if mode not in ("multi_agent", "single", "economic"):
+        raise HTTPException(
+            status_code=422,
+            detail="mode inválido. Use: multi_agent, single ou economic.",
+        )
 
     result = await db.execute(
         select(Document).where(Document.id == document_id).with_for_update()
@@ -203,6 +221,14 @@ async def start_analysis(
 
 SEI_APPLICABLE_STATUSES = frozenset({"aprovada", "ajustada"})
 
+SEVERITY_RANK = {
+    "info": 0,
+    "baixo": 1,
+    "medio": 2,
+    "alto": 3,
+    "critico": 4,
+}
+
 
 @router.patch(
     "/corrections/{correction_id}",
@@ -241,7 +267,64 @@ async def update_correction_review(
 
     await db.commit()
     await db.refresh(correction)
+
+    status = payload.review_status
+    if status == "aprovada":
+        metrics.inc("review_approved")
+    elif status == "rejeitada":
+        metrics.inc("review_rejected")
+    elif status == "ajustada":
+        metrics.inc("review_adjusted")
+
     return CorrectionResponse.model_validate(correction)
+
+
+def _is_priority_pending(c: Correction) -> bool:
+    if getattr(c, "review_status", None) != "pendente":
+        return False
+    if getattr(c, "category", None) == "estrutural":
+        return True
+    return SEVERITY_RANK.get(getattr(c, "severity", "") or "", -1) >= SEVERITY_RANK["alto"]
+
+
+@router.get(
+    "/pending-summary",
+    response_model=PendingSummaryResponse,
+    summary="Pendências prioritárias de revisão",
+)
+async def pending_summary(db: AsyncSession = Depends(get_db)):
+    """Docs com análise concluída e correções pendentes alto/crítico/estrutural."""
+    result = await db.execute(
+        select(Analysis)
+        .options(
+            selectinload(Analysis.corrections),
+            selectinload(Analysis.document),
+        )
+        .where(Analysis.status.in_(["completed", "completed_with_errors"]))
+        .order_by(Analysis.completed_at.desc())
+    )
+    analyses = result.scalars().unique().all()
+    seen_docs: set[uuid.UUID] = set()
+    items: list[PendingSummaryItem] = []
+    for analysis in analyses:
+        doc_id = analysis.document_id
+        if doc_id in seen_docs:
+            continue
+        seen_docs.add(doc_id)
+        pending = [c for c in analysis.corrections if _is_priority_pending(c)]
+        if not pending:
+            continue
+        doc = analysis.document
+        items.append(
+            PendingSummaryItem(
+                document_id=doc_id,
+                analysis_id=analysis.id,
+                filename=doc.filename_original if doc else "?",
+                pending_priority=len(pending),
+                status=analysis.status,
+            )
+        )
+    return PendingSummaryResponse(total=len(items), items=items)
 
 
 def _filter_corrections(
@@ -249,14 +332,31 @@ def _filter_corrections(
     *,
     for_sei: bool = False,
     review_statuses: set[str] | None = None,
+    severity_min: str | None = None,
 ) -> list:
     if for_sei:
         allowed = SEI_APPLICABLE_STATUSES
+        items = [c for c in corrections if getattr(c, "review_status", None) in allowed]
     elif review_statuses is not None:
-        allowed = review_statuses
+        items = [
+            c for c in corrections if getattr(c, "review_status", None) in review_statuses
+        ]
     else:
-        return list(corrections)
-    return [c for c in corrections if getattr(c, "review_status", None) in allowed]
+        items = list(corrections)
+
+    if severity_min:
+        min_rank = SEVERITY_RANK.get(severity_min)
+        if min_rank is None:
+            raise HTTPException(
+                status_code=422,
+                detail="severity_min inválido. Use: info, baixo, medio, alto, critico.",
+            )
+        items = [
+            c
+            for c in items
+            if SEVERITY_RANK.get(getattr(c, "severity", "") or "", -1) >= min_rank
+        ]
+    return items
 
 
 @router.get(
@@ -269,12 +369,16 @@ async def get_analysis(
     analysis_id: uuid.UUID,
     for_sei: bool = False,
     review_status: str | None = None,
+    severity_min: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Retorna detalhes da análise com correções (filtro opcional para SEI)."""
     result = await db.execute(
         select(Analysis)
-        .options(selectinload(Analysis.corrections))
+        .options(
+            selectinload(Analysis.corrections),
+            selectinload(Analysis.document).selectinload(Document.items),
+        )
         .where(Analysis.id == analysis_id)
     )
     analysis = result.scalar_one_or_none()
@@ -289,11 +393,19 @@ async def get_analysis(
         else None
     )
     filtered = _filter_corrections(
-        analysis.corrections, for_sei=for_sei, review_statuses=statuses
+        analysis.corrections,
+        for_sei=for_sei,
+        review_statuses=statuses,
+        severity_min=severity_min,
     )
-    if for_sei or statuses is not None:
+    if for_sei or statuses is not None or severity_min is not None:
         resp.corrections = [CorrectionResponse.model_validate(c) for c in filtered]
     resp.tokens_estimated = estimate_tokens(analysis)
+    items = list(analysis.document.items or []) if analysis.document else []
+    resp.art6_checklist = [
+        Art6ChecklistItem(**row)
+        for row in build_art6_checklist(items, analysis.corrections)
+    ]
     return resp
 
 
@@ -320,6 +432,137 @@ async def get_sei_corrections(
 
 
 @router.get(
+    "/{analysis_id}/sei-pack",
+    response_model=SeiPackResponse,
+    summary="Pacote SEI ordenado",
+    description=(
+        "Texto consolidado com correções aprovadas/ajustadas, ordenadas por item, "
+        "para colar no SEI."
+    ),
+)
+async def get_sei_pack(
+    analysis_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Analysis)
+        .options(
+            selectinload(Analysis.corrections),
+            selectinload(Analysis.document).selectinload(Document.items),
+        )
+        .where(Analysis.id == analysis_id)
+    )
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Análise não encontrada.")
+
+    items_by_id = {item.id: item for item in (analysis.document.items or [])}
+    filtered = _filter_corrections(analysis.corrections, for_sei=True)
+
+    def sort_key(c: Correction):
+        item = items_by_id.get(c.document_item_id)
+        order = (getattr(item, "item_order", 0) or 0) if item else 0
+        number = (getattr(item, "item_number", "") or "") if item else ""
+        return (order, number, str(c.id))
+
+    entries: list[SeiPackEntry] = []
+    entry_dicts: list[dict] = []
+    for c in sorted(filtered, key=sort_key):
+        item = items_by_id.get(c.document_item_id)
+        item_number = getattr(item, "item_number", "?") if item else "?"
+        title = getattr(item, "title", None) if item else None
+        entry = SeiPackEntry(
+            correction_id=c.id,
+            item_number=str(item_number),
+            title=title,
+            suggested_text=c.suggested_text,
+            justification=c.justification or "",
+            legal_basis=c.legal_basis,
+            severity=c.severity,
+            category=c.category,
+        )
+        entries.append(entry)
+        entry_dicts.append(entry.model_dump())
+
+    text = build_sei_pack_text(
+        document_name=analysis.document.filename_original,
+        entries=entry_dicts,
+    )
+    return SeiPackResponse(
+        analysis_id=analysis.id,
+        document_id=analysis.document_id,
+        document_name=analysis.document.filename_original,
+        total=len(entries),
+        text=text,
+        entries=entries,
+    )
+
+
+@router.get(
+    "/{analysis_id}/corrected-html",
+    response_model=CorrectedHtmlResponse,
+    summary="TR HTML corrigido",
+    description=(
+        "Documento completo em HTML com replaces DE→PARA das correções "
+        "aprovadas/ajustadas."
+    ),
+)
+async def get_corrected_html(
+    analysis_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Analysis)
+        .options(
+            selectinload(Analysis.corrections),
+            selectinload(Analysis.document).selectinload(Document.items),
+        )
+        .where(Analysis.id == analysis_id)
+    )
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Análise não encontrada.")
+
+    if analysis.status not in ("completed", "completed_with_errors"):
+        raise HTTPException(
+            status_code=409,
+            detail="Aguarde a análise concluir antes de exportar o TR corrigido.",
+        )
+
+    filtered = _filter_corrections(analysis.corrections, for_sei=True)
+    if not filtered:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhuma correção aprovada ou ajustada para montar o TR corrigido.",
+        )
+
+    by_item: dict = {}
+    for c in filtered:
+        by_item.setdefault(c.document_item_id, []).append(c)
+
+    html_doc, applied, skipped = build_corrected_html(
+        filename=analysis.document.filename_original,
+        items=list(analysis.document.items or []),
+        corrections_by_item=by_item,
+    )
+    return CorrectedHtmlResponse(
+        document_id=analysis.document_id,
+        analysis_id=analysis.id,
+        document_name=analysis.document.filename_original,
+        applied_corrections=len(applied),
+        skipped_corrections=[
+            CorrectedHtmlSkip(
+                correction_id=s["correction_id"],
+                reason=s["reason"],
+            )
+            for s in skipped
+            if s.get("correction_id") is not None
+        ],
+        html=html_doc,
+    )
+
+
+@router.get(
     "/{analysis_id}/report",
     response_model=ReportResponse,
     summary="Relatório da análise",
@@ -328,6 +571,7 @@ async def get_sei_corrections(
 async def get_report(
     analysis_id: uuid.UUID,
     for_sei: bool = False,
+    severity_min: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Gera relatório consolidado."""
@@ -335,7 +579,7 @@ async def get_report(
         select(Analysis)
         .options(
             selectinload(Analysis.corrections),
-            selectinload(Analysis.document),
+            selectinload(Analysis.document).selectinload(Document.items),
         )
         .where(Analysis.id == analysis_id)
     )
@@ -344,11 +588,21 @@ async def get_report(
     if not analysis:
         raise HTTPException(status_code=404, detail="Análise não encontrada.")
 
-    raw = _filter_corrections(analysis.corrections, for_sei=for_sei) if for_sei else analysis.corrections
+    raw = _filter_corrections(
+        analysis.corrections,
+        for_sei=for_sei,
+        severity_min=severity_min,
+    )
     corrections = [CorrectionResponse.model_validate(c) for c in raw]
 
     category_counts = dict(Counter(c.category for c in corrections))
     severity_counts = dict(Counter(c.severity for c in corrections))
+
+    items = list(analysis.document.items or []) if analysis.document else []
+    art6 = [
+        Art6ChecklistItem(**row)
+        for row in build_art6_checklist(items, analysis.corrections)
+    ]
 
     return ReportResponse(
         analysis_id=analysis.id,
@@ -364,6 +618,106 @@ async def get_report(
         final_opinion=analysis.final_opinion,
         analyzed_at=analysis.completed_at,
         tokens_estimated=estimate_tokens(analysis),
+        art6_checklist=art6,
+    )
+
+
+@router.post(
+    "/{analysis_id}/reanalyze-partial",
+    response_model=AnalysisStartResponse,
+    status_code=202,
+    summary="Reanalisar itens com cobertura incompleta",
+)
+async def reanalyze_partial(
+    analysis_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Enfileira nova análise só dos itens com coverage_errors na análise anterior."""
+    result = await db.execute(
+        select(Analysis)
+        .options(selectinload(Analysis.corrections))
+        .where(Analysis.id == analysis_id)
+    )
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        raise HTTPException(status_code=404, detail="Análise não encontrada.")
+    if analysis.status not in ("completed", "completed_with_errors", "error"):
+        raise HTTPException(
+            status_code=409,
+            detail="Aguarde a análise atual concluir antes de reanalisar parcialmente.",
+        )
+
+    item_ids: set[str] = set()
+    for c in analysis.corrections:
+        evidence = getattr(c, "evidence", None) or {}
+        if evidence.get("coverage_errors"):
+            item_ids.add(str(c.document_item_id))
+
+    if not item_ids:
+        raise HTTPException(
+            status_code=404,
+            detail="Nenhum item com coverage_errors para reanalisar.",
+        )
+
+    doc_result = await db.execute(
+        select(Document).where(Document.id == analysis.document_id).with_for_update()
+    )
+    document = doc_result.scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
+
+    running = await db.execute(
+        select(Analysis).where(
+            Analysis.document_id == document.id,
+            Analysis.status.in_(["pending", "running"]),
+        )
+    )
+    if running.scalar_one_or_none():
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe uma análise em andamento para este documento.",
+        )
+
+    mode = analysis.analysis_mode or "economic"
+    snapshot = await _build_analysis_snapshot(db, document)
+    snapshot["analysis_mode"] = mode
+    snapshot["only_item_ids"] = sorted(item_ids)
+
+    new_analysis = Analysis(
+        document_id=document.id,
+        status="pending",
+        llm_provider=settings.llm_provider,
+        llm_model=_get_current_model(),
+        analysis_mode=mode,
+        total_items=len(item_ids),
+        run_snapshot=snapshot,
+    )
+    db.add(new_analysis)
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Já existe uma análise em andamento para este documento.",
+        ) from exc
+
+    job = await enqueue(
+        db,
+        "analysis",
+        {
+            "analysis_id": str(new_analysis.id),
+            "document_id": str(document.id),
+        },
+    )
+    await db.commit()
+    return AnalysisStartResponse(
+        analysis_id=new_analysis.id,
+        job_id=job.id,
+        message=(
+            f"Reanálise parcial enfileirada ({len(item_ids)} itens). "
+            "Requer worker (`python -m app.worker`)."
+        ),
     )
 
 

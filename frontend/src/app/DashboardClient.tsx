@@ -5,7 +5,14 @@ import Link from 'next/link';
 import { FileText, FileUp, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, MotionConfig } from 'framer-motion';
-import { deleteDocument, listDocuments } from '@/lib/api';
+import {
+  deleteDocument,
+  getMetricsSnapshot,
+  getPendingSummary,
+  listDocuments,
+  type MetricsSnapshot,
+  type PendingSummaryResponse,
+} from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -13,6 +20,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import DocumentListItem from '@/components/dashboard/DocumentListItem';
+import { PendingReviewList, PilotHealthPanel } from '@/components/dashboard/PilotSignals';
 import type { DocumentResponse } from '@/types';
 
 export default function DashboardClient({
@@ -26,11 +34,27 @@ export default function DashboardClient({
   const [error, setError] = useState<string | null>(initialError);
   const [confirmDelete, setConfirmDelete] = useState<DocumentResponse | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [pending, setPending] = useState<PendingSummaryResponse | null>(null);
+  const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null);
+  const [healthOpen, setHealthOpen] = useState(false);
 
   const errorInfo = error ? getErrorMessage(error, 'documents') : null;
   const hasInFlight = documents.some(
     (d) => d.status === 'parsing' || d.status === 'analyzing' || d.status === 'uploaded',
   );
+
+  async function loadPilotSignals() {
+    try {
+      const [p, m] = await Promise.all([
+        getPendingSummary().catch(() => null),
+        getMetricsSnapshot().catch(() => null),
+      ]);
+      if (p) setPending(p);
+      if (m) setMetrics(m);
+    } catch {
+      /* painel piloto opcional */
+    }
+  }
 
   async function handleRefresh() {
     try {
@@ -38,12 +62,17 @@ export default function DashboardClient({
       const data = await listDocuments();
       setDocuments(data.documents);
       setError(null);
+      await loadPilotSignals();
     } catch {
       setError('Não foi possível carregar os documentos. Atualize a página ou tente novamente.');
     } finally {
       setRefreshing(false);
     }
   }
+
+  useEffect(() => {
+    void loadPilotSignals();
+  }, []);
 
   useEffect(() => {
     if (!hasInFlight) return;
@@ -71,6 +100,10 @@ export default function DashboardClient({
       value: documents.filter((d) => d.status === 'analyzing' || d.status === 'parsing').length,
     },
     { label: 'Concluídos', value: documents.filter((d) => d.status === 'completed').length },
+    {
+      label: 'Aguardando revisão',
+      value: pending?.total ?? 0,
+    },
   ];
 
   const showLoading = refreshing && documents.length === 0;
@@ -80,10 +113,10 @@ export default function DashboardClient({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
-            Seus Documentos
+            Revisar Termos de Referência
           </h1>
-          <p className="mt-1 text-sm text-content-muted">
-            Gerencie e analise seus Termos de Referência
+          <p className="mt-1 max-w-xl text-sm text-content-muted">
+            IA sugere; você decide. Só correções aprovadas ou ajustadas vão para o SEI.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -98,17 +131,24 @@ export default function DashboardClient({
             Atualizar
           </Button>
           {!(documents.length === 0 && !error) && (
-            <Link href="/upload">
-              <Button>
-                <FileUp className="h-4 w-4" aria-hidden />
-                Enviar Documento
-              </Button>
-            </Link>
+            <>
+              <Link href="/comparacao/versoes">
+                <Button size="sm" variant="secondary">
+                  Atualizar TR
+                </Button>
+              </Link>
+              <Link href="/upload">
+                <Button>
+                  <FileUp className="h-4 w-4" aria-hidden />
+                  Enviar e revisar TR
+                </Button>
+              </Link>
+            </>
           )}
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-3">
+      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((stat) => (
           <div key={stat.label} className="glass-card p-5">
             <dt className="text-[11px] uppercase tracking-widest text-content-subtle">
@@ -120,6 +160,14 @@ export default function DashboardClient({
           </div>
         ))}
       </dl>
+
+      {pending && pending.items.length > 0 && <PendingReviewList pending={pending} />}
+
+      <PilotHealthPanel
+        metrics={metrics}
+        open={healthOpen}
+        onToggle={() => setHealthOpen((v) => !v)}
+      />
 
       {errorInfo && (
         <AlertBanner variant="error" title={errorInfo.title}>
@@ -138,13 +186,13 @@ export default function DashboardClient({
           <div className="glass-card">
             <EmptyState
               icon={FileText}
-              title="Nenhum documento"
-              description="Envie seu primeiro Termo de Referência para começar a análise."
+              title="Nenhum TR ainda"
+              description="Envie um Termo de Referência para revisar achados prioritários e copiar o aprovado para o SEI."
               action={
                 <Link href="/upload">
                   <Button>
                     <FileUp className="h-4 w-4" aria-hidden />
-                    Enviar Documento
+                    Enviar e revisar TR
                   </Button>
                 </Link>
               }

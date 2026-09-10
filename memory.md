@@ -9,6 +9,7 @@ Este arquivo serve como **fonte da verdade e memória contínua** para qualquer 
 O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma aplicação full-stack desenhada para analisar, revisar e aperfeiçoar Termos de Referência (TR) elaborados para licitações públicas (com foco nas Leis 14.133/2021 e 13.303/2016, RILC, TCU, AGU e CGU).
 
 ### Principais Objetivos do MVP:
+- **Job único (piloto CODEBA):** elaborador sobe TR → revisa só alto/crítico + Art. 6º faltante → sai com **pacote SEI** e/ou **TR HTML corrigido** (só `aprovada|ajustada`). Auditoria TR×propostas fica em “Mais ferramentas”.
 - Upload de documentos em **PDF**, **DOCX** e **ODT**.
 - **Parsing e estruturação hierárquica automática** (seções, itens 1.1, subitens 1.1.1, alíneas, cláusulas e anexos).
 - **OCR automático com Tesseract** como fallback para PDFs escaneados (sem texto selecionável).
@@ -433,26 +434,23 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Ver `PLANO.md` para backlog histórico. Linha ativa: **`main`** (única branch). CI **não** reabilitar sem pedido.
+> Ver `PLANO.md` para backlog histórico. Branch ativa de valor: **`feat/valor-elaborador-mvp`**. CI **não** reabilitar sem pedido.
+
+### Valor elaborador (Fases 0–4 — implementado)
+- Fila Prioridade (alto/crítico + estrutural), pacote SEI, TR HTML corrigido, fluxo Atualizar TR (`?diffFrom=`), ops piloto (`docs/ops/piloto.md`, `scripts/backup_daily.sh`, `scripts/ops_alerts.sh`).
+- Extensão Chrome tenta `corrected-html` pós-revisão antes do HTML bruto.
+
+### Excelência piloto (Fases A–G — código em `feat/excelencia-piloto`)
+- **Feito (A–F):** medição (`pending-summary`, `review_*`, Painel saúde), HTML robusto + skips, Art. 6 checklist, modo `economic` + `reanalyze-partial` + `ANALYSIS_MAX_LLM_CALLS`, `promote_feedback` + `smoke_llm.sh`, `ops_alerts` com delta `llm_errors`.
+- **Pendente (humano/ops):** gate 14 dias ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)); cron backup/alertas; rotação de secrets; rotina quinzenal CODEBA ([docs/ops/piloto-qualidade.md](docs/ops/piloto-qualidade.md)).
+- **Pendente condicional:** DOCX nativo — só se HTML/pacote SEI falhar no uso real.
+- **Fora de escopo:** CI, K8s, fine-tune, multi-tenant, LangGraph.
 
 ### Agora (ops / Bruno — sem bloquear código)
-1. Quando conveniente: rotacionar chaves Gemini/Groq e `POSTGRES_PASSWORD` (adiado no MVP a pedido do usuário).
-2. ~~Restore drill~~ — executado 10/09/2026 em staging isolado (`pgvector/pgvector:pg16`); ver `docs/ops/restore-drill.md` (RTO ~3s; backup `licitai_20260910T104546Z`).
-3. ~~Merge UX → confiabilidade-master~~ — FF merge em 10/09/2026; CSP incluído.
-4. ~~Polish badges/print/pytest~~ — merge FF `feat/polish-badges-print-pytest` → `feat/confiabilidade-master` (10/09).
-5. ~~Consolidar em `main`~~ — FF `feat/confiabilidade-master` → `main`; demais branches removidas (10/09).
-6. ~~Revalidar E2E pós-merge~~ — API 17/17 (~3m15s) + Playwright live 4/4 (10/09).
-
-### Produto / qualidade (não urgente)
-- Curadoria humana de stubs em `e2e/golden/feedback/` via `promote_feedback.py` (**0 stubs** em 10/09).
-- ~~Playwright live (`E2E_LIVE=1`)~~ — 4/4 em 10/09 contra frontend Compose `:3000`.
-- Reabilitar CI só se o usuário pedir explicitamente.
-- ~~Dualismo badges~~ — unificado em `Badge` + `getCategoryTone`/`getSeverityTone` (10/09).
-- ~~PDF export relatório~~ — botão Exportar PDF via `window.print()` + CSS `@media print` (10/09).
-- ~~Pytest local review API~~ — `backend/tests/conftest.py` força `sqlite+aiosqlite` antes do import do app (10/09).
-
-### Fora de escopo (premissas travadas)
-- Multi-tenant / JWT / RBAC completo; LangGraph; fine-tune; Kubernetes.
+1. Rotacionar chaves Gemini/Groq e `POSTGRES_PASSWORD` / `API_TOKEN` quando conveniente.
+2. Agendar cron: `scripts/backup_daily.sh` + `scripts/ops_alerts.sh`.
+3. Iniciar gate 14 dias e anotar métricas em [docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md).
+4. Pin de modelo Gemini explícito no `.env` se a conta permitir; `./scripts/smoke_llm.sh` após troca.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
 > **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.  

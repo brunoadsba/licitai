@@ -12,15 +12,21 @@ interface ItemListProps {
   selectedId: string | null;
   getCorrections: (itemId: string) => CorrectionResponse[];
   onSelect: (item: DocumentItemResponse) => void;
+  className?: string;
 }
 
 /**
  * Lista de itens do documento com badge de severidade máxima.
  * Empilha acima do detalhe no mobile (col-span-12) e vira coluna lateral no desktop.
  */
-export default function ItemList({ items, selectedId, getCorrections, onSelect }: ItemListProps) {
+export default function ItemList({ items, selectedId, getCorrections, onSelect, className }: ItemListProps) {
   return (
-    <div className="col-span-12 max-h-[320px] space-y-2 overflow-y-auto pr-1 lg:col-span-4 lg:max-h-[calc(100dvh-280px)] lg:pr-2">
+    <div
+      className={cn(
+        'col-span-12 max-h-[320px] space-y-2 overflow-y-auto pr-1 lg:col-span-4 lg:max-h-[calc(100dvh-280px)] lg:pr-2',
+        className,
+      )}
+    >
       {items.map((item) => {
         const corrections = getCorrections(item.id);
         const isActive = selectedId === item.id;

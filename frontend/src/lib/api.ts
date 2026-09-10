@@ -193,7 +193,7 @@ export async function deleteDocument(id: string): Promise<void> {
 
 export async function startAnalysis(
   documentId: string,
-  mode: 'single' | 'multi_agent' = 'multi_agent'
+  mode: 'single' | 'multi_agent' | 'economic' = 'economic'
 ): Promise<AnalysisStartResponse> {
   return fetchAPI<AnalysisStartResponse>(
     `/analysis/${encodeURIComponent(documentId)}/start`,
@@ -203,6 +203,45 @@ export async function startAnalysis(
       body: jsonBody({ mode }),
     }
   );
+}
+
+export async function reanalyzePartial(
+  analysisId: string
+): Promise<AnalysisStartResponse> {
+  return fetchAPI<AnalysisStartResponse>(
+    `/analysis/${encodeURIComponent(analysisId)}/reanalyze-partial`,
+    { method: 'POST' },
+  );
+}
+
+export type PendingSummaryResponse = {
+  total: number;
+  items: Array<{
+    document_id: string;
+    analysis_id: string;
+    filename: string;
+    pending_priority: number;
+    status: string;
+  }>;
+};
+
+export async function getPendingSummary(): Promise<PendingSummaryResponse> {
+  return fetchAPI<PendingSummaryResponse>('/analysis/pending-summary');
+}
+
+export type MetricsSnapshot = {
+  uptime_seconds: number;
+  counters: Record<string, number>;
+  gauges: Record<string, number>;
+  analysis_duration_avg_seconds: number;
+  analysis_duration_count: number;
+};
+
+/** Métricas in-memory do backend (rewrite /metrics). */
+export async function getMetricsSnapshot(): Promise<MetricsSnapshot> {
+  const res = await fetch('/metrics', { cache: 'no-store' });
+  if (!res.ok) throw new ApiError('Falha ao obter métricas', res.status);
+  return res.json();
 }
 
 export async function getAnalysis(
@@ -238,6 +277,43 @@ export async function updateCorrectionReview(
 
 export async function getReport(analysisId: string): Promise<ReportResponse> {
   return fetchAPI<ReportResponse>(`/analysis/${encodeURIComponent(analysisId)}/report`);
+}
+
+export type SeiPackResponse = {
+  analysis_id: string;
+  document_id: string;
+  document_name: string;
+  total: number;
+  text: string;
+  entries: Array<{
+    correction_id: string;
+    item_number: string;
+    title: string | null;
+    suggested_text: string;
+    justification: string;
+    legal_basis: string | null;
+    severity: string;
+    category: string;
+  }>;
+};
+
+export async function getSeiPack(analysisId: string): Promise<SeiPackResponse> {
+  return fetchAPI<SeiPackResponse>(`/analysis/${encodeURIComponent(analysisId)}/sei-pack`);
+}
+
+export type CorrectedHtmlResponse = {
+  document_id: string;
+  analysis_id: string;
+  document_name: string;
+  applied_corrections: number;
+  skipped_corrections?: Array<{ correction_id: string; reason: string }>;
+  html: string;
+};
+
+export async function getCorrectedHtml(analysisId: string): Promise<CorrectedHtmlResponse> {
+  return fetchAPI<CorrectedHtmlResponse>(
+    `/analysis/${encodeURIComponent(analysisId)}/corrected-html`,
+  );
 }
 
 export async function getDocumentAnalyses(documentId: string): Promise<AnalysisDetailResponse[]> {

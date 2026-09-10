@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
 import { uploadDocument, listFornecedores } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
@@ -36,8 +37,16 @@ export default function UploadPage() {
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [currentStage, setCurrentStage] = useState<DocumentStatus>('uploaded');
   const [mode, setMode] = useState<'rapido' | 'avancado'>('rapido');
+  const [analysisMode, setAnalysisMode] = useState<'economic' | 'multi_agent'>('economic');
 
-  useUploadAnalysisPipeline({ state, documentId, setState, setError, setCurrentStage });
+  useUploadAnalysisPipeline({
+    state,
+    documentId,
+    setState,
+    setError,
+    setCurrentStage,
+    analysisMode,
+  });
 
   useEffect(() => {
     listFornecedores()
@@ -108,10 +117,11 @@ export default function UploadPage() {
     <div className="animate-fade-in mx-auto max-w-2xl space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
-          Enviar Documento
+          Enviar e revisar TR
         </h1>
         <p className="mt-1 text-sm text-content-muted">
-          Um clique inicia a análise. Use o modo avançado para propostas de fornecedor.
+          IA sugere; você decide. Só o aprovado vai ao SEI. Use Avançado para propostas ou para
+          atualizar um TR existente (diff de versões).
         </p>
       </div>
 
@@ -128,9 +138,42 @@ export default function UploadPage() {
           <p className="text-sm text-content-muted">
             Envie o Termo de Referência em PDF ou DOCX. O parse e a análise começam em seguida.
           </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-content-muted">Modo de análise:</span>
+            <Button
+              type="button"
+              size="sm"
+              variant={analysisMode === 'economic' ? 'primary' : 'secondary'}
+              onClick={() => setAnalysisMode('economic')}
+            >
+              Econômica (piloto)
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={analysisMode === 'multi_agent' ? 'primary' : 'secondary'}
+              onClick={() => setAnalysisMode('multi_agent')}
+            >
+              Completa
+            </Button>
+          </div>
+          <p className="text-[11px] text-content-subtle">
+            Econômica = jurídico + Art. 6º (estrutural). Completa = quatro agentes.
+          </p>
         </TabsContent>
 
         <TabsContent value="avancado" className="space-y-4">
+          <div className="rounded-lg border border-line-subtle bg-white/[0.03] p-4">
+            <p className="text-sm font-medium text-content-primary">Atualizar TR existente</p>
+            <p className="mt-1 text-xs text-content-muted">
+              Compare a versão antiga com a nova e, em seguida, analise o documento novo.
+            </p>
+            <Link href="/comparacao/versoes" className="mt-3 inline-flex">
+              <Button type="button" size="sm" variant="secondary">
+                Abrir diff de versões
+              </Button>
+            </Link>
+          </div>
           <UploadTypeFields
             documentType={documentType}
             fornecedorId={fornecedorId}

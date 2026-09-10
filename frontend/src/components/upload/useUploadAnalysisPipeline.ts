@@ -20,9 +20,11 @@ export function useUploadAnalysisPipeline(options: {
   setState: (s: UploadState) => void;
   setError: (msg: string | null) => void;
   setCurrentStage: (s: DocumentStatus) => void;
+  analysisMode?: 'economic' | 'multi_agent' | 'single';
 }) {
   const router = useRouter();
-  const { state, documentId, setState, setError, setCurrentStage } = options;
+  const { state, documentId, setState, setError, setCurrentStage, analysisMode = 'economic' } =
+    options;
 
   useEffect(() => {
     if (state !== 'processing' || !documentId) return;
@@ -64,7 +66,7 @@ export function useUploadAnalysisPipeline(options: {
 
       setCurrentStage('analyzing');
       try {
-        await startAnalysis(documentId);
+        await startAnalysis(documentId, analysisMode);
         if (cancelled) return;
         setState('success');
         toast.success('Documento processado — análise iniciada');
@@ -86,5 +88,5 @@ export function useUploadAnalysisPipeline(options: {
     return () => {
       cancelled = true;
     };
-  }, [state, documentId, router, setState, setError, setCurrentStage]);
+  }, [state, documentId, router, setState, setError, setCurrentStage, analysisMode]);
 }

@@ -43,9 +43,19 @@ class MetricsRegistry:
                 if self._duration_count
                 else 0.0
             )
+            counters = dict(self.counters)
+            for key in (
+                "llm_errors",
+                "job_errors",
+                "analysis_completed",
+                "review_approved",
+                "review_rejected",
+                "review_adjusted",
+            ):
+                counters.setdefault(key, 0.0)
             return {
                 "uptime_seconds": round(time.time() - self.started_at, 1),
-                "counters": dict(self.counters),
+                "counters": counters,
                 "gauges": dict(self.gauges),
                 "analysis_duration_avg_seconds": round(avg, 3),
                 "analysis_duration_count": self._duration_count,

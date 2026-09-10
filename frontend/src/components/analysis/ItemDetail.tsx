@@ -5,6 +5,7 @@ import { useCopy } from '@/lib/useCopy';
 import { Check, ClipboardCopy, CheckCircle2, Lightbulb } from 'lucide-react';
 import CorrectionCard, { isSeiCopyAllowed } from '@/components/analysis/CorrectionCard';
 import { Badge } from '@/components/ui/Badge';
+import { cn } from '@/lib/utils';
 
 interface ItemDetailProps {
   item: DocumentItemResponse;
@@ -12,6 +13,7 @@ interface ItemDetailProps {
   getUpdatedItemText: (item: DocumentItemResponse, corrections: CorrectionResponse[]) => string;
   showCorrections?: boolean;
   onReviewUpdated?: (correction: CorrectionResponse) => void;
+  className?: string;
 }
 
 /**
@@ -23,13 +25,14 @@ export default function ItemDetail({
   getUpdatedItemText,
   showCorrections = true,
   onReviewUpdated,
+  className,
 }: ItemDetailProps) {
   const { copy, isCopied } = useCopy();
   const seiCorrections = corrections.filter((c) => isSeiCopyAllowed(c.review_status));
   const showCopyItem = showCorrections && seiCorrections.length > 0;
 
   return (
-    <div className="col-span-12 space-y-4 lg:col-span-8">
+    <div className={cn('col-span-12 space-y-4 lg:col-span-8', className)}>
       {/* Conteúdo do item */}
       <div className="glass-card p-5 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center gap-3">

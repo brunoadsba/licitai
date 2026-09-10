@@ -23,6 +23,8 @@ from app.config import settings
 from app.models.analysis import Analysis, Correction
 from app.models.document import Document, DocumentItem
 from app.services.agents.orchestrator import MultiAgentOrchestrator
+from app.services.agents.legal_agent import LegalAgent
+from app.services.agents.structural_agent import StructuralAgent
 from app.services.analyzer.item_analysis import analyze_item_llm
 from app.services.analyzer.review import (
     apply_review_decisions,
@@ -42,8 +44,25 @@ from app.services.analyzer.scoring import (
 )
 from app.services.llm import get_llm_provider
 from app.services.rag.retriever import retrieve
+from app.utils.metrics import metrics
 
 logger = logging.getLogger(__name__)
+
+
+def _build_orchestrator(mode: str) -> MultiAgentOrchestrator | None:
+    if mode == "economic":
+        return MultiAgentOrchestrator([LegalAgent(), StructuralAgent()])
+    if mode == "multi_agent":
+        return MultiAgentOrchestrator()
+    return None
+
+
+def _calls_per_item(mode: str) -> int:
+    if mode == "economic":
+        return 2
+    if mode == "single":
+        return 1
+    return 4
 
 
 async def run_analysis(
@@ -94,11 +113,40 @@ async def run_analysis(
         await db.flush()
         return
 
-    orchestrator = MultiAgentOrchestrator() if getattr(analysis, "analysis_mode", "multi_agent") == "multi_agent" else None
+    mode = getattr(analysis, "analysis_mode", "multi_agent") or "multi_agent"
+    orchestrator = _build_orchestrator(mode)
+
+    snapshot = analysis.run_snapshot or {}
+    only_ids = snapshot.get("only_item_ids")
+    all_items = [
+        i for i in document.items if getattr(i, "archived_at", None) is None
+    ]
+    if only_ids:
+        id_set = {str(x) for x in only_ids}
+        work_items = [i for i in all_items if str(i.id) in id_set]
+    else:
+        work_items = list(all_items)
+
+    budget_truncated = False
+    max_calls = int(getattr(settings, "analysis_max_llm_calls", 0) or 0)
+    if max_calls > 0:
+        max_items = max(1, max_calls // _calls_per_item(mode))
+        if len(work_items) > max_items:
+            work_items = work_items[:max_items]
+            budget_truncated = True
+            logger.warning(
+                "Análise %s: orçamento LLM limitou a %d itens (mode=%s)",
+                analysis_id,
+                max_items,
+                mode,
+            )
+
+    analysis.total_items = len(work_items)
+    await db.commit()
 
     # --- Fase 1: contexto jurídico por item (sequencial — usa a sessão DB) ---
     items_context: list[tuple[DocumentItem, str]] = []
-    for item in document.items:
+    for item in work_items:
         legal_context = await _retrieve_legal_context(db, item)
         items_context.append((item, legal_context))
 
@@ -181,12 +229,14 @@ async def run_analysis(
                 correction.review_status = "rejeitada"
                 correction.review_note = "original_text não encontrado no item (possível alucinação)"
                 correction.reviewed_at = datetime.now(timezone.utc)
+                metrics.inc("review_rejected")
             elif fail_closed:
                 correction.review_status = "rejeitada"
                 correction.review_note = (
                     "legal_basis inválido no corpus (fail-closed para severidade alta/crítica)"
                 )
                 correction.reviewed_at = datetime.now(timezone.utc)
+                metrics.inc("review_rejected")
             db.add(correction)
             correction_objs.append(correction)
             if grounded and not fail_closed:
@@ -217,7 +267,7 @@ async def run_analysis(
             len(outcome),
         )
 
-    if analyzed_count < len(document.items):
+    if analyzed_count < len(work_items) or budget_truncated:
         coverage_incomplete = True
 
     # Se nenhum item foi analisado, os provedores LLM estão indisponíveis:
@@ -242,7 +292,7 @@ async def run_analysis(
 
     # Gerar pontuação consolidada
     try:
-        raw_scores = await generate_scores(llm, all_corrections, len(document.items))
+        raw_scores = await generate_scores(llm, all_corrections, len(work_items))
         scores = sanitize_scores(raw_scores)
 
         analysis.score_overall = scores["score_overall"]
@@ -258,7 +308,7 @@ async def run_analysis(
 
     except Exception:
         logger.exception("Erro ao gerar pontuação via LLM para análise %s; aplicando cálculo determinístico de fallback", analysis_id)
-        scores = calculate_fallback_scores(all_corrections, len(document.items))
+        scores = calculate_fallback_scores(all_corrections, len(work_items))
         analysis.score_overall = scores["score_overall"]
         analysis.score_juridical = scores["score_juridical"]
         analysis.score_technical = scores["score_technical"]
@@ -270,10 +320,13 @@ async def run_analysis(
     # Finalizar
     if coverage_incomplete:
         analysis.status = "completed_with_errors"
-        analysis.error_message = (
+        msg = (
             "Análise concluída com cobertura incompleta de agentes/itens. "
             "Não tratar todos os itens como adequados; reexecute os faltantes."
         )
+        if budget_truncated:
+            msg += " Orçamento ANALYSIS_MAX_LLM_CALLS atingido."
+        analysis.error_message = msg
     else:
         analysis.status = "completed"
         analysis.error_message = None
@@ -288,7 +341,7 @@ async def run_analysis(
         "Análise %s concluída (%s): %d itens, %d correções, nota %.1f",
         analysis_id,
         analysis.status,
-        len(document.items),
+        len(work_items),
         len(all_corrections),
         float(analysis.score_overall) if analysis.score_overall is not None else 0.0,
     )

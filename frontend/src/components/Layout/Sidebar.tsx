@@ -1,33 +1,37 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { FileUp, GitCompareArrows, LayoutGrid, ScrollText, Sparkles, Layers, X } from 'lucide-react';
+import {
+  ChevronDown,
+  FileUp,
+  GitCompareArrows,
+  LayoutGrid,
+  ScrollText,
+  Sparkles,
+  Layers,
+  X,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useShell } from './ShellContext';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/Sheet';
 
 type NavItem = { href: string; label: string; icon: typeof LayoutGrid };
 
-const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
-  {
-    items: [
-      { href: '/', label: 'Painel', icon: LayoutGrid },
-      { href: '/upload', label: 'Enviar Documento', icon: FileUp },
-      { href: '/gerar-tr', label: 'Gerar TR', icon: Sparkles },
-    ],
-  },
-  {
-    label: 'Auditoria',
-    items: [
-      { href: '/comparacao', label: 'Comparações', icon: GitCompareArrows },
-      { href: '/comparacao/versoes', label: 'Versões de TR', icon: ScrollText },
-      { href: '/moldes', label: 'Moldes', icon: Layers },
-    ],
-  },
+const PRIMARY_NAV: NavItem[] = [
+  { href: '/', label: 'Painel', icon: LayoutGrid },
+  { href: '/upload', label: 'Enviar e revisar TR', icon: FileUp },
+  { href: '/gerar-tr', label: 'Gerar TR', icon: Sparkles },
 ];
 
-const ALL_HREFS = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.href));
+const AUDITORIA_NAV: NavItem[] = [
+  { href: '/comparacao', label: 'Comparações', icon: GitCompareArrows },
+  { href: '/comparacao/versoes', label: 'Versões de TR', icon: ScrollText },
+  { href: '/moldes', label: 'Moldes', icon: Layers },
+];
+
+const ALL_HREFS = [...PRIMARY_NAV, ...AUDITORIA_NAV].map((i) => i.href);
 
 /** Active = longest matching prefix (evita Comparações + Versões juntos). */
 export function isNavActive(pathname: string, href: string, allHrefs: string[] = ALL_HREFS): boolean {
@@ -39,35 +43,68 @@ export function isNavActive(pathname: string, href: string, allHrefs: string[] =
   return !hasLongerMatch;
 }
 
+function NavItemLink({
+  item,
+  onNavigate,
+}: {
+  item: NavItem;
+  onNavigate?: () => void;
+}) {
+  const pathname = usePathname();
+  const active = isNavActive(pathname, item.href);
+  return (
+    <Link
+      href={item.href}
+      onClick={onNavigate}
+      className={cn('sidebar-link', active && 'active')}
+      aria-current={active ? 'page' : undefined}
+    >
+      <item.icon className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
+      <span>{item.label}</span>
+    </Link>
+  );
+}
+
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
+  const auditoriaActive = AUDITORIA_NAV.some((item) => isNavActive(pathname, item.href));
+  const [auditoriaOpen, setAuditoriaOpen] = useState(auditoriaActive);
 
   return (
     <nav className="flex-1 space-y-4 overflow-y-auto p-4" aria-label="Navegação principal">
-      {NAV_GROUPS.map((group) => (
-        <div key={group.label ?? 'main'} className="space-y-1">
-          {group.label && (
-            <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-widest text-content-subtle">
-              {group.label}
+      <div className="space-y-1">
+        <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-widest text-content-subtle">
+          Elaborar TR
+        </p>
+        {PRIMARY_NAV.map((item) => (
+          <NavItemLink key={item.href} item={item} onNavigate={onNavigate} />
+        ))}
+      </div>
+
+      <div className="space-y-1">
+        <button
+          type="button"
+          onClick={() => setAuditoriaOpen((v) => !v)}
+          className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-[10px] font-medium uppercase tracking-widest text-content-subtle outline-none hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-accent-500/60"
+          aria-expanded={auditoriaOpen}
+        >
+          Mais ferramentas
+          <ChevronDown
+            className={cn('h-3.5 w-3.5 transition-transform', auditoriaOpen && 'rotate-180')}
+            aria-hidden
+          />
+        </button>
+        {auditoriaOpen && (
+          <div className="space-y-1">
+            <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-widest text-content-subtle/70">
+              Auditoria (avançado)
             </p>
-          )}
-          {group.items.map((item) => {
-            const active = isNavActive(pathname, item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={onNavigate}
-                className={cn('sidebar-link', active && 'active')}
-                aria-current={active ? 'page' : undefined}
-              >
-                <item.icon className="h-5 w-5 shrink-0" strokeWidth={1.75} aria-hidden />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      ))}
+            {AUDITORIA_NAV.map((item) => (
+              <NavItemLink key={item.href} item={item} onNavigate={onNavigate} />
+            ))}
+          </div>
+        )}
+      </div>
     </nav>
   );
 }
@@ -86,7 +123,7 @@ function Brand() {
         />
       </div>
       <p className="mt-2.5 text-center text-[10px] font-medium uppercase tracking-widest text-content-subtle">
-        Análise de TR • SEI
+        Revisar TR • SEI
       </p>
     </Link>
   );
@@ -95,7 +132,9 @@ function Brand() {
 function SidebarFooter() {
   return (
     <div className="border-t border-line-subtle p-4">
-      <p className="text-[11px] text-content-subtle">MVP v0.1.0 • SEI</p>
+      <p className="text-[11px] leading-relaxed text-content-subtle">
+        IA sugere; você decide. Só o aprovado vai ao SEI.
+      </p>
     </div>
   );
 }

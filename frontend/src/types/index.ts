@@ -72,7 +72,7 @@ export interface AnalysisDetailResponse {
   status: AnalysisStatus;
   llm_provider: string;
   llm_model: string;
-  analysis_mode?: 'single' | 'multi_agent';
+  analysis_mode?: 'single' | 'multi_agent' | 'economic';
   total_items: number;
   analyzed_items: number;
   score_overall: number | null;
@@ -88,6 +88,14 @@ export interface AnalysisDetailResponse {
   created_at: string;
   corrections: CorrectionResponse[];
   tokens_estimated?: number | null;
+  art6_checklist?: Art6ChecklistItem[];
+}
+
+export interface Art6ChecklistItem {
+  key: string;
+  alinea: string;
+  label: string;
+  status: 'present' | 'missing' | 'uncertain';
 }
 
 export interface ScoreDetail {
@@ -110,6 +118,7 @@ export interface ReportResponse {
   final_opinion: string | null;
   analyzed_at: string | null;
   tokens_estimated?: number | null;
+  art6_checklist?: Art6ChecklistItem[];
 }
 
 // ---- Auditoria TR × Propostas ----

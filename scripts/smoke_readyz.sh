@@ -31,6 +31,7 @@ check_json() {
 
 check_json "livez" "$API/livez" '"status":"alive"'
 check_json "readyz" "$API/readyz" '"status":"ready"'
+check_json "metrics" "$API/metrics" 'llm_errors'
 check_json "api/docs" "$API/api/docs"
 check_json "frontend/" "$FE/"
 check_json "frontend/readyz" "$FE/readyz" '"status":"ready"'

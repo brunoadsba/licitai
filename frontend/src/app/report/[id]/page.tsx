@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Check, ClipboardCopy, FileDown, FileText } from 'lucide-react';
-import { getReport } from '@/lib/api';
+import { ArrowLeft, Check, ClipboardCopy, FileCode2, FileDown, FileText } from 'lucide-react';
+import { getCorrectedHtml, getReport, getSeiPack } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import { Button } from '@/components/ui/Button';
@@ -16,6 +16,8 @@ import { useCopy } from '@/lib/useCopy';
 import type { ReportResponse } from '@/types';
 import { CATEGORY_LABELS, SEVERITY_LABELS, RISK_LABELS } from '@/types';
 import { getCategoryTone, getSeverityTone } from '@/lib/badges';
+import { filterPriorityCorrections } from '@/lib/priorityQueue';
+import { toast } from 'sonner';
 
 function getRiskColor(risk: string | null) {
   const colors: Record<string, string> = {
@@ -35,6 +37,7 @@ export default function ReportPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { copy, isCopied } = useCopy();
+  const [exporting, setExporting] = useState<'pack' | 'html' | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -49,6 +52,68 @@ export default function ReportPage() {
     }
     load();
   }, [analysisId]);
+
+  async function handleCopySeiPack() {
+    try {
+      setExporting('pack');
+      const pack = await getSeiPack(analysisId);
+      if (pack.total === 0) {
+        toast.message('Nenhuma correção aprovada/ajustada ainda.');
+        return;
+      }
+      navigator.clipboard.writeText(pack.text);
+      copy(pack.text, 'sei_pack');
+      toast.success(`Pacote SEI copiado (${pack.total})`);
+    } catch {
+      toast.error('Não foi possível montar o pacote SEI.');
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function handleCopyCorrectedHtml() {
+    try {
+      setExporting('html');
+      const data = await getCorrectedHtml(analysisId);
+      navigator.clipboard.writeText(data.html);
+      copy(data.html, 'corrected_html');
+      const skipped = data.skipped_corrections?.length ?? 0;
+      if (skipped > 0) {
+        toast.message(
+          `TR copiado (${data.applied_corrections} ok; ${skipped} trechos não encontrados).`,
+        );
+      } else {
+        toast.success(`TR corrigido copiado (${data.applied_corrections})`);
+      }
+    } catch {
+      toast.error('Aprove correções antes de exportar o TR corrigido.');
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  async function handleDownloadSeiPack() {
+    try {
+      setExporting('pack');
+      const pack = await getSeiPack(analysisId);
+      if (pack.total === 0) {
+        toast.message('Nenhuma correção aprovada/ajustada ainda.');
+        return;
+      }
+      const blob = new Blob([pack.text], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = url;
+      a.download = `pacote-sei-${analysisId.slice(0, 8)}.md`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Pacote SEI baixado');
+    } catch {
+      toast.error('Não foi possível baixar o pacote SEI.');
+    } finally {
+      setExporting(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -130,6 +195,33 @@ export default function ReportPage() {
         </div>
 
         <div className="no-print flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            loading={exporting === 'pack'}
+            onClick={() => void handleCopySeiPack()}
+          >
+            <ClipboardCopy className="h-4 w-4" aria-hidden />
+            {isCopied('sei_pack') ? 'Pacote copiado' : 'Copiar pacote SEI'}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            loading={exporting === 'pack'}
+            onClick={() => void handleDownloadSeiPack()}
+          >
+            <FileDown className="h-4 w-4" aria-hidden />
+            Baixar .md
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            loading={exporting === 'html'}
+            onClick={() => void handleCopyCorrectedHtml()}
+          >
+            <FileCode2 className="h-4 w-4" aria-hidden />
+            {isCopied('corrected_html') ? 'HTML copiado' : 'Copiar TR corrigido'}
+          </Button>
           <Button
             type="button"
             variant="secondary"
@@ -289,6 +381,38 @@ export default function ReportPage() {
       )}
 
       {/* Lista expandível de correções */}
+      {(report.art6_checklist ?? []).some((i) => i.status !== 'present') && (
+        <div className="glass-card space-y-2 border-amber-500/20 p-4">
+          <h2 className="text-lg font-semibold tracking-tight text-content-primary">
+            Art. 6º, XXIII — gaps
+          </h2>
+          <ul className="flex flex-wrap gap-2">
+            {(report.art6_checklist ?? [])
+              .filter((i) => i.status !== 'present')
+              .map((g) => (
+                <li key={g.key}>
+                  <Badge tone={g.status === 'missing' ? 'critical' : 'medium'}>
+                    {g.alinea}) {g.label}
+                  </Badge>
+                </li>
+              ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Achados prioritários no topo */}
+      {filterPriorityCorrections(report.corrections, 'priority').length > 0 && (
+        <div className="space-y-2">
+          <h2 className="text-lg font-semibold tracking-tight text-content-primary">
+            Prioridade (alto/crítico + estrutural)
+          </h2>
+          <CorrectionAccordion
+            corrections={filterPriorityCorrections(report.corrections, 'priority')}
+            total={filterPriorityCorrections(report.corrections, 'priority').length}
+          />
+        </div>
+      )}
+
       <CorrectionAccordion corrections={report.corrections} total={report.total_corrections} />
     </div>
   );

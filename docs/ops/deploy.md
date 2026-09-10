@@ -1,5 +1,7 @@
 # Deploy — práticas de confiabilidade
 
+Piloto single-user (backup/alertas/secrets): ver [piloto.md](piloto.md).
+
 ## Imagem imutável
 
 1. Build com tag por digest (não só `latest`):
