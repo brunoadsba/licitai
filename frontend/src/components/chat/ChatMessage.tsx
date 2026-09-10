@@ -3,6 +3,7 @@
 import type { ChatMessage } from '@/types';
 import { Check, ThumbsDown, ThumbsUp, TriangleAlert } from 'lucide-react';
 import CitationList from './CitationList';
+import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 
 interface ChatMessageProps {
@@ -41,14 +42,20 @@ export default function ChatMessageView({
         ) : (
           <>
             <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-              {message.grounded && <span className="badge badge-baixo text-[9px]">Ancorado</span>}
+              {message.grounded && (
+                <Badge tone="low" className="text-[9px]">
+                  Ancorado
+                </Badge>
+              )}
               {message.confidence !== null && message.confidence !== undefined && (
-                <span className="badge badge-info tnum text-[9px]">
+                <Badge tone="neutral" className="tnum text-[9px]">
                   {Math.round(message.confidence * 100)}% confiança
-                </span>
+                </Badge>
               )}
               {message.provider && (
-                <span className="badge badge-medio text-[9px]">{message.provider}</span>
+                <Badge tone="medium" className="text-[9px]">
+                  {message.provider}
+                </Badge>
               )}
               {message.latency_ms !== null && message.latency_ms !== undefined && (
                 <span className="tnum font-mono text-[9px] text-content-subtle">

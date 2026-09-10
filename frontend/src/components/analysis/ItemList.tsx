@@ -1,7 +1,8 @@
 'use client';
 
 import type { DocumentItemResponse, CorrectionResponse } from '@/types';
-import { getSeverityBadge } from '@/lib/badges';
+import { getSeverityTone } from '@/lib/badges';
+import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 
 const SEVERITY_ORDER = ['info', 'baixo', 'medio', 'alto', 'critico'];
@@ -53,9 +54,9 @@ export default function ItemList({ items, selectedId, getCorrections, onSelect }
               </div>
 
               {hasIssues && (
-                <span className={`badge ${getSeverityBadge(maxSeverity)} text-[10px]`}>
+                <Badge tone={getSeverityTone(maxSeverity)} className="text-[10px]">
                   {corrections.length}
-                </span>
+                </Badge>
               )}
             </div>
           </button>

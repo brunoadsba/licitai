@@ -7,6 +7,8 @@ import { listDocuments, diffDocuments, extractErrorMessage } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Badge } from '@/components/ui/Badge';
+import type { Tone } from '@/components/ui/Badge';
 import type { DiffItemResponse, DocumentResponse } from '@/types';
 
 interface DiffResult {
@@ -15,18 +17,18 @@ interface DiffResult {
   itens: DiffItemResponse[];
 }
 
-function getStatusBadge(status: string) {
+function getStatusTone(status: string): Tone {
   switch (status) {
     case 'inalterado':
-      return 'badge-info';
+      return 'neutral';
     case 'alterado':
-      return 'badge-medio';
+      return 'medium';
     case 'adicionado':
-      return 'badge-baixo';
+      return 'low';
     case 'removido':
-      return 'badge-critico';
+      return 'critical';
     default:
-      return 'badge';
+      return 'neutral';
   }
 }
 
@@ -230,11 +232,9 @@ export default function DiffVersoesPage() {
                       </h3>
                     )}
                   </div>
-                  <span
-                    className={`badge uppercase text-[10px] ${getStatusBadge(item.status)}`}
-                  >
+                  <Badge tone={getStatusTone(item.status)} className="uppercase text-[10px]">
                     {item.status}
-                  </span>
+                  </Badge>
                 </div>
 
                 {/* Exibição do diff textual */}

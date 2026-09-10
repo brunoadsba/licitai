@@ -8,6 +8,8 @@ import { getComparacao, getMatriz, extractErrorMessage } from '@/lib/api';
 import { startPolling } from '@/lib/polling';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import type { Tone } from '@/components/ui/Badge';
 import {
   COMPARACAO_STATUS_LABELS,
   CONFORMIDADE_LABELS,
@@ -86,23 +88,23 @@ export default function MatrizPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comparacao?.status, comparacaoId]);
 
-  function getStatusBadge(status: string) {
-    const classes: Record<string, string> = {
-      pending: 'badge-medio',
-      running: 'badge-medio',
-      completed: 'badge-baixo',
-      error: 'badge-critico',
+  function getStatusTone(status: string): Tone {
+    const tones: Record<string, Tone> = {
+      pending: 'medium',
+      running: 'medium',
+      completed: 'low',
+      error: 'critical',
     };
-    return classes[status] || 'badge-info';
+    return tones[status] || 'neutral';
   }
 
-  function getCellBadge(status: ConformidadeStatus) {
-    const classes: Record<string, string> = {
-      ok: 'badge-baixo',
-      falha: 'badge-critico',
-      atencao: 'badge-medio',
+  function getCellTone(status: ConformidadeStatus): Tone {
+    const tones: Record<ConformidadeStatus, Tone> = {
+      ok: 'low',
+      falha: 'critical',
+      atencao: 'medium',
     };
-    return classes[status] || 'badge-info';
+    return tones[status] || 'neutral';
   }
 
   function getCellColors(status: ConformidadeStatus) {
@@ -172,9 +174,9 @@ export default function MatrizPage() {
             Criada em {formatDate(comparacao.created_at)}
           </p>
         </div>
-        <span className={`badge ${getStatusBadge(comparacao.status)}`}>
+        <Badge tone={getStatusTone(comparacao.status)}>
           {COMPARACAO_STATUS_LABELS[comparacao.status] || comparacao.status}
-        </span>
+        </Badge>
       </div>
 
       {comparacao.status === 'error' && (
@@ -261,9 +263,9 @@ export default function MatrizPage() {
                       key={celula.fornecedor_id}
                       className={`rounded-xl border p-3 text-center align-top border-b border-b-white/[0.04] ${getCellColors(celula.status)}`}
                     >
-                      <span className={`badge ${getCellBadge(celula.status)}`}>
+                      <Badge tone={getCellTone(celula.status)}>
                         {CONFORMIDADE_LABELS[celula.status] || celula.status}
-                      </span>
+                      </Badge>
                       {celula.motivo && (
                         <p className="mt-2 text-[11px] leading-snug text-content-muted">
                           {celula.motivo}

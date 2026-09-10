@@ -5,6 +5,7 @@ import { MessageCircle, Sparkles, X } from 'lucide-react';
 import { useChat } from '@/hooks/useChat';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
+import { Badge } from '@/components/ui/Badge';
 import ChatMessageView from './ChatMessage';
 import ChatInput from './ChatInput';
 import { cn } from '@/lib/utils';
@@ -81,7 +82,9 @@ export default function ChatPanel({
               Assistente consultivo com citação de fontes
             </p>
           </div>
-          <span className="badge badge-info ml-auto text-[9px]">beta</span>
+          <Badge tone="neutral" className="ml-auto text-[9px]">
+            beta
+          </Badge>
           {onClose && (
             <button
               type="button"

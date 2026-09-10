@@ -437,6 +437,9 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 - Playwright live (`E2E_LIVE=1`) opcional.
 - Reabilitar CI só se o usuário pedir explicitamente.
 - Dualismo residual `.badge-*` CSS vs `Badge` React (migração gradual); PDF export do relatório.
++ ~~Dualismo badges~~ — unificado em `Badge` + `getCategoryTone`/`getSeverityTone` (10/09).
++ ~~PDF export relatório~~ — botão Exportar PDF via `window.print()` + CSS `@media print` (10/09).
++ ~~Pytest local review API~~ — `backend/tests/conftest.py` força `sqlite+aiosqlite` antes do import do app (10/09).
 
 ### Fora de escopo (premissas travadas)
 - Multi-tenant / JWT / RBAC completo; LangGraph; fine-tune; Kubernetes.

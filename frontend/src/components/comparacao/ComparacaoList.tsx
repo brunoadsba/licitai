@@ -5,6 +5,8 @@ import { GitCompareArrows, MailCheck } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Badge } from '@/components/ui/Badge';
+import type { Tone } from '@/components/ui/Badge';
 import { COMPARACAO_STATUS_LABELS } from '@/types';
 
 interface Comparacao {
@@ -32,14 +34,14 @@ function formatDate(dateStr: string): string {
   });
 }
 
-function getStatusTone(status: string): 'medium' | 'low' | 'critical' | 'info' {
-  const tones: Record<string, 'medium' | 'low' | 'critical' | 'info'> = {
+function getStatusTone(status: string): Tone {
+  const tones: Record<string, Tone> = {
     pending: 'medium',
     running: 'medium',
     completed: 'low',
     error: 'critical',
   };
-  return tones[status] || 'info';
+  return tones[status] || 'neutral';
 }
 
 /**
@@ -86,15 +88,9 @@ export default function ComparacaoList({
                 className="min-w-0 flex-1 outline-none focus-visible:ring-2 focus-visible:ring-accent-500/60"
               >
                 <div className="flex flex-wrap items-center gap-3">
-                  <span
-                    className={`badge ${
-                      { medium: 'badge-medio', low: 'badge-baixo', critical: 'badge-critico', info: 'badge-info' }[
-                        getStatusTone(cmp.status)
-                      ]
-                    }`}
-                  >
+                  <Badge tone={getStatusTone(cmp.status)}>
                     {COMPARACAO_STATUS_LABELS[cmp.status as keyof typeof COMPARACAO_STATUS_LABELS] || cmp.status}
-                  </span>
+                  </Badge>
                   <span className="tnum text-xs text-content-subtle">{formatDate(cmp.created_at)}</span>
                 </div>
                 <div className="tnum mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-content-subtle">

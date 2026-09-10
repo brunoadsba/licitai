@@ -3,18 +3,19 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Check, ClipboardCopy, FileText } from 'lucide-react';
+import { ArrowLeft, Check, ClipboardCopy, FileDown, FileText } from 'lucide-react';
 import { getReport } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Badge } from '@/components/ui/Badge';
 import ScoreGauge from '@/components/report/ScoreGauge';
 import CorrectionAccordion from '@/components/report/CorrectionAccordion';
 import { useCopy } from '@/lib/useCopy';
 import type { ReportResponse } from '@/types';
 import { CATEGORY_LABELS, SEVERITY_LABELS, RISK_LABELS } from '@/types';
-import { getCategoryBadge, getSeverityBadge } from '@/lib/badges';
+import { getCategoryTone, getSeverityTone } from '@/lib/badges';
 
 function getRiskColor(risk: string | null) {
   const colors: Record<string, string> = {
@@ -106,11 +107,11 @@ export default function ReportPage() {
       : ` e ${totalCorrections} ${totalCorrections === 1 ? 'recomendação no total' : 'recomendações no total'}`;
 
   return (
-    <div className="animate-fade-in space-y-8">
+    <div className="print-root animate-fade-in space-y-8">
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="mb-1 flex items-center gap-1.5 text-xs text-content-subtle">
+          <div className="mb-1 flex items-center gap-1.5 text-xs text-content-subtle no-print">
             <Link href="/" className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60">
               Painel
             </Link>
@@ -128,12 +129,23 @@ export default function ReportPage() {
           <p className="mt-1 text-sm text-content-muted">{report.document_name}</p>
         </div>
 
-        <Link href={`/analysis/${report.document_id}`}>
-          <Button variant="secondary">
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Voltar à Análise
+        <div className="no-print flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => window.print()}
+            title="Abre o diálogo de impressão do navegador (Salvar como PDF)"
+          >
+            <FileDown className="h-4 w-4" aria-hidden />
+            Exportar PDF
           </Button>
-        </Link>
+          <Link href={`/analysis/${report.document_id}`}>
+            <Button variant="secondary">
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Voltar à Análise
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Gauges de pontuação */}
@@ -209,9 +221,9 @@ export default function ReportPage() {
               return (
                 <div key={cat}>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className={`badge ${getCategoryBadge(cat)}`}>
+                    <Badge tone={getCategoryTone(cat)}>
                       {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS] || cat}
-                    </span>
+                    </Badge>
                     <span className="tnum text-sm text-content-muted">{count}</span>
                   </div>
                   <div className="progress-bar">
@@ -232,9 +244,9 @@ export default function ReportPage() {
               return (
                 <div key={sev}>
                   <div className="mb-1 flex items-center justify-between">
-                    <span className={`badge ${getSeverityBadge(sev)}`}>
+                    <Badge tone={getSeverityTone(sev)}>
                       {SEVERITY_LABELS[sev as keyof typeof SEVERITY_LABELS] || sev}
-                    </span>
+                    </Badge>
                     <span className="tnum text-sm text-content-muted">{count}</span>
                   </div>
                   <div className="progress-bar">

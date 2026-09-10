@@ -2,7 +2,9 @@
 
 import type { CorrectionResponse, ReviewStatus } from '@/types';
 import { CATEGORY_LABELS, SEVERITY_LABELS } from '@/types';
-import { AGENT_ORIGIN_CONFIG, getCategoryBadge, getSeverityBadge } from '@/lib/badges';
+import { AGENT_ORIGIN_CONFIG, getCategoryTone, getSeverityTone } from '@/lib/badges';
+import type { Tone } from '@/lib/badges';
+import { Badge } from '@/components/ui/Badge';
 import { useCopy } from '@/lib/useCopy';
 import CorrectionReviewActions from '@/components/analysis/CorrectionReviewActions';
 import { Check, ClipboardCopy, TriangleAlert } from 'lucide-react';
@@ -20,11 +22,11 @@ const REVIEW_STATUS_LABELS: Record<ReviewStatus, string> = {
   ajustada: 'Ajustada',
 };
 
-const REVIEW_STATUS_BADGE: Record<ReviewStatus, string> = {
-  pendente: 'badge-medio',
-  aprovada: 'badge-baixo',
-  rejeitada: 'badge-critico',
-  ajustada: 'badge-baixo',
+const REVIEW_STATUS_TONE: Record<ReviewStatus, Tone> = {
+  pendente: 'medium',
+  aprovada: 'low',
+  rejeitada: 'critical',
+  ajustada: 'low',
 };
 
 /** Correções copiáveis para o SEI: apenas aprovada ou ajustada. */
@@ -54,22 +56,20 @@ export default function CorrectionCard({
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           {agent && AgentIcon && (
-            <span
-              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${agent.badgeClass}`}
-            >
+            <Badge tone={agent.tone}>
               <AgentIcon className="h-3 w-3" aria-hidden />
               {agent.label}
-            </span>
+            </Badge>
           )}
-          <span className={`badge ${getCategoryBadge(correction.category)}`}>
+          <Badge tone={getCategoryTone(correction.category)}>
             {CATEGORY_LABELS[correction.category] || correction.category}
-          </span>
-          <span className={`badge ${getSeverityBadge(correction.severity)}`}>
+          </Badge>
+          <Badge tone={getSeverityTone(correction.severity)}>
             {SEVERITY_LABELS[correction.severity] || correction.severity}
-          </span>
-          <span className={`badge ${REVIEW_STATUS_BADGE[reviewStatus]}`}>
+          </Badge>
+          <Badge tone={REVIEW_STATUS_TONE[reviewStatus]}>
             Revisão: {REVIEW_STATUS_LABELS[reviewStatus]}
-          </span>
+          </Badge>
         </div>
 
         <button

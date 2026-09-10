@@ -1,17 +1,19 @@
 'use client';
 
 import type { AnalysisDetailResponse } from '@/types';
+import type { Tone } from '@/components/ui/Badge';
+import { Badge } from '@/components/ui/Badge';
 import { Bot, Scale, Wrench, PenLine, Ruler } from 'lucide-react';
 
 interface AnalysisProgressProps {
   analysis: AnalysisDetailResponse;
 }
 
-const AGENT_BADGES = [
-  { label: 'Jurídico', icon: Scale, className: 'badge-juridica' },
-  { label: 'Técnico', icon: Wrench, className: 'badge-tecnica' },
-  { label: 'Redação', icon: PenLine, className: 'badge-redacao' },
-  { label: 'Estrutural', icon: Ruler, className: 'badge-estrutural' },
+const AGENT_BADGES: { label: string; icon: typeof Scale; tone: Tone }[] = [
+  { label: 'Jurídico', icon: Scale, tone: 'juridica' },
+  { label: 'Técnico', icon: Wrench, tone: 'tecnica' },
+  { label: 'Redação', icon: PenLine, tone: 'redacao' },
+  { label: 'Estrutural', icon: Ruler, tone: 'estrutural' },
 ];
 
 /**
@@ -63,13 +65,10 @@ export default function AnalysisProgress({ analysis }: AnalysisProgressProps) {
       <div className="flex items-center gap-2 overflow-x-auto pt-1">
         <span className="mr-1 shrink-0 text-[11px] font-medium text-content-muted">Agentes ativos:</span>
         {AGENT_BADGES.map((agent) => (
-          <span
-            key={agent.label}
-            className={`badge animate-pulse text-[10px] ${agent.className}`}
-          >
+          <Badge key={agent.label} tone={agent.tone} className="animate-pulse text-[10px]">
             <agent.icon className="h-3 w-3" aria-hidden />
             {agent.label}
-          </span>
+          </Badge>
         ))}
       </div>
     </div>

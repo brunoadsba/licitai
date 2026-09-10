@@ -1,7 +1,7 @@
 import type { HTMLAttributes } from 'react';
 import { cn } from '@/lib/utils';
 
-type Tone =
+export type Tone =
   | 'neutral'
   | 'info'
   | 'low'

@@ -2,6 +2,7 @@
 
 import { FileUp, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import {
   Select,
   SelectContent,
@@ -101,10 +102,10 @@ export default function FornecedorPanel({
           <div className="mt-3 space-y-1.5">
             {fornecedores.map((f) => (
               <div key={f.id} className="flex items-center justify-between gap-2 text-xs">
-                <span className="badge badge-info flex-1 truncate text-[10px]">
+                <Badge tone="neutral" className="flex-1 truncate text-[10px] normal-case tracking-normal">
                   {f.nome}
                   {f.email ? ` · ${f.email}` : ''}
-                </span>
+                </Badge>
                 <div className="flex shrink-0 gap-1">
                   <button
                     onClick={() => onEditar(f)}

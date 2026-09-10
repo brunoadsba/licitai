@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import type { CorrectionResponse } from '@/types';
 import { CATEGORY_LABELS, SEVERITY_LABELS } from '@/types';
-import { getCategoryBadge, getSeverityBadge } from '@/lib/badges';
+import { getCategoryTone, getSeverityTone } from '@/lib/badges';
+import { Badge } from '@/components/ui/Badge';
 import { useCopy } from '@/lib/useCopy';
 import { isSeiCopyAllowed } from '@/components/analysis/CorrectionCard';
 import { Check, ChevronDown, ClipboardCopy, TriangleAlert } from 'lucide-react';
@@ -53,12 +54,12 @@ export default function CorrectionAccordion({ corrections, total }: CorrectionAc
             >
               <div className="flex min-w-0 flex-wrap items-center gap-2.5 sm:flex-nowrap">
                 <span className="tnum shrink-0 font-mono text-sm text-content-subtle">#{idx + 1}</span>
-                <span className={`badge ${getCategoryBadge(correction.category)}`}>
+                <Badge tone={getCategoryTone(correction.category)}>
                   {CATEGORY_LABELS[correction.category] || correction.category}
-                </span>
-                <span className={`badge ${getSeverityBadge(correction.severity)}`}>
+                </Badge>
+                <Badge tone={getSeverityTone(correction.severity)}>
                   {SEVERITY_LABELS[correction.severity] || correction.severity}
-                </span>
+                </Badge>
                 <p className="truncate text-sm text-content-secondary">{correction.problem}</p>
               </div>
               <ChevronDown

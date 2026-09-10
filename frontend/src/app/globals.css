@@ -124,20 +124,7 @@
     @apply cursor-not-allowed opacity-50;
   }
 
-  /* ── Badges ──────────────────────────────────────────────────────── */
-  .badge {
-    @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full border
-           px-2.5 py-0.5 text-[11px] font-medium uppercase tracking-wide;
-  }
-  .badge-info { @apply border-white/10 bg-white/[0.06] text-content-secondary; }
-  .badge-baixo { @apply border-green-500/20 bg-green-500/10 text-green-400; }
-  .badge-medio { @apply border-yellow-500/20 bg-yellow-500/10 text-yellow-400; }
-  .badge-alto { @apply border-orange-500/20 bg-orange-500/10 text-orange-400; }
-  .badge-critico { @apply border-red-500/20 bg-red-500/10 text-red-400; }
-  .badge-juridica { @apply border-purple-500/20 bg-purple-500/10 text-purple-400; }
-  .badge-tecnica { @apply border-cyan-500/20 bg-cyan-500/10 text-cyan-400; }
-  .badge-redacao { @apply border-amber-500/20 bg-amber-500/10 text-amber-400; }
-  .badge-estrutural { @apply border-teal-500/20 bg-teal-500/10 text-teal-400; }
+  /* Badges: use o componente React `Badge` (`tone`), não classes CSS. */
 
   /* ── Inputs ──────────────────────────────────────────────────────── */
   .input-field {
@@ -220,3 +207,27 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Exportar relatório via diálogo de impressão do navegador */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+
+  .print-root {
+    animation: none !important;
+  }
+
+  .glass-card {
+    break-inside: avoid;
+    border: 1px solid #ddd !important;
+    background: #fff !important;
+    box-shadow: none !important;
+  }
+}
+

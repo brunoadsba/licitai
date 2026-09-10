@@ -2,31 +2,42 @@
 
 import type { LucideIcon } from 'lucide-react';
 import { Scale, Wrench, PenLine, Ruler } from 'lucide-react';
+import type { Tone } from '@/components/ui/Badge';
 
-export const AGENT_ORIGIN_CONFIG: Record<string, { label: string; icon: LucideIcon; badgeClass: string }> = {
-  juridico: { label: 'Agente Jurídico', icon: Scale, badgeClass: 'bg-purple-500/15 text-purple-300 border-purple-500/40' },
-  tecnico: { label: 'Agente Técnico', icon: Wrench, badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/40' },
-  redacao: { label: 'Agente de Redação', icon: PenLine, badgeClass: 'bg-sky-500/15 text-sky-300 border-sky-500/40' },
-  estrutural: { label: 'Agente Estrutural', icon: Ruler, badgeClass: 'bg-teal-500/15 text-teal-300 border-teal-500/40' },
+export type { Tone };
+
+export const AGENT_ORIGIN_CONFIG: Record<
+  string,
+  { label: string; icon: LucideIcon; tone: Tone }
+> = {
+  juridico: { label: 'Agente Jurídico', icon: Scale, tone: 'juridica' },
+  tecnico: { label: 'Agente Técnico', icon: Wrench, tone: 'tecnica' },
+  redacao: { label: 'Agente de Redação', icon: PenLine, tone: 'redacao' },
+  estrutural: { label: 'Agente Estrutural', icon: Ruler, tone: 'estrutural' },
 };
 
-export function getCategoryBadge(category: string) {
-  const classes: Record<string, string> = {
-    juridica: 'badge-juridica',
-    tecnica: 'badge-tecnica',
-    redacao: 'badge-redacao',
-    estrutural: 'badge-estrutural',
+export function getCategoryTone(category: string): Tone {
+  const tones: Record<string, Tone> = {
+    juridica: 'juridica',
+    tecnica: 'tecnica',
+    redacao: 'redacao',
+    estrutural: 'estrutural',
   };
-  return classes[category] || 'badge-info';
+  return tones[category] ?? 'neutral';
 }
 
-export function getSeverityBadge(severity: string) {
-  const classes: Record<string, string> = {
-    info: 'badge-info',
-    baixo: 'badge-baixo',
-    medio: 'badge-medio',
-    alto: 'badge-alto',
-    critico: 'badge-critico',
+export function getSeverityTone(severity: string): Tone {
+  const tones: Record<string, Tone> = {
+    info: 'info',
+    baixo: 'low',
+    medio: 'medium',
+    alto: 'high',
+    critico: 'critical',
   };
-  return classes[severity] || 'badge-info';
+  return tones[severity] ?? 'neutral';
 }
+
+/** @deprecated Use getCategoryTone */
+export const getCategoryBadge = getCategoryTone;
+/** @deprecated Use getSeverityTone */
+export const getSeverityBadge = getSeverityTone;

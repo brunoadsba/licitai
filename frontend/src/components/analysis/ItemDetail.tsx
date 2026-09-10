@@ -4,6 +4,7 @@ import type { DocumentItemResponse, CorrectionResponse } from '@/types';
 import { useCopy } from '@/lib/useCopy';
 import { Check, ClipboardCopy, CheckCircle2, Lightbulb } from 'lucide-react';
 import CorrectionCard, { isSeiCopyAllowed } from '@/components/analysis/CorrectionCard';
+import { Badge } from '@/components/ui/Badge';
 
 interface ItemDetailProps {
   item: DocumentItemResponse;
@@ -36,7 +37,9 @@ export default function ItemDetail({
           {item.title && (
             <h2 className="text-lg font-semibold tracking-tight text-content-primary">{item.title}</h2>
           )}
-          <span className="badge badge-info ml-auto text-[10px]">{item.item_type}</span>
+          <Badge tone="neutral" className="ml-auto text-[10px]">
+            {item.item_type}
+          </Badge>
         </div>
 
         <div className="mb-4 max-h-48 overflow-y-auto rounded-lg border border-line-subtle bg-canvas/60 p-4">
