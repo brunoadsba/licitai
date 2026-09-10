@@ -450,9 +450,9 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 ### Base TR CODEBA local (10/09/2026 — `fixtures/trs-codeba/`)
 
 - Migrado de `Base de Dados com TR para teste/` → `fixtures/trs-codeba/`.
-- **Estrutura:** `piloto-unico/` (6 canônicos via hardlink) · `objetos/01…06/` (versões `v01`/`v02`/`v03` + `alt`) · `pendente/07…10/` (obra, contínuo, TI, incompleto).
-- **Contagem:** 11 PDFs · **6 objetos distintos** · meta ≥10.
-- **Piloto canônico:** Guarda = v02; Emergência = v03 SEI.
+- **Estrutura:** `piloto-unico/` (canônicos via hardlink) · `objetos/01…12/` · `pendente/` (só não classificados).
+- **Contagem:** 17 PDFs em objetos · **12 objetos distintos** · meta ≥10 **atingida** (lote +6 em 10/09: obra, coleta resíduos, PABX nuvem, monitoramento ambiental, EPI/EPC, coletores).
+- **Piloto canônico:** Guarda = v02; Emergência = v03 SEI; 07–12 = v01.
 - **Diff:** cadeias Guarda e Emergência.
 - **Git:** `fixtures/trs-codeba/**/*.pdf` e pasta antiga no `.gitignore`; README/MANIFEST versionados.
 - Docs: [fixtures/trs-codeba/README.md](fixtures/trs-codeba/README.md), [MANIFEST.md](fixtures/trs-codeba/MANIFEST.md), [piloto-qualidade.md](docs/ops/piloto-qualidade.md).
@@ -463,17 +463,17 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 | Entrega | Por quê |
 |---------|---------|
-| ≥10 TRs reais anonimizados (completos, com gaps, prazo ambíguo, marca/direcionamento, mínimos) | Diversifica golden/benchmark além dos sintéticos `e2e/golden/` — base local: `fixtures/trs-codeba/` (PDFs gitignored; **6/10** objetos; completar `pendente/07…10`) |
+| ≥10 TRs reais anonimizados (completos, com gaps, prazo ambíguo, marca/direcionamento, mínimos) | **Base local pronta:** `fixtures/trs-codeba/` (**12/10** objetos; PDFs gitignored) |
 | Gate 14 dias de uso real ([gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)) | Prova utilidade no fluxo: Enviar → Prioridade + Art. 6 → aprovar → pacote SEI/HTML/DOCX |
 | Aprovação/rejeição consciente em alto/crítico (+ thumbs-down → `promote_feedback.py`) | Sinal de precision; alimenta stubs em `e2e/golden/feedback/` |
 | Colar/anexar export no SEI real (ou minuta de teste) | Valida se HTML/DOCX/pacote serve no processo, não só na UI |
-| Benchmark quinzenal com 5 TRs ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)) | Preferir `fixtures/trs-codeba/piloto-unico/`; evita regressão silenciosa |
+| Benchmark quinzenal com 5 TRs ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)) | Rodízio em `fixtures/trs-codeba/piloto-unico/` |
 
 ### Agora (ops / Bruno)
 1. Rotacionar secrets quando conveniente.
 2. Iniciar gate 14 dias ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)).
 3. Cron já instalado neste WSL — conferir `crontab -l | grep LICITAI`.
-4. Completar `fixtures/trs-codeba/pendente/07…10` (+4 objetos) e rodar quinzena com `piloto-unico/`.
+4. Rodar quinzena com 5 TRs de `piloto-unico/` (há 12 disponíveis).
 5. Anonimizar e-mails nos TRs de Emergência antes de free-tier cloud.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
@@ -482,4 +482,4 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 > **Polish (10/09/2026)**: Badge unificado, Exportar PDF do relatório, conftest pytest.  
 > **Main única (10/09/2026)**: consolidação FF em `main`; feature branches apagadas.  
 > **E2E revalidado (10/09/2026)**: API 17/17 (~3m15s) + Playwright live 4/4.  
-> **Fixtures TR CODEBA (10/09/2026)**: `fixtures/trs-codeba/` organizado; 6/10 objetos; PDFs fora do Git.
+> **Fixtures TR CODEBA (10/09/2026)**: `fixtures/trs-codeba/` — **12 objetos** (meta ≥10); PDFs fora do Git.

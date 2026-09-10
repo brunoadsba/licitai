@@ -2,25 +2,15 @@
 
 Base de Termos de Referência reais para piloto, benchmark quinzenal e Diff.
 
-**PDFs não entram no Git** (ver `.gitignore`). Só este README e a estrutura de pastas são versionados.
+**PDFs não entram no Git** (ver `.gitignore`). Só README/MANIFEST e a estrutura de pastas são versionados.
 
 ## Estrutura
 
 ```
 fixtures/trs-codeba/
-├── piloto-unico/     # 1 PDF por objeto (canônico do piloto) — hardlinks
-├── objetos/          # todos os arquivos, com versões
-│   ├── 01-agua-mineral/
-│   ├── 02-materiais-domo-sanitarios/
-│   ├── 03-locacao-conteineres/
-│   ├── 04-parceria-codeba-cimatec/
-│   ├── 05-concurso-guarda-portuario/   # v01..v03
-│   └── 06-base-emergencia-operacional/ # v01..v03 + alt
-└── pendente/         # lacunas até 10+ objetos distintos
-    ├── 07-obra-engenharia/
-    ├── 08-servico-continuo/
-    ├── 09-ti-software/
-    └── 10-tr-incompleto-minimo/
+├── piloto-unico/     # 1 PDF por objeto (canônico) — hardlinks · 12 arquivos
+├── objetos/          # todos os arquivos, com versões (01…12)
+└── pendente/         # só candidatos ainda não classificados
 ```
 
 ## Convenção de nomes
@@ -31,20 +21,26 @@ fixtures/trs-codeba/
 | `alt-*.pdf` | Formato alternativo (não-template SEI) |
 | `piloto-unico/NN-slug.pdf` | Canônico do objeto `NN` |
 
-Ao adicionar TR novo: criar `objetos/NN-slug/`, colocar `v01-...pdf`, e se for set piloto, hardlink em `piloto-unico/`.
+Ao adicionar TR novo: criar `objetos/NN-slug/`, colocar `v01-...pdf`, hardlink em `piloto-unico/`, atualizar MANIFEST.
 
-## Set piloto atual (6/10)
+## Set piloto
 
-Ver [MANIFEST.md](MANIFEST.md). Faltam os tipos em `pendente/`.
+**12 objetos distintos** (meta ≥10 atingida). Detalhes: [MANIFEST.md](MANIFEST.md).
+
+Lacunas antigas preenchidas em 10/09/2026:
+- obra → `07-obra-portaria-salvador`
+- contínuo → `08-coleta-residuos-perigosos`
+- TI → `09-ti-pabx-nuvem`
+- cobertura Art.6 mais enxuta → `10-monitoramento-ambiental-pga`
+- extras → `11-compra-epi-epc`, `12-coletores-sobre-demanda`
 
 ## Uso
 
-1. Benchmark quinzenal: enviar os PDFs de `piloto-unico/` (modo economic).
-2. Diff / Atualizar TR: usar `v01` → `v02` → `v03` em Guarda ou Emergência.
+1. Benchmark quinzenal: 5 TRs de `piloto-unico/` (rodízio entre os 12).
+2. Diff / Atualizar TR: `objetos/05-…` e `06-…` (`v01`→`v02`→`v03`).
 3. Anonimizar e-mail/telefone/CPF antes de free-tier cloud.
 
 ## Segurança
 
 - Não commitar PDFs.
 - Preferir TRs já públicos ou anonimizados.
-- Pasta antiga `Base de Dados com TR para teste/` foi migrada para cá.
