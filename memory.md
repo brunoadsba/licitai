@@ -430,7 +430,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 ### Agora (ops / Bruno — sem bloquear código)
 1. Quando conveniente: rotacionar chaves Gemini/Groq e `POSTGRES_PASSWORD` (adiado no MVP a pedido do usuário).
 2. ~~Restore drill~~ — executado 10/09/2026 em staging isolado (`pgvector/pgvector:pg16`); ver `docs/ops/restore-drill.md` (RTO ~3s; backup `licitai_20260910T104546Z`).
-3. Merge `feat/ux-sprint2-funil` → `feat/confiabilidade-master` (CSP cherry-pick incluído).
+3. ~~Merge UX → confiabilidade-master~~ — FF merge em 10/09/2026 (`e77d2b3`); CSP incluído.
 
 ### Produto / qualidade (não urgente)
 - Curadoria humana de stubs em `e2e/golden/feedback/` via `promote_feedback.py` (**0 stubs** em 10/09).
