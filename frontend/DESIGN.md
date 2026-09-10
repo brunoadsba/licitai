@@ -1,7 +1,7 @@
 # DESIGN.md — Contrato de Design LicitAI
 
 > Fonte da verdade visual. Toda cor, fonte, espaçamento e componente no frontend deve rastrear até um token deste arquivo.
-> Direção aprovada pelo usuário (25/08/2026): **dark premium refinado**, responsivo completo, stack Radix + Lucide + Sonner + framer-motion.
+> Atualizado 10/09/2026: **tema claro + escuro** CODEBA (teal `#3AA4A4`), stack Radix + Lucide + Sonner + framer-motion + ThemeProvider.
 
 ## 0. Research Log
 
@@ -29,15 +29,17 @@ Paleta extraída de `Logo CODEBA.png`:
 - **Teal CODEBA** `#3AA4A4` — **accent-500** (interativo)
 - **Cinza Autoridade** `#606163`
 
-### Tokens semânticos (atualizado 10/09/2026)
+### Tokens semânticos
 
-| Token | Valor | Uso |
+Valores abaixo = **escuro** (`html.dark`). No **claro** (`html.light` / `:root`): canvas `#F3F6FB`, panel/surface `#FFFFFF`, textos slate (`#0F172A`…`#94A3B8`), bordas `rgba(15,23,42,…)`. Ver `globals.css`.
+
+| Token | Escuro | Uso |
 |---|---|---|
-| `--canvas` | `#06080F` | Fundo da página (ink) |
+| `--canvas` | `#06080F` | Fundo da página |
 | `--panel` | `#0A0F18` | Sidebar, header |
 | `--surface` | `#111827` | Cards, dropdowns, modais |
 | `--surface-hover` | `#1A2436` | Hover |
-| `--border-subtle` | `rgba(148,163,184,0.10)` | Borda padrão (slate) |
+| `--border-subtle` | `rgba(148,163,184,0.10)` | Borda padrão |
 | `--border-strong` | `rgba(148,163,184,0.16)` | Inputs |
 | `--text-primary` | `#F1F5F9` | Texto principal |
 | `--text-secondary` | `#CBD5E1` | Corpo |
@@ -45,6 +47,13 @@ Paleta extraída de `Logo CODEBA.png`:
 | `--text-subtle` | `#64748B` | Desabilitado |
 | `--codeba-navy` | `#051853` | Wash / selo |
 | `--codeba-teal` | `#3AA4A4` | Accent |
+
+### Tema claro/escuro (código)
+
+- `ThemeProvider` + `ThemeToggle` em `frontend/src/components/theme/`
+- Preferência: `localStorage['licitai-theme']` = `light` \| `dark`
+- Script anti-FOUC no `<head>` do `layout.tsx`
+- Toaster (Sonner) acompanha o tema
 
 ### Accent único — teal CODEBA `#3AA4A4`
 

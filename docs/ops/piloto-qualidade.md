@@ -11,8 +11,8 @@ Rotina quinzenal para manter precision em **alto/crítico** e Art. 6º.
 2. Rodar análise em modo **economic** (padrão do upload).
 3. Anotar:
    - taxa de rejeição humana em correções `alto|critico`
-   - gaps Art. 6º (painel a–j)
-   - uso de **pacote SEI** ou **TR HTML** vs cópia avulsa
+   - gaps Art. 6º (painel a–j) e `art6_coverage` (meta ≥90%)
+   - uso de **pacote SEI** ou **TR HTML/DOCX** vs cópia avulsa
    - ocorrências de `completed_with_errors`
 4. Opcional: `PYTHONPATH=backend python backend/scripts/benchmark.py` (gasta cota free tier).
 5. Thumbs-down do copiloto → stub em `e2e/golden/feedback/` → promover:

@@ -34,7 +34,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 
 ## 2. Arquitetura e Decisões de Design
 
-- **Frontend**: Next.js 14 (App Router), React 18, Tailwind CSS v3 (tema dark + design system teal `#2AAFA0`), TypeScript.
+- **Frontend**: Next.js 14 (App Router), React 18, Tailwind CSS v3, TypeScript; design system CODEBA com **tema claro + escuro** (`html.light`/`html.dark`, toggle no header, `localStorage` `licitai-theme`); accent teal `#3AA4A4`.
   - **BFF**: Route Handler `/api/proxy/*` injeta `API_TOKEN`; rewrites em `next.config.js` para `/api/v1`, `/livez`, `/readyz`, `/health`.
 - **Backend**: FastAPI (Python 3.12), SQLAlchemy 2.0 (Async), Pydantic v2, Alembic, worker asyncio (`python -m app.worker`).
 - **Banco de Dados (Duplo Suporte)**:
@@ -244,7 +244,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `logging_config.py`: Logging estruturado JSON (`JsonFormatter` + `setup_logging`) — sem dados sensíveis.
 
 ### Frontend (`/frontend`)
-- `DESIGN.md`: **Contrato de design (fonte da verdade visual, 25/08)** — tokens semânticos (canvas/panel/surface, accent teal `#2AAFA0`, content.*, line.*), tipografia Geist, motion, estados, acessibilidade, dívida aceita.
+- `DESIGN.md`: contrato visual (10/09) — **claro + escuro**, tokens ink/graphite e canvas frio `#F3F6FB`, accent teal `#3AA4A4`, Geist, ThemeProvider/ThemeToggle.
 - `next.config.js`: Proxy rewrites `/api/v1`, `/health`, `/livez`, `/readyz` via `BACKEND_URL`; BFF Route Handler em `/api/proxy/*` injeta `API_TOKEN`.
 - `package.json`: Next.js 14, React 18, Tailwind CSS v3 + stack UI (@radix-ui/*, lucide-react, sonner, framer-motion, geist, clsx, tailwind-merge) + Playwright (dev).
 - `tailwind.config.js`: tokens semânticos (`accent`, `canvas`, `panel`, `elevated`, `content.*`, `line.*`).
@@ -443,10 +443,19 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ### Excelência piloto (Fases A–G — mergeado em `main`)
 - **Feito (A–F + DOCX + cron neste host):** medição, HTML robusto, Art. 6, modo `economic`, `reanalyze-partial`, DOCX (`corrected-docx`), `install_ops_cron.sh` aplicado, backup dry-run OK.
-- **Art. 6 coverage ≥90% (branch `feat/art6-coverage-90`):** métrica `art6_coverage`/`art6_meets_target` na API+UI; validador heading-first; fallback contextual no `/gerar-tr`; script `backend/scripts/score_art6_fixtures.py`. Baseline piloto CODEBA (heurística PDF): média **~71%**, **2/12 ≥90%** (lacunas típicas: solução como um todo + adequação orçamentária).
+- **Art. 6 coverage ≥90%:** métrica `art6_coverage`/`art6_meets_target` na API+UI; validador heading-first; fallback contextual no `/gerar-tr`; script `backend/scripts/score_art6_fixtures.py`. Baseline piloto CODEBA (heurística PDF): média **~71%**, **2/12 ≥90%**.
+- **UI (10/09):** paleta premium ink + teal CODEBA; **tema claro/escuro** (`ThemeProvider`, toggle Sol/Lua no Header, anti-FOUC).
 - **Pendente (humano):** gate 14 dias; rotação de secrets; rotina quinzenal CODEBA ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)). Ver bloco **Como elevar confiabilidade** abaixo.
 - **Fora de escopo:** CI, K8s, fine-tune, multi-tenant, LangGraph.
-- Branches locais `feat/excelencia-piloto` e `feat/valor-elaborador-mvp` removidas após FF em `main`.
+- Branches de feature locais removidas após FF em `main`.
+
+### UI / Design system (10/09/2026)
+
+- Contrato: [frontend/DESIGN.md](frontend/DESIGN.md).
+- Escuro: canvas `#06080F`, panel `#0A0F18`, surface `#111827`, accent `#3AA4A4`.
+- Claro: canvas `#F3F6FB`, panel/surface brancos, texto slate (sem cream/terracota).
+- Código: `frontend/src/components/theme/{ThemeProvider,ThemeToggle}.tsx`; `darkMode: 'class'` no Tailwind.
+- URL local Docker: `http://127.0.0.1:3000/` · API `http://127.0.0.1:8000/docs`.
 
 ### Base TR CODEBA local (10/09/2026 — `fixtures/trs-codeba/`)
 
@@ -482,5 +491,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 > **UX SEI (09/09/2026)**: review humana + funil upload/nav/chat/comparação.  
 > **Polish (10/09/2026)**: Badge unificado, Exportar PDF do relatório, conftest pytest.  
 > **Main única (10/09/2026)**: consolidação FF em `main`; feature branches apagadas.  
-> **E2E revalidado (10/09/2026)**: API 17/17 (~3m15s) + Playwright live 4/4.  
-> **Fixtures TR CODEBA (10/09/2026)**: `fixtures/trs-codeba/` — **12 objetos** (meta ≥10); PDFs fora do Git.
+> **E2E revalidado (10/09/2026)**: API 17/17 (~3m15s) + Playwright live 4/4; E2E Art.6 coverage **17/17** (~1m31s).  
+> **Fixtures TR CODEBA (10/09/2026)**: `fixtures/trs-codeba/` — **12 objetos** (meta ≥10); PDFs fora do Git.  
+> **Art. 6 coverage (10/09/2026)**: métrica ≥90% na API/UI; baseline fixtures ~71%.  
+> **UI tema claro/escuro (10/09/2026)**: toggle no header; commits `19aadbd`, `0126313`.

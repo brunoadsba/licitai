@@ -38,9 +38,16 @@ Lacunas antigas preenchidas em 10/09/2026:
 
 1. Benchmark quinzenal: 5 TRs de `piloto-unico/` (rodízio entre os 12).
 2. Diff / Atualizar TR: `objetos/05-…` e `06-…` (`v01`→`v02`→`v03`).
-3. Anonimizar e-mail/telefone/CPF antes de free-tier cloud.
+3. Score estrutural Art. 6 (sem LLM):
+
+```bash
+PYTHONPATH=backend python backend/scripts/score_art6_fixtures.py
+```
+
+4. Anonimizar e-mail/telefone/CPF antes de free-tier cloud.
 
 ## Segurança
 
 - Não commitar PDFs.
 - Preferir TRs já públicos ou anonimizados.
+- Ops: [docs/ops/piloto.md](../../docs/ops/piloto.md) · [docs/ops/piloto-qualidade.md](../../docs/ops/piloto-qualidade.md).

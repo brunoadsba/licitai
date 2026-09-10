@@ -6,7 +6,14 @@ Sistema especialista para análise automatizada de Termos de Referência (TR) de
 
 Produto focado no **elaborador de TR**: enviar documento → revisar achados prioritários (IA sugere; você decide) → copiar só o aprovado/ajustado para o SEI. Módulos de auditoria TR×propostas ficam em “Mais ferramentas”.
 
-Ops e pendências do piloto (gate 14 dias, cron, DOCX condicional): ver [docs/ops/piloto.md](docs/ops/piloto.md).
+Ops e pendências do piloto (gate 14 dias, cron, DOCX, Art. 6, fixtures): ver [docs/ops/piloto.md](docs/ops/piloto.md).
+
+### Entregas recentes (piloto)
+
+- Pacote SEI, TR HTML/DOCX corrigido, fila Prioridade, checklist Art. 6º com **`art6_coverage` ≥90%**
+- Modo `economic`, reanálise parcial, painel de pendências
+- Base local de TRs: [`fixtures/trs-codeba/`](fixtures/trs-codeba/) (12 objetos; PDFs fora do Git)
+- UI: tema **claro/escuro** (toggle no header) — contrato em [`frontend/DESIGN.md`](frontend/DESIGN.md)
 
 ## Funcionalidades (MVP)
 
@@ -30,8 +37,8 @@ Ops e pendências do piloto (gate 14 dias, cron, DOCX condicional): ver [docs/op
   - Revisão cruzada LLM + **revisão humana** (Aprovar / Rejeitar / Ajustar) via `PATCH /api/v1/analysis/corrections/{id}`
   - Cópia para o SEI **somente** com correções `aprovada` ou `ajustada`
   - **Fila Prioridade** (alto/crítico + Art. 6º/estrutural) na análise
-  - **Copiar pacote SEI** (`GET /analysis/{id}/sei-pack`) e **Copiar TR corrigido** HTML (`GET /analysis/{id}/corrected-html`)
-  - **Copiar Texto Corrigido (PARA)** / **Item Inteiro** / **Parecer & Justificativa**
+  - **Copiar pacote SEI** (`GET /analysis/{id}/sei-pack`), **TR HTML** (`…/corrected-html`) e **DOCX** (`…/corrected-docx`)
+  - **Checklist Art. 6º XXIII** com cobertura estrutural (`art6_coverage` / meta ≥90%)
 - **Relatório** com pontuação (0-10), nível de risco, parecer final e **Exportar PDF** (impressão do navegador)
 - **Upload honesto**: após o parse, a análise LLM inicia automaticamente (“Enviar e Analisar”)
 - **3 provedores de IA**: Groq (free tier), Google Gemini (free tier), Ollama (local) — com failover automático
@@ -53,7 +60,7 @@ Ops e pendências do piloto (gate 14 dias, cron, DOCX condicional): ver [docs/op
 
 | Camada | Tecnologia |
 |--------|-----------|
-| Frontend | Next.js 14, React, Tailwind CSS 3, TypeScript |
+| Frontend | Next.js 14, React, Tailwind CSS 3, TypeScript, tema claro/escuro |
 | Backend | FastAPI, Python 3.12, SQLAlchemy (async) |
 | Banco | PostgreSQL 16 (pgvector) ou SQLite (aiosqlite nativo) |
 | Parser | PyMuPDF, pdfplumber, python-docx, Tesseract OCR, python-magic-bin |

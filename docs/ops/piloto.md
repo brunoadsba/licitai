@@ -6,8 +6,11 @@ Checklist operacional do elaborador de TR em ambiente single-user.
 
 | Item | Status |
 |------|--------|
-| Fases A–F (medir, HTML, Art. 6, economic, qualidade docs/smoke, alertas) | **Feito** em `feat/excelencia-piloto` |
+| Fases A–F (medir, HTML, Art. 6, economic, qualidade docs/smoke, alertas) | **Feito** em `main` |
 | Export DOCX do TR corrigido | **Feito** (`GET /analysis/{id}/corrected-docx` + botão na análise) |
+| Art. 6 cobertura estrutural (`art6_coverage` ≥90%) | **Feito** (API/UI + `score_art6_fixtures.py`); baseline fixtures ~71% |
+| UI tema claro/escuro | **Feito** (toggle no header; ver [frontend/DESIGN.md](../../frontend/DESIGN.md)) |
+| Fixtures TR CODEBA (12 objetos) | **Feito** em `fixtures/trs-codeba/` (PDFs gitignored) |
 | Cron backup diário + alertas | **Feito neste host** via `./scripts/install_ops_cron.sh --apply` — ver [cron.md](cron.md) |
 | Backup dry-run | **Feito** (`scripts/backup_daily.sh` → `backups/licitai_*`) |
 | Gate 14 dias de uso real CODEBA | **Pendente** (Bruno / elaboradores) — [gate-piloto-14d.md](gate-piloto-14d.md) |
@@ -55,11 +58,18 @@ Modo padrão do piloto: **economic** (jurídico + Art. 6). Orçamento opcional: 
 PYTHONPATH=backend python backend/scripts/score_art6_fixtures.py
 ```
 
+## Frontend (piloto)
+
+- URL: `http://127.0.0.1:3000/` (Compose)
+- Tema claro/escuro: botão Sol/Lua no header (`licitai-theme` no `localStorage`)
+- Design: [frontend/DESIGN.md](../../frontend/DESIGN.md)
+
 ## Checklist 14 dias (valor) — pendente de medição
 
 1. Tempo até 1ª revisão crítica
 2. % sessões com pacote SEI / HTML / DOCX
 3. Taxa rejeição humana alto/crítico
 4. Taxa `completed_with_errors` / semana
+5. Cobertura Art. 6 média (`art6_coverage`) nas sessões do gate
 
 SLOs: [slos.md](slos.md).
