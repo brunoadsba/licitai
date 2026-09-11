@@ -23,6 +23,7 @@ Checklist operacional do elaborador de TR em ambiente single-user.
 
 1. Rotacionar `GROQ_API_KEY` / `GEMINI_API_KEY` / `POSTGRES_PASSWORD` / `API_TOKEN` quando conveniente.
 2. Em `.env`, use driver async: `DATABASE_URL=postgresql+asyncpg://...` (nunca só `postgresql://` para a API).
+3. `.env` em **LF** (não CRLF). Antes do Compose: `unset POSTGRES_PASSWORD DATABASE_URL` — senão o shell pode sobrescrever o `.env` e deixar o backend `unhealthy`. Detalhes: [deploy.md](deploy.md#problemas-comuns-compose--postgres).
 
 ## Backup e alertas (cron)
 

@@ -40,10 +40,56 @@ Bloquear promote se CRITICAL sem mitigação documentada.
 
 - Serviços: `db`, `backend` (API), **`worker`** (processa `jobs`), `frontend` (BFF injeta `API_TOKEN`).
 - Sem o `worker`, `POST .../start` só enfileira — análise/comparação não avançam.
-- Smoke: `./scripts/smoke_readyz.sh` depois `docker compose up -d` (valida `/livez`, `/readyz`, `/api/docs`, frontend `/readyz` e health dos containers).
+- Subir (frontend sem bind mount — mudanças de UI exigem rebuild):
+
+```bash
+unset POSTGRES_PASSWORD DATABASE_URL   # evita override sujo do shell (ver abaixo)
+docker compose up -d --build
+./scripts/smoke_readyz.sh              # readiness básico
+./scripts/smoke_e2e_compose.sh         # readiness + BFF /api/proxy
+```
+
 - Frontend: build arg `BACKEND_URL=http://backend:8000` obrigatório (rewrites do Next são embutidos no build).
 - Schema: Alembic head `20260908_003` (ou `scripts/apply_reliability_schema.sql` em Postgres já provisionado).
 - LLM defaults: Groq `openai/gpt-oss-20b`, Gemini `gemini-flash-latest`; `ANALYSIS_CONCURRENCY=1` no free tier.
+- No Compose, `DATABASE_URL` do backend/worker é **montado** como  
+  `postgresql+asyncpg://sei_user:${POSTGRES_PASSWORD}@db:5432/...`  
+  (não herdar `DATABASE_URL` do host).
+
+## Problemas comuns (Compose / Postgres)
+
+### `sei-backend` unhealthy + `password authentication failed for user "sei_user"`
+
+**Sintoma:** `/readyz` retorna 503 `database: error`; worker/frontend não sobem por dependência.
+
+**Causas frequentes (WSL/Windows):**
+
+1. Variável `POSTGRES_PASSWORD` **exportada no shell** sobrescreve o `.env` no Compose. Se veio de cópia Windows, pode trazer `\r` (CRLF) — a senha fica 1 byte a mais e a autenticação falha.
+2. Volume `pgdata` foi criado com **outra** senha; mudar só o `.env` **não** altera a senha já gravada no Postgres.
+
+**Correção (sem apagar dados):**
+
+```bash
+# 1) .env em LF (sem CR)
+#    (editar no editor com LF, ou normalizar o arquivo)
+
+# 2) Não usar override do shell
+unset POSTGRES_PASSWORD DATABASE_URL
+
+# 3) Alinhar a senha do role à do .env atual (socket local costuma usar trust)
+#    Substitua SEM_COLAR_A_SENHA_NO_CHAT — use a do .env:
+docker exec sei-db psql -U sei_user -d sei_analise \
+  -c "ALTER USER sei_user WITH PASSWORD 'SUA_SENHA_DO_ENV';"
+
+# 4) Recriar API com env limpo
+docker compose up -d --force-recreate --no-deps backend
+docker compose up -d --no-deps worker frontend
+./scripts/smoke_e2e_compose.sh
+```
+
+**Evitar:** `docker compose down -v` apaga o volume `pgdata` (dados locais). Só use se for reset deliberado.
+
+**Prevenção:** antes de todo `compose up`, `unset POSTGRES_PASSWORD DATABASE_URL`; manter `.env` em LF no WSL.
 
 ## Checklist pré-promote
 

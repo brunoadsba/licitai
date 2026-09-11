@@ -5,9 +5,12 @@ Runbook das três camadas. Branch de implementação: `feat/e2e-full`.
 ## Pré-requisitos
 
 ```bash
+unset POSTGRES_PASSWORD DATABASE_URL   # WSL: evita senha com \r do shell
 docker compose up -d --build
 # stack healthy: db, backend, worker, frontend
 ```
+
+Se `sei-backend` ficar `unhealthy` com erro de senha `sei_user`, ver [deploy.md — Problemas comuns](deploy.md#problemas-comuns-compose--postgres).
 
 Variáveis úteis:
 
