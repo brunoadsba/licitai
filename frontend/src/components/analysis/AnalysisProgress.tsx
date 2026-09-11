@@ -10,8 +10,8 @@ interface AnalysisProgressProps {
 
 const STAGES = [
   { id: 'parse', label: 'Lendo PDF', icon: FileSearch, minPct: 0 },
-  { id: 'art6', label: 'Art. 6º', icon: Ruler, minPct: 15 },
-  { id: 'legal', label: 'Jurídico', icon: Scale, minPct: 40 },
+  { id: 'art6', label: 'Estrutura do TR', icon: Ruler, minPct: 15 },
+  { id: 'legal', label: 'Riscos jurídicos', icon: Scale, minPct: 40 },
   { id: 'done', label: 'Pronto', icon: CheckCircle2, minPct: 100 },
 ] as const;
 

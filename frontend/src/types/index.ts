@@ -240,7 +240,7 @@ export const CATEGORY_LABELS: Record<CorrectionCategory, string> = {
   juridica: 'Jurídica',
   tecnica: 'Técnica',
   redacao: 'Redação',
-  estrutural: 'Estrutural',
+  estrutural: 'Estrutura do TR',
 };
 
 export const SEVERITY_LABELS: Record<Severity, string> = {

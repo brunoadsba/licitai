@@ -19,7 +19,7 @@ type UploadState = 'idle' | 'processing' | 'success' | 'error';
 const STAGE_LABELS: Partial<Record<DocumentStatus, string>> = {
   uploaded: 'Enviando arquivo…',
   parsing: 'Lendo PDF e estrutura…',
-  analyzing: 'Analisando Art. 6º e jurídico…',
+  analyzing: 'Analisando partes obrigatórias do TR e riscos jurídicos…',
 };
 
 const ALLOWED_TYPES = [
@@ -156,7 +156,7 @@ export default function UploadPage() {
                   disabled={locked}
                   onClick={() => setAnalysisMode('economic')}
                 >
-                  Padrão (Art. 6º + jurídico)
+                  Revisão essencial
                 </Button>
                 <Button
                   type="button"
@@ -165,11 +165,12 @@ export default function UploadPage() {
                   disabled={locked}
                   onClick={() => setAnalysisMode('multi_agent')}
                 >
-                  Análise completa
+                  Revisão completa
                 </Button>
               </div>
               <p className="text-[11px] text-content-subtle">
-                Padrão cobre o essencial do piloto. Completa inclui também técnico e redação.
+                Essencial = estrutura do TR + riscos jurídicos. Completa = também técnico e
+                redação.
               </p>
             </div>
 

@@ -18,6 +18,11 @@ import type { ReportResponse } from '@/types';
 import { CATEGORY_LABELS, SEVERITY_LABELS, RISK_LABELS } from '@/types';
 import { getCategoryTone, getSeverityTone } from '@/lib/badges';
 import { filterPriorityCorrections } from '@/lib/priorityQueue';
+import {
+  art6BadgeLabel,
+  art6PanelTitle,
+  PRIORITY_SECTION_TITLE,
+} from '@/lib/copy/elaborador';
 
 function getRiskColor(risk: string | null) {
   const colors: Record<string, string> = {
@@ -313,10 +318,14 @@ export default function ReportPage() {
           }`}
         >
           <h2 className="text-lg font-semibold tracking-tight text-content-primary">
-            Art. 6º, XXIII — cobertura{' '}
-            {Math.round((report.art6_coverage ?? 0) * 100)}%
-            {report.art6_meets_target ? ' (meta ≥90%)' : ' (abaixo de 90%)'}
+            {art6PanelTitle(Math.round((report.art6_coverage ?? 0) * 100))}
+            {report.art6_meets_target ? '' : ' · meta ~90%'}
           </h2>
+          <p className="text-xs text-content-muted">
+            {report.art6_meets_target
+              ? 'As 10 partes mínimas da lei parecem presentes.'
+              : 'Confira as partes faltantes abaixo antes de usar o export no SEI.'}
+          </p>
           {(report.art6_checklist ?? []).some((i) => i.status !== 'present') && (
             <ul className="flex flex-wrap gap-2">
               {(report.art6_checklist ?? [])
@@ -324,7 +333,7 @@ export default function ReportPage() {
                 .map((g) => (
                   <li key={g.key}>
                     <Badge tone={g.status === 'missing' ? 'critical' : 'medium'}>
-                      {g.alinea}) {g.label}
+                      {art6BadgeLabel(g.alinea, g.key, g.label)}
                     </Badge>
                   </li>
                 ))}
@@ -337,7 +346,7 @@ export default function ReportPage() {
       {filterPriorityCorrections(report.corrections, 'priority').length > 0 && (
         <div className="space-y-2">
           <h2 className="text-lg font-semibold tracking-tight text-content-primary">
-            Prioridade (alto/crítico + estrutural)
+            {PRIORITY_SECTION_TITLE}
           </h2>
           <CorrectionAccordion
             corrections={filterPriorityCorrections(report.corrections, 'priority')}

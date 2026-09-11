@@ -132,7 +132,7 @@ export default function DesignShowcasePage() {
         <Badge tone="juridica">Jurídica</Badge>
         <Badge tone="tecnica">Técnica</Badge>
         <Badge tone="redacao">Redação</Badge>
-        <Badge tone="estrutural">Estrutural</Badge>
+        <Badge tone="estrutural">Estrutura do TR</Badge>
         <Badge tone="accent">Accent</Badge>
       </Section>
 

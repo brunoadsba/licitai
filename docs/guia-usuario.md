@@ -30,11 +30,11 @@ Na aplicação: **Mais ferramentas → Guia do usuário** ou `/guia`.
 2. Clique em **Enviar e Analisar**.
 3. Acompanhe o progresso na tela.
 
-**Opções avançadas** (recolhidas): análise completa, proposta, comparação de versões. Abra só se precisar.
+**Opções avançadas** (recolhidas): revisão completa, proposta, comparação de versões. Abra só se precisar.
 
 ### Análise
-- Fila **Revisar agora** = risco alto/crítico + Art. 6º. Use **Ver todas** para o restante.
-- Painel **Art. 6º** mostra a cobertura estrutural do TR (meta sugerida ≥ 90%).
+- Fila **Revisar agora** = sugestões graves e partes faltantes do TR. Use **Ver todas** para o restante.
+- Painel **partes obrigatórias** (Art. 6º): quanto do TR está completo (meta sugerida ~90%).
 - Em cada sugestão: **Aprovar**, **Rejeitar** ou **Ajustar**.
 - Com pelo menos uma aprovada/ajustada: **Copiar pacote SEI**.
 - **Exportar:** HTML, DOCX ou pacote `.md`.

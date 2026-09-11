@@ -72,7 +72,7 @@ export default function GuiaUsuarioPage() {
             <li>Acompanhe o progresso na tela</li>
           </ol>
           <p className="text-sm text-content-muted">
-            Opções avançadas (recolhidas): análise completa, proposta, versões — só se precisar.
+            Opções avançadas (recolhidas): revisão completa, proposta, versões — só se precisar.
           </p>
         </div>
 
@@ -80,11 +80,14 @@ export default function GuiaUsuarioPage() {
           <h3 className="text-sm font-medium text-content-primary">Análise</h3>
           <ul className="list-disc space-y-1 pl-5 text-sm text-content-secondary">
             <li>
-              <strong className="font-medium text-content-primary">Revisar agora</strong> = risco
-              alto/crítico + Art. 6º · <strong className="font-medium text-content-primary">Ver todas</strong>{' '}
-              = restante
+              <strong className="font-medium text-content-primary">Revisar agora</strong> =
+              sugestões graves e partes faltantes do TR ·{' '}
+              <strong className="font-medium text-content-primary">Ver todas</strong> = restante
             </li>
-            <li>Painel Art. 6º: cobertura estrutural (meta sugerida ≥ 90%)</li>
+            <li>
+              Painel <strong className="font-medium text-content-primary">partes obrigatórias</strong>{' '}
+              (Art. 6º): quanto do TR está completo (meta sugerida ~90%)
+            </li>
             <li>
               Sugestões:{' '}
               <strong className="font-medium text-content-primary">Aprovar</strong> /{' '}

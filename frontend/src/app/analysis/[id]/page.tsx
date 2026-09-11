@@ -493,7 +493,7 @@ export default function AnalysisPage() {
       {analysis?.status === 'completed_with_errors' && (
         <AlertBanner
           variant="warning"
-          title="Análise concluída com cobertura incompleta"
+          title="Análise concluída, mas alguns trechos falharam"
           action={
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={() => void handleReanalyzePartial()} loading={analyzing}>
@@ -541,7 +541,7 @@ export default function AnalysisPage() {
             Ver todas
           </Button>
           <span className="text-xs text-content-subtle">
-            Revisar agora = risco alto/crítico + Art. 6º
+            Sugestões graves e partes faltantes do TR
           </span>
         </div>
       )}

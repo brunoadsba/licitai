@@ -13,7 +13,7 @@ export const AGENT_ORIGIN_CONFIG: Record<
   juridico: { label: 'Jurídico', icon: Scale, tone: 'juridica', trust: 'ia' },
   tecnico: { label: 'Técnico', icon: Wrench, tone: 'tecnica', trust: 'ia' },
   redacao: { label: 'Redação', icon: PenLine, tone: 'redacao', trust: 'ia' },
-  estrutural: { label: 'Estrutural', icon: Ruler, tone: 'estrutural', trust: 'automatica' },
+  estrutural: { label: 'Estrutura do TR', icon: Ruler, tone: 'estrutural', trust: 'automatica' },
 };
 
 export function getCategoryTone(category: string): Tone {
