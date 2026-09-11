@@ -73,6 +73,16 @@ Ops e pendências do piloto (gate 14 dias, cron, DOCX, Art. 6, fixtures): ver [d
 
 ## 🚀 Como Executar o Projeto (Passo a Passo)
 
+### Docker Compose (piloto WSL — recomendado)
+
+```bash
+./scripts/up.sh            # unset env sujo + compose up -d + smoke
+./scripts/up.sh --build    # após mudança de frontend/imagem
+./scripts/down.sh          # para containers; não apaga pgdata
+```
+
+UI: `http://127.0.0.1:3000/` · API: `http://127.0.0.1:8000/` · Ops: [docs/ops/piloto.md](docs/ops/piloto.md), [docs/ops/deploy.md](docs/ops/deploy.md).
+
 ### 1️⃣ Terminal 1: Iniciar o Backend (FastAPI + Python)
 
 O backend executa na porta `8000` usando o ambiente virtual Python `.venv`.

@@ -90,7 +90,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **Restore seguro**: arquiva itens (`archived_at`) e cria novo conjunto — correções não somem por cascade.
   - **Gerador/RAG**: `RetrievedChunk.id` persistido em `rag_chunk_ids`; artefato `file_type=html`.
   - **Privacidade**: `LLM_ALLOW_CLOUD` + classificação `sigiloso` recusam cloud; prompts com `<DOCUMENT_DATA>`; OCR em subprocesso + hard timeout.
-  - **Ops docs**: `docs/ops/{deploy,restore-drill,slos}.md`, `backend/scripts/backup.sh`, `scripts/smoke_readyz.sh`, `backend/scripts/promote_feedback.py` (thumbs-down → stub em `e2e/golden/feedback/`).
+  - **Ops docs**: `docs/ops/{deploy,restore-drill,slos,piloto,e2e-full}.md`, `backend/scripts/backup.sh`, `scripts/smoke_readyz.sh`, `scripts/up.sh` / `scripts/down.sh` (Compose com `unset` + smoke), `backend/scripts/promote_feedback.py` (thumbs-down → stub em `e2e/golden/feedback/`).
   - **Testes**: suíte backend **215+** verdes (golden, jobs, OCR, privacy, grounding, reliability P0). CI GitHub permanece **desabilitado** (`ci.yml.disabled`) a pedido do usuário.
   - **Pendência manual (Bruno)**: rotacionar chaves LLM/`POSTGRES_PASSWORD` **depois** (MVP); smoke Compose com worker; backup drill.
 - **RF04 — Feedback/e-mail por fornecedor (Fase 3)**:
@@ -305,7 +305,7 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (11/09/2026)**: `feat/ux-fluxo-elaborador` (UX elaborador + guia + fix BFF). Base remota de trabalho continua `main`. CI permanece desabilitado.
+- **Branch ativa (11/09/2026)**: `main`. CI permanece desabilitado.
 - **Histórico consolidado (08–10/09/2026)**: runtime Docker confiável, modelos LLM atuais, E2E 17/17, UX Sprints 1–3, CSP Next.js, restore drill documentado, unificação `Badge` + Exportar PDF + `backend/tests/conftest.py`.
 - **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
   - **Fase A (Parsing)**: títulos de seção determinísticos via sha256+NFC (`T-{digest%100000}` — sem `hash()`); alíneas (`a)`, `b)`) detectadas como subitem e itens romanos (`I.`, `II.`) como seção. **+3 testes**.
@@ -379,10 +379,15 @@ $env:PYTHONPATH="backend"
 backend\.venv\Scripts\python.exe backend\scripts\seed_moldes.py
 ```
 
-### Modo Docker (Containers para Produção):
+### Modo Docker (Compose — piloto WSL):
 ```bash
-docker compose up --build
+./scripts/up.sh              # unset POSTGRES_PASSWORD/DATABASE_URL + up -d + smoke_readyz
+./scripts/up.sh --build      # após mudança de UI/imagem (frontend sem bind mount)
+./scripts/up.sh --e2e        # + smoke BFF /api/proxy
+./scripts/down.sh            # para stack; NÃO apaga pgdata (recusa -v)
 ```
+UI `http://127.0.0.1:3000/` · API `http://127.0.0.1:8000/`. Runbook: [docs/ops/deploy.md](docs/ops/deploy.md), [docs/ops/piloto.md](docs/ops/piloto.md).
+Equivalente manual: `unset POSTGRES_PASSWORD DATABASE_URL` → `docker compose up -d` → `./scripts/smoke_readyz.sh`.
 
 ### Executar Testes E2E (Requer backend rodando):
 ```powershell
@@ -431,7 +436,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 - **Upload respondia 201 antes do commit (24/08/2026)**: o endpoint `POST /documents/upload` persistia via `flush()` e dependia do commit pós-resposta do `get_db`. Com a resposta chegando ao cliente antes desse commit, um `DELETE`/`GET` imediato sobre o id recém-criado retornava 404 — corrida exposta no E2E (`test_delete_document`) após o parsing virar `asyncio.to_thread` (mudou o timing da janela). Corrigido com `await db.commit()` explícito ao fim do upload; **11/11 E2E não-LLM verdes em 3 runs consecutivas** após o fix.
 - **Runtime Docker / modelos LLM (09/09/2026, branch `ops/runtime-confiavel`)**:
   - Frontend standalone embutia `BACKEND_URL=127.0.0.1:8000` no **build** dos rewrites → `/readyz` via UI falhava com `ECONNREFUSED`. Fix: `ARG BACKEND_URL=http://backend:8000` no `frontend/Dockerfile` + `build.args` no Compose; healthcheck do frontend passou a validar `/readyz`.
-  - Worker ganhou `--check-db` + healthcheck Compose; smoke `./scripts/smoke_readyz.sh` cobre API, `/api/docs`, frontend e health dos 4 containers.
+  - Worker ganhou `--check-db` + healthcheck Compose; smoke `./scripts/smoke_readyz.sh` (também via `./scripts/up.sh`) cobre API, `/api/docs`, frontend e health dos 4 containers.
   - Modelos descontinuados: `llama-3.1-8b-instant` (Groq 404) e `gemini-2.0-flash` (Gemini 404). Defaults atualizados para `openai/gpt-oss-20b` e `gemini-flash-latest`; `ANALYSIS_CONCURRENCY=1` no Compose reduz 429 TPM no free tier.
   - E2E API contra Docker: **17/17** em ~4m22s (`E2E_BASE_URL=http://127.0.0.1:8000`). Fixture de análise em escopo `module` (uma LLM run); aceita `completed_with_errors`; mensagem “enfileirada” alinhada ao worker-only.
 
@@ -511,10 +516,10 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 | BFF | Cliente `/api/proxy/...`; proxy compatível com path legado `/api/proxy/v1/...` |
 | Dados | Samples de teste limpos; empty states nas ferramentas avançadas são normais sem TRs/moldes/fornecedores |
 
-Frontend Docker **sem bind mount** — mudanças de UI exigem `docker compose up -d --build frontend`.
+Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh --build` (ou `docker compose up -d --build frontend`).
 
 ### Agora (ops / Bruno) — ordem sugerida
-1. Merge/revisão de `feat/ux-fluxo-elaborador` quando aprovado; usar guia em `/guia`.
+1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`.
 2. Iniciar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)) com TRs de `piloto-unico/`.
 3. Em paralelo: **1ª quinzena** de qualidade (5 TRs) + validar 1 export no SEI.
 4. Rotacionar secrets quando conveniente; anonimizar Emergência antes de cloud.
@@ -533,6 +538,7 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `docker compose up
 > **UX fluxo elaborador (11/09/2026)**: Onda 1–3 em `feat/ux-fluxo-elaborador` — upload DropZone-first; análise com 1 CTA SEI + menus; relatório = leitura/print; copiloto sob demanda; badges Automática/IA; painel com hero-ação; nav Painel+Enviar + Mais ferramentas; guia `/guia` + `docs/guia-usuario.md`.  
 > **BFF proxy (11/09/2026)**: bug `/api/proxy/v1` + proxy que prefixava `/api/v1` → `/api/v1/v1/...` (404) nas telas Comparações/Versões/Moldes. Fix: cliente `/api/proxy/...`; proxy strip de `v1/` legado.  
 > **Dados piloto (11/09/2026)**: samples `sample-tr.docx` e órfãos removidos do Postgres/uploads; corpus jurídico preservado (~599 chunks). Painel vazio = esperado até TRs reais.  
-> **E2E full (11/09/2026)**: branch `feat/e2e-full` — Camada 0 `scripts/smoke_e2e_compose.sh`; API markers `e2e_fast`/`e2e_live`; Playwright P0–P2 em `frontend/e2e/`; doc [docs/ops/e2e-full.md](docs/ops/e2e-full.md). Guard: proposta não inicia análise de TR.  
+> **E2E full (11/09/2026)**: em `main` — Camada 0 `scripts/smoke_e2e_compose.sh`; API markers `e2e_fast`/`e2e_live`; Playwright P0–P2 em `frontend/e2e/`; doc [docs/ops/e2e-full.md](docs/ops/e2e-full.md). Guard: proposta não inicia análise de TR.  
+> **Compose/Postgres WSL (11/09/2026)**: `POSTGRES_PASSWORD` exportado no shell (às vezes com `\r`) sobrescrevia `.env` → `password authentication failed` / backend unhealthy. Fix ops: `.env` em LF; `unset` antes do compose; runbook em [docs/ops/deploy.md](docs/ops/deploy.md). Atalhos: `scripts/up.sh` / `scripts/down.sh` (`729d6e0`).  
 > **Pendências (10/09/2026)**: gate 14d, quinzena, SEI real, secrets, anonimizar, RILC completo opcional; ML bloqueado até dataset.  
 > **WIP separado**: stash `wip-rilc-codeba-rag` na branch `feat/rilc-codeba-rag` (fonte canônica RILC) — não misturar com UX.
