@@ -41,6 +41,7 @@ export default function Art6ChecklistPanel({
   return (
     <TooltipProvider delayDuration={200}>
       <div
+        data-testid="art6-panel"
         className={cn(
           'rounded-lg border p-4',
           gaps.length === 0

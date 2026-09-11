@@ -1,5 +1,7 @@
 import pytest
 
+pytestmark = [pytest.mark.e2e_full_flow, pytest.mark.e2e_live]
+
 
 class TestHealth:
     def test_health_check(self, api_client):

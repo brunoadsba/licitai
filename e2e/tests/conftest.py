@@ -1,27 +1,48 @@
-import os
+"""
+Fixtures E2E HTTP + markers.
+
+Markers:
+  e2e_fast — sem LLM longo (CRUD, guards, listagens)
+  e2e_live — precisa worker + LLM (ou análise já existente)
+  e2e_full_flow — suite histórica test_e2e_full_flow.py
+"""
+
+from __future__ import annotations
+
 import time
-from pathlib import Path
 
 import httpx
 import pytest
 
+from helpers import (
+    ANALYSIS_WAIT_ITERATIONS,
+    ANALYSIS_WAIT_SECONDS,
+    SAMPLE_DOCX,
+    api_headers,
+    upload_and_wait_parsed,
+)
 
-BASE_URL = os.getenv("E2E_BASE_URL", "http://127.0.0.1:8000")
-FIXTURES_DIR = Path(__file__).resolve().parents[1] / "fixtures"
-SAMPLE_DOCX = FIXTURES_DIR / "sample-tr.docx"
-# Análise multi-agente + rate limit free tier pode passar de 4 min
-ANALYSIS_WAIT_ITERATIONS = int(os.getenv("E2E_ANALYSIS_WAIT_ITERS", "200"))
-ANALYSIS_WAIT_SECONDS = float(os.getenv("E2E_ANALYSIS_WAIT_SECONDS", "2"))
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "e2e_fast: testes E2E sem LLM longo")
+    config.addinivalue_line("markers", "e2e_live: testes E2E com LLM/worker")
+    config.addinivalue_line("markers", "e2e_full_flow: suite histórica full_flow")
 
 
 @pytest.fixture(scope="module")
 def api_client():
-    with httpx.Client(base_url=BASE_URL, timeout=60) as client:
+    with httpx.Client(base_url=os_base(), timeout=60, headers=api_headers()) as client:
         yield client
 
 
+def os_base() -> str:
+    import os
+
+    return os.getenv("E2E_BASE_URL", "http://127.0.0.1:8000")
+
+
 @pytest.fixture(scope="module")
-def sample_docx_path() -> Path:
+def sample_docx_path():
     assert SAMPLE_DOCX.exists(), (
         f"Fixture não encontrada: {SAMPLE_DOCX}. "
         "Execute primeiro: python e2e/scripts/generate_fixture.py"
@@ -29,50 +50,22 @@ def sample_docx_path() -> Path:
     return SAMPLE_DOCX
 
 
-def _upload_and_wait_parsed(api_client, sample_docx_path) -> dict:
-    with open(sample_docx_path, "rb") as f:
-        response = api_client.post(
-            "/api/v1/documents/upload",
-            files={
-                "file": (
-                    "sample-tr.docx",
-                    f,
-                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                )
-            },
-        )
-    assert response.status_code == 201, f"Upload falhou: {response.text}"
-    doc = response.json()
-    doc_id = doc["id"]
-
-    for _ in range(60):
-        detail = api_client.get(f"/api/v1/documents/{doc_id}")
-        assert detail.status_code == 200
-        body = detail.json()
-        status = body["status"]
-        if status in ("parsed", "completed"):
-            return body
-        if status == "error":
-            pytest.fail(f"Parsing falhou: {body}")
-        time.sleep(1)
-    pytest.fail(f"Timeout aguardando parsing do documento {doc_id}")
-
-
 @pytest.fixture
 def uploaded_document(api_client, sample_docx_path):
-    """Documento por teste (CRUD pode deletar sem afetar a análise)."""
-    doc = _upload_and_wait_parsed(api_client, sample_docx_path)
+    doc = upload_and_wait_parsed(api_client, sample_docx_path)
     yield doc
     api_client.delete(f"/api/v1/documents/{doc['id']}")
 
 
 @pytest.fixture(scope="module")
 def analyzed_document(api_client, sample_docx_path):
-    """Uma única análise LLM reutilizada pelos testes de Analysis/Report."""
-    doc = _upload_and_wait_parsed(api_client, sample_docx_path)
+    doc = upload_and_wait_parsed(api_client, sample_docx_path)
     doc_id = doc["id"]
 
-    response = api_client.post(f"/api/v1/analysis/{doc_id}/start")
+    response = api_client.post(
+        f"/api/v1/analysis/{doc_id}/start",
+        json={"mode": "economic"},
+    )
     assert response.status_code == 202, f"Início da análise falhou: {response.text}"
     analysis_id = response.json()["analysis_id"]
 

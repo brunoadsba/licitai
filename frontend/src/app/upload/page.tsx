@@ -48,6 +48,7 @@ export default function UploadPage() {
     setError,
     setCurrentStage,
     analysisMode,
+    documentType,
   });
 
   useEffect(() => {
@@ -125,16 +126,25 @@ export default function UploadPage() {
         processing={state === 'processing'}
         success={state === 'success'}
         stageLabel={stageLabel}
+        successTitle={
+          documentType === 'proposta' ? 'Proposta enviada!' : 'Análise iniciada!'
+        }
+        successSubtitle={
+          documentType === 'proposta'
+            ? 'Abrindo Comparações…'
+            : 'Abrindo a tela de análise…'
+        }
         onFileSelect={validateAndSet}
         onUpload={handleUpload}
         onReset={resetUpload}
       />
 
-      <div className="rounded-lg border border-line-subtle bg-surface/40">
+      <div className="rounded-lg border border-line-subtle bg-surface/40" data-testid="options-advanced">
         <button
           type="button"
           onClick={() => setOptionsOpen((v) => !v)}
           disabled={locked}
+          data-testid="options-advanced-toggle"
           className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-medium text-content-primary outline-none hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500/60 disabled:opacity-50"
           aria-expanded={optionsOpen}
         >
@@ -154,6 +164,7 @@ export default function UploadPage() {
                   size="sm"
                   variant={analysisMode === 'economic' ? 'primary' : 'secondary'}
                   disabled={locked}
+                  data-testid="analysis-mode-essential"
                   onClick={() => setAnalysisMode('economic')}
                 >
                   Revisão essencial
@@ -163,6 +174,7 @@ export default function UploadPage() {
                   size="sm"
                   variant={analysisMode === 'multi_agent' ? 'primary' : 'secondary'}
                   disabled={locked}
+                  data-testid="analysis-mode-full"
                   onClick={() => setAnalysisMode('multi_agent')}
                 >
                   Revisão completa

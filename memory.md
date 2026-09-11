@@ -533,5 +533,6 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `docker compose up
 > **UX fluxo elaborador (11/09/2026)**: Onda 1–3 em `feat/ux-fluxo-elaborador` — upload DropZone-first; análise com 1 CTA SEI + menus; relatório = leitura/print; copiloto sob demanda; badges Automática/IA; painel com hero-ação; nav Painel+Enviar + Mais ferramentas; guia `/guia` + `docs/guia-usuario.md`.  
 > **BFF proxy (11/09/2026)**: bug `/api/proxy/v1` + proxy que prefixava `/api/v1` → `/api/v1/v1/...` (404) nas telas Comparações/Versões/Moldes. Fix: cliente `/api/proxy/...`; proxy strip de `v1/` legado.  
 > **Dados piloto (11/09/2026)**: samples `sample-tr.docx` e órfãos removidos do Postgres/uploads; corpus jurídico preservado (~599 chunks). Painel vazio = esperado até TRs reais.  
+> **E2E full (11/09/2026)**: branch `feat/e2e-full` — Camada 0 `scripts/smoke_e2e_compose.sh`; API markers `e2e_fast`/`e2e_live`; Playwright P0–P2 em `frontend/e2e/`; doc [docs/ops/e2e-full.md](docs/ops/e2e-full.md). Guard: proposta não inicia análise de TR.  
 > **Pendências (10/09/2026)**: gate 14d, quinzena, SEI real, secrets, anonimizar, RILC completo opcional; ML bloqueado até dataset.  
 > **WIP separado**: stash `wip-rilc-codeba-rag` na branch `feat/rilc-codeba-rag` (fonte canônica RILC) — não misturar com UX.

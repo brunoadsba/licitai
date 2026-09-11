@@ -127,6 +127,12 @@ async def start_analysis(
     if not document:
         raise HTTPException(status_code=404, detail="Documento não encontrado.")
 
+    if getattr(document, "document_type", "tr") != "tr":
+        raise HTTPException(
+            status_code=400,
+            detail="Somente Termos de Referência podem ser analisados. Propostas usam Comparações.",
+        )
+
     classification = resolve_classification(
         header_value=x_document_classification,
         document_classification=getattr(document, "classification", None),

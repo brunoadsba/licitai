@@ -372,6 +372,7 @@ export default function AnalysisPage() {
                 variant="primary"
                 loading={exporting === 'pack'}
                 disabled={approvedCount === 0}
+                data-testid="sei-pack-btn"
                 title={
                   approvedCount === 0
                     ? 'Aprove ou ajuste ao menos uma correção'
@@ -529,6 +530,7 @@ export default function AnalysisPage() {
           <Button
             size="sm"
             variant={priorityMode === 'priority' ? 'primary' : 'secondary'}
+            data-testid="queue-priority"
             onClick={() => setPriorityMode('priority')}
           >
             Revisar agora
@@ -536,6 +538,7 @@ export default function AnalysisPage() {
           <Button
             size="sm"
             variant={priorityMode === 'all' ? 'primary' : 'secondary'}
+            data-testid="queue-all"
             onClick={() => setPriorityMode('all')}
           >
             Ver todas

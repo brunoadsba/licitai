@@ -74,6 +74,7 @@ export default function CorrectionReviewActions({
         <Button
           size="sm"
           disabled={saving || reviewStatus === 'aprovada'}
+          data-testid="review-approve"
           onClick={() => applyReview('aprovada')}
         >
           <CheckCheck className="h-3.5 w-3.5" aria-hidden />
@@ -83,6 +84,7 @@ export default function CorrectionReviewActions({
           size="sm"
           variant="secondary"
           disabled={saving || reviewStatus === 'rejeitada'}
+          data-testid="review-reject"
           onClick={() => applyReview('rejeitada', { review_note: 'Rejeitada pelo revisor' })}
         >
           <X className="h-3.5 w-3.5" aria-hidden />
@@ -92,6 +94,7 @@ export default function CorrectionReviewActions({
           size="sm"
           variant="secondary"
           disabled={saving}
+          data-testid="review-adjust"
           onClick={() => {
             setAdjustedText(correction.suggested_text);
             setAdjustNote(correction.review_note ?? '');

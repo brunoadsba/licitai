@@ -10,6 +10,8 @@ interface DropZoneProps {
   processing: boolean;
   success: boolean;
   stageLabel: string;
+  successTitle?: string;
+  successSubtitle?: string;
   onFileSelect: (file: File) => void;
   onUpload: () => void;
   onReset: () => void;
@@ -29,6 +31,8 @@ export default function DropZone({
   processing,
   success,
   stageLabel,
+  successTitle = 'Análise iniciada!',
+  successSubtitle = 'Abrindo a tela de análise…',
   onFileSelect,
   onUpload,
   onReset,
@@ -44,6 +48,7 @@ export default function DropZone({
 
   return (
     <div
+      data-testid="dropzone"
       onDragOver={(e) => {
         e.preventDefault();
         setDragging(true);
@@ -78,8 +83,8 @@ export default function DropZone({
             <Check className="h-8 w-8 text-green-400" strokeWidth={2} aria-hidden />
           </div>
           <div>
-            <p className="font-medium text-green-400">Análise iniciada!</p>
-            <p className="mt-1 text-sm text-content-muted">Abrindo a tela de análise…</p>
+            <p className="font-medium text-green-400">{successTitle}</p>
+            <p className="mt-1 text-sm text-content-muted">{successSubtitle}</p>
           </div>
         </div>
       ) : (
@@ -109,7 +114,7 @@ export default function DropZone({
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-3">
-                <Button onClick={onUpload}>
+                <Button onClick={onUpload} data-testid="upload-submit">
                   <FileUp className="h-4 w-4" aria-hidden />
                   Enviar e Analisar
                 </Button>

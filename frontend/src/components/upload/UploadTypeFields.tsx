@@ -37,7 +37,7 @@ export default function UploadTypeFields({
           onValueChange={(v) => onDocumentTypeChange(v as 'tr' | 'proposta')}
           disabled={locked}
         >
-          <SelectTrigger aria-label="Tipo de documento">
+          <SelectTrigger aria-label="Tipo de documento" data-testid="doc-type">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
