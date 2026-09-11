@@ -2,23 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { uploadDocument, listFornecedores } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import { Button } from '@/components/ui/Button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import DropZone from '@/components/upload/DropZone';
 import UploadTypeFields from '@/components/upload/UploadTypeFields';
 import { useUploadAnalysisPipeline } from '@/components/upload/useUploadAnalysisPipeline';
 import type { DocumentStatus, Fornecedor } from '@/types';
+import { cn } from '@/lib/utils';
 
 type UploadState = 'idle' | 'processing' | 'success' | 'error';
 
 const STAGE_LABELS: Partial<Record<DocumentStatus, string>> = {
   uploaded: 'Enviando arquivo…',
-  parsing: 'Extraindo texto e estrutura do documento…',
-  analyzing: 'Iniciando análise com IA…',
+  parsing: 'Lendo PDF e estrutura…',
+  analyzing: 'Analisando Art. 6º e jurídico…',
 };
 
 const ALLOWED_TYPES = [
@@ -36,8 +37,9 @@ export default function UploadPage() {
   const [fornecedorId, setFornecedorId] = useState('');
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [currentStage, setCurrentStage] = useState<DocumentStatus>('uploaded');
-  const [mode, setMode] = useState<'rapido' | 'avancado'>('rapido');
+  /** Default piloto: econômico (jurídico + Art. 6). Completo só em opções. */
   const [analysisMode, setAnalysisMode] = useState<'economic' | 'multi_agent'>('economic');
+  const [optionsOpen, setOptionsOpen] = useState(false);
 
   useUploadAnalysisPipeline({
     state,
@@ -53,13 +55,6 @@ export default function UploadPage() {
       .then((data) => setFornecedores(data.fornecedores))
       .catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (mode === 'rapido') {
-      setDocumentType('tr');
-      setFornecedorId('');
-    }
-  }, [mode]);
 
   function validateAndSet(file: File) {
     setError(null);
@@ -80,9 +75,9 @@ export default function UploadPage() {
 
   async function handleUpload() {
     if (!selectedFile) return;
-    const type = mode === 'rapido' ? 'tr' : documentType;
-    if (type === 'proposta' && !fornecedorId) {
+    if (documentType === 'proposta' && !fornecedorId) {
       setError('Selecione o fornecedor da proposta antes de enviar.');
+      setOptionsOpen(true);
       return;
     }
     try {
@@ -90,8 +85,8 @@ export default function UploadPage() {
       setCurrentStage('uploaded');
       setError(null);
       const result = await uploadDocument(selectedFile, {
-        documentType: type,
-        fornecedorId: type === 'proposta' ? fornecedorId : undefined,
+        documentType,
+        fornecedorId: documentType === 'proposta' ? fornecedorId : undefined,
       });
       setDocumentId(result.id);
     } catch (err) {
@@ -117,73 +112,13 @@ export default function UploadPage() {
     <div className="animate-fade-in mx-auto max-w-2xl space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
-          Enviar e revisar TR
+          Enviar TR
         </h1>
         <p className="mt-1 text-sm text-content-muted">
-          IA sugere; você decide. Só o aprovado vai ao SEI. Use Avançado para propostas ou para
-          atualizar um TR existente (diff de versões).
+          Solte o Termo de Referência. A análise começa em seguida; você revisa o que importa e
+          copia só o aprovado para o SEI.
         </p>
       </div>
-
-      <Tabs
-        value={mode}
-        onValueChange={(v) => setMode(v as 'rapido' | 'avancado')}
-      >
-        <TabsList aria-label="Modo de envio">
-          <TabsTrigger value="rapido">Rápido (TR)</TabsTrigger>
-          <TabsTrigger value="avancado">Avançado</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="rapido" className="space-y-4">
-          <p className="text-sm text-content-muted">
-            Envie o Termo de Referência em PDF ou DOCX. O parse e a análise começam em seguida.
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-content-muted">Modo de análise:</span>
-            <Button
-              type="button"
-              size="sm"
-              variant={analysisMode === 'economic' ? 'primary' : 'secondary'}
-              onClick={() => setAnalysisMode('economic')}
-            >
-              Econômica (piloto)
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant={analysisMode === 'multi_agent' ? 'primary' : 'secondary'}
-              onClick={() => setAnalysisMode('multi_agent')}
-            >
-              Completa
-            </Button>
-          </div>
-          <p className="text-[11px] text-content-subtle">
-            Econômica = jurídico + Art. 6º (estrutural). Completa = quatro agentes.
-          </p>
-        </TabsContent>
-
-        <TabsContent value="avancado" className="space-y-4">
-          <div className="rounded-lg border border-line-subtle bg-white/[0.03] p-4">
-            <p className="text-sm font-medium text-content-primary">Atualizar TR existente</p>
-            <p className="mt-1 text-xs text-content-muted">
-              Compare a versão antiga com a nova e, em seguida, analise o documento novo.
-            </p>
-            <Link href="/comparacao/versoes" className="mt-3 inline-flex">
-              <Button type="button" size="sm" variant="secondary">
-                Abrir diff de versões
-              </Button>
-            </Link>
-          </div>
-          <UploadTypeFields
-            documentType={documentType}
-            fornecedorId={fornecedorId}
-            fornecedores={fornecedores}
-            locked={locked}
-            onDocumentTypeChange={setDocumentType}
-            onFornecedorChange={setFornecedorId}
-          />
-        </TabsContent>
-      </Tabs>
 
       <DropZone
         selectedFile={selectedFile}
@@ -195,13 +130,83 @@ export default function UploadPage() {
         onReset={resetUpload}
       />
 
+      <div className="rounded-lg border border-line-subtle bg-surface/40">
+        <button
+          type="button"
+          onClick={() => setOptionsOpen((v) => !v)}
+          disabled={locked}
+          className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left text-sm font-medium text-content-primary outline-none hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-500/60 disabled:opacity-50"
+          aria-expanded={optionsOpen}
+        >
+          Opções avançadas
+          <ChevronDown
+            className={cn('h-4 w-4 text-content-muted transition-transform', optionsOpen && 'rotate-180')}
+            aria-hidden
+          />
+        </button>
+        {optionsOpen && (
+          <div className="space-y-5 border-t border-line-subtle px-4 py-4">
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-content-secondary">Abrangência da análise</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={analysisMode === 'economic' ? 'primary' : 'secondary'}
+                  disabled={locked}
+                  onClick={() => setAnalysisMode('economic')}
+                >
+                  Padrão (Art. 6º + jurídico)
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={analysisMode === 'multi_agent' ? 'primary' : 'secondary'}
+                  disabled={locked}
+                  onClick={() => setAnalysisMode('multi_agent')}
+                >
+                  Análise completa
+                </Button>
+              </div>
+              <p className="text-[11px] text-content-subtle">
+                Padrão cobre o essencial do piloto. Completa inclui também técnico e redação.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-content-secondary">Tipo de documento</p>
+              <UploadTypeFields
+                documentType={documentType}
+                fornecedorId={fornecedorId}
+                fornecedores={fornecedores}
+                locked={locked}
+                onDocumentTypeChange={setDocumentType}
+                onFornecedorChange={setFornecedorId}
+              />
+            </div>
+
+            <div className="rounded-md border border-line-subtle bg-canvas/40 p-3">
+              <p className="text-sm font-medium text-content-primary">Atualizar TR existente</p>
+              <p className="mt-1 text-xs text-content-muted">
+                Compare a versão antiga com a nova e depois analise o documento novo.
+              </p>
+              <Link href="/comparacao/versoes" className="mt-3 inline-flex">
+                <Button type="button" size="sm" variant="secondary">
+                  Abrir comparação de versões
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+      </div>
+
       {uploadError && (
         <AlertBanner
           variant="error"
           title={uploadError.title}
           action={
             <Button size="sm" variant="secondary" onClick={resetUpload}>
-              Tentar Novamente
+              Tentar novamente
             </Button>
           }
         >

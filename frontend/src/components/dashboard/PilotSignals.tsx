@@ -7,8 +7,8 @@ import type { MetricsSnapshot, PendingSummaryResponse } from '@/lib/api';
 export function PendingReviewList({ pending }: { pending: PendingSummaryResponse }) {
   if (!pending.items.length) return null;
   return (
-    <div className="glass-card space-y-3 p-4">
-      <p className="text-sm font-medium text-content-primary">Pendências prioritárias</p>
+    <div className="space-y-3 rounded-lg border border-line-subtle bg-surface/40 p-4">
+      <p className="text-sm font-medium text-content-primary">Para revisar agora</p>
       <ul className="space-y-2">
         {pending.items.slice(0, 8).map((item) => (
           <li key={item.document_id}>
@@ -39,7 +39,7 @@ export function PilotHealthPanel({
 }) {
   const counters = metrics?.counters ?? {};
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="overflow-hidden rounded-lg border border-line-subtle bg-surface/40">
       <button
         type="button"
         className="flex w-full items-center justify-between px-4 py-3 text-left text-sm outline-none hover:bg-white/[0.03] focus-visible:ring-2 focus-visible:ring-accent-500/60"

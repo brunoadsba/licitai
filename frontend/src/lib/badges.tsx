@@ -8,12 +8,12 @@ export type { Tone };
 
 export const AGENT_ORIGIN_CONFIG: Record<
   string,
-  { label: string; icon: LucideIcon; tone: Tone }
+  { label: string; icon: LucideIcon; tone: Tone; trust: 'automatica' | 'ia' }
 > = {
-  juridico: { label: 'Agente Jurídico', icon: Scale, tone: 'juridica' },
-  tecnico: { label: 'Agente Técnico', icon: Wrench, tone: 'tecnica' },
-  redacao: { label: 'Agente de Redação', icon: PenLine, tone: 'redacao' },
-  estrutural: { label: 'Agente Estrutural', icon: Ruler, tone: 'estrutural' },
+  juridico: { label: 'Jurídico', icon: Scale, tone: 'juridica', trust: 'ia' },
+  tecnico: { label: 'Técnico', icon: Wrench, tone: 'tecnica', trust: 'ia' },
+  redacao: { label: 'Redação', icon: PenLine, tone: 'redacao', trust: 'ia' },
+  estrutural: { label: 'Estrutural', icon: Ruler, tone: 'estrutural', trust: 'automatica' },
 };
 
 export function getCategoryTone(category: string): Tone {

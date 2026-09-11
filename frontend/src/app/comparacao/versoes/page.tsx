@@ -48,6 +48,7 @@ export default function DiffVersoesPage() {
         const res = await listDocuments();
         const trs = res.documents.filter((d) => d.document_type === 'tr');
         setDocuments(trs);
+        setError(null);
         if (trs.length >= 2) {
           setDocAntigoId(trs[1].id);
           setDocNovoId(trs[0].id);
@@ -116,7 +117,7 @@ export default function DiffVersoesPage() {
             description="Cadastre pelo menos dois Termos de Referência no Painel para comparar versões."
             action={
               <Link href="/upload">
-                <Button>Enviar Documento</Button>
+              <Button>Enviar TR</Button>
               </Link>
             }
             className="py-10"

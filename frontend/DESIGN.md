@@ -122,7 +122,9 @@ Todos os primitivos expõem: default · hover · active(`scale-[0.98]`) · focus
 
 ## 8. Dívida Aceita (explícita)
 
-- Aliases legados `primary`/`surface` no tailwind.config permanecem até Fase 3 completar migração de páginas; remoção só com grep provando zero uso.
+- Aliases legados `primary`/`surface` no tailwind.config permanecem até grep provar zero uso.
 - Páginas permanecem `'use client'` (sem RSC/streaming nesta passada).
-- Dark-only (sem light mode) por decisão de produto.
 - Tailwind v3.4 mantido (migração v4 fora de escopo).
+- Tema **claro + escuro** entregue (10/09/2026); dívida “dark-only” encerrada.
+- Onda UX elaborador (11/09/2026): fluxo Enviar → Revisar agora → SEI; relatório = leitura/print; copiloto sob demanda.
+- Redução gradual de `glass-card` no caminho crítico (painel/análise/upload); auditoria avançada ainda usa sheen em pontos.

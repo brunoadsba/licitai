@@ -44,31 +44,29 @@ export default function CorrectionCard({
 }: CorrectionCardProps) {
   const { copy, isCopied } = useCopy();
   const agent = correction.agent_origin ? AGENT_ORIGIN_CONFIG[correction.agent_origin] : null;
-  const AgentIcon = agent?.icon;
   const reviewStatus = correction.review_status ?? 'pendente';
   const canCopyPara = isSeiCopyAllowed(reviewStatus);
 
   return (
     <div
-      className="glass-card animate-slide-up p-5"
+      className="animate-slide-up rounded-lg border border-line-subtle bg-surface/50 p-5"
       style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}
     >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          {agent && AgentIcon && (
-            <Badge tone={agent.tone}>
-              <AgentIcon className="h-3 w-3" aria-hidden />
-              {agent.label}
+          {agent && (
+            <Badge tone={agent.trust === 'automatica' ? 'info' : 'neutral'}>
+              {agent.trust === 'automatica' ? 'Automática' : 'IA'}
             </Badge>
           )}
-          <Badge tone={getCategoryTone(correction.category)}>
-            {CATEGORY_LABELS[correction.category] || correction.category}
-          </Badge>
           <Badge tone={getSeverityTone(correction.severity)}>
             {SEVERITY_LABELS[correction.severity] || correction.severity}
           </Badge>
+          <Badge tone={getCategoryTone(correction.category)}>
+            {CATEGORY_LABELS[correction.category] || correction.category}
+          </Badge>
           <Badge tone={REVIEW_STATUS_TONE[reviewStatus]}>
-            Revisão: {REVIEW_STATUS_LABELS[reviewStatus]}
+            {REVIEW_STATUS_LABELS[reviewStatus]}
           </Badge>
         </div>
 
@@ -89,12 +87,12 @@ export default function CorrectionCard({
           {isCopied(`para_${correction.id}`) ? (
             <>
               <Check className="h-3.5 w-3.5 text-green-400" aria-hidden />
-              Texto Copiado!
+              Texto copiado
             </>
           ) : (
             <>
               <ClipboardCopy className="h-3.5 w-3.5" aria-hidden />
-              Copiar Texto Corrigido (PARA)
+              Copiar texto corrigido
             </>
           )}
         </button>
@@ -105,14 +103,14 @@ export default function CorrectionCard({
       <div className="mb-4 space-y-2">
         <div className="diff-removed">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-red-400/70">
-            DE (original)
+            Original
           </p>
           <p className="text-sm text-red-300/90">{correction.original_text}</p>
         </div>
         <div className="diff-added group relative">
           <div className="mb-1 flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-green-400/70">
-              PARA (sugerido)
+              Sugerido
             </p>
             <button
               type="button"

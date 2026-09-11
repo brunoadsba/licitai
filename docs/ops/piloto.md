@@ -10,6 +10,7 @@ Checklist operacional do elaborador de TR em ambiente single-user.
 | Export DOCX do TR corrigido | **Feito** (`GET /analysis/{id}/corrected-docx` + botão na análise) |
 | Art. 6 cobertura estrutural (`art6_coverage` ≥90%) | **Feito** (API/UI + `score_art6_fixtures.py`); baseline fixtures ~71% |
 | UI tema claro/escuro | **Feito** (toggle no header; ver [frontend/DESIGN.md](../../frontend/DESIGN.md)) |
+| UX fluxo elaborador + guia | **Feito** em `feat/ux-fluxo-elaborador` ([docs/guia-usuario.md](../guia-usuario.md), app `/guia`); BFF `/api/proxy` corrigido (11/09) |
 | Fixtures TR CODEBA (12 objetos) | **Feito** em `fixtures/trs-codeba/` (PDFs gitignored) |
 | Cron backup diário + alertas | **Feito neste host** via `./scripts/install_ops_cron.sh --apply` — ver [cron.md](cron.md) |
 | Backup dry-run | **Feito** (`scripts/backup_daily.sh` → `backups/licitai_*`) |

@@ -34,7 +34,7 @@ export default function ItemDetail({
   return (
     <div className={cn('col-span-12 space-y-4 lg:col-span-8', className)}>
       {/* Conteúdo do item */}
-      <div className="glass-card p-5 sm:p-6">
+      <div className="rounded-lg border border-line-subtle bg-surface/50 p-5 sm:p-6">
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <span className="tnum font-mono text-sm font-semibold text-accent-400">{item.item_number}</span>
           {item.title && (
@@ -88,11 +88,11 @@ export default function ItemDetail({
       {/* Correções do item */}
       {showCorrections &&
         (corrections.length === 0 ? (
-          <div className="glass-card p-6 text-center">
+          <div className="rounded-lg border border-line-subtle bg-surface/40 p-6 text-center">
             <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-400" strokeWidth={1.5} aria-hidden />
             <p className="text-sm font-medium text-green-400">Item adequado</p>
             <p className="mt-1 text-xs text-content-subtle">
-              Nenhuma correção necessária. Não é preciso alterar este item no SEI.
+              Nenhuma correção necessária neste item.
             </p>
           </div>
         ) : (

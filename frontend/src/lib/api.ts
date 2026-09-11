@@ -1,8 +1,8 @@
 /**
  * Cliente API — comunicação segura com o backend.
  *
- * Chamadas do browser passam pelo BFF (`/api/proxy/v1/...`), que injeta
- * `API_TOKEN` server-side. O token nunca vai para o client.
+ * Chamadas do browser passam pelo BFF (`/api/proxy/...`), que encaminha
+ * para `/api/v1/...` e injeta `API_TOKEN` server-side. O token nunca vai para o client.
  */
 
 import type {
@@ -79,7 +79,7 @@ export function clearApiCache() {
 }
 
 async function fetchAPI<T>(endpoint: string, options: FetchAPIOptions = {}): Promise<T> {
-  const url = `${API_BASE}/api/proxy/v1${endpoint}`;
+  const url = `${API_BASE}/api/proxy${endpoint}`;
   const { timeoutMs = 30_000, skipCache: _skipCache, ...requestInit } = options;
 
   const cacheKey = getCacheKey(endpoint, options);
@@ -170,7 +170,7 @@ export async function uploadDocument(
 }
 
 export async function listDocuments(): Promise<DocumentListResponse> {
-  return fetchAPI<DocumentListResponse>('/documents/');
+  return fetchAPI<DocumentListResponse>('/documents');
 }
 
 export async function getDocument(
@@ -322,7 +322,7 @@ export async function downloadCorrectedDocx(analysisId: string): Promise<{
   skipped: number;
   applied: number;
 }> {
-  const url = `${API_BASE}/api/proxy/v1/analysis/${encodeURIComponent(analysisId)}/corrected-docx`;
+  const url = `${API_BASE}/api/proxy/analysis/${encodeURIComponent(analysisId)}/corrected-docx`;
   const response = await fetch(url, { cache: 'no-store' });
   if (!response.ok) {
     let detail = 'Falha ao baixar DOCX.';

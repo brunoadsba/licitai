@@ -26,7 +26,10 @@ async function proxyRequest(
   context: { params: { path: string[] } }
 ): Promise<NextResponse> {
   const pathSegments = context.params.path ?? [];
-  const path = pathSegments.map(encodeURIComponent).join('/');
+  // Aceita /api/proxy/documents e /api/proxy/v1/documents (evita /api/v1/v1/...).
+  const normalizedSegments =
+    pathSegments[0] === 'v1' ? pathSegments.slice(1) : pathSegments;
+  const path = normalizedSegments.map(encodeURIComponent).join('/');
   const search = request.nextUrl.search;
   const targetUrl = `${BACKEND_URL}/api/v1/${path}${search}`;
 

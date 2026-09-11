@@ -9,8 +9,9 @@ import {
   GitCompareArrows,
   LayoutGrid,
   ScrollText,
-  Sparkles,
+  FilePenLine,
   Layers,
+  BookOpen,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -19,19 +20,21 @@ import { Sheet, SheetContent, SheetTitle } from '@/components/ui/Sheet';
 
 type NavItem = { href: string; label: string; icon: typeof LayoutGrid };
 
+/** Fluxo principal do elaborador — uma ação de envio, sem competir com Gerar TR. */
 const PRIMARY_NAV: NavItem[] = [
   { href: '/', label: 'Painel', icon: LayoutGrid },
-  { href: '/upload', label: 'Enviar e revisar TR', icon: FileUp },
-  { href: '/gerar-tr', label: 'Gerar TR', icon: Sparkles },
+  { href: '/upload', label: 'Enviar TR', icon: FileUp },
 ];
 
-const AUDITORIA_NAV: NavItem[] = [
+const EXTRA_NAV: NavItem[] = [
+  { href: '/gerar-tr', label: 'Gerar TR', icon: FilePenLine },
   { href: '/comparacao', label: 'Comparações', icon: GitCompareArrows },
   { href: '/comparacao/versoes', label: 'Versões de TR', icon: ScrollText },
   { href: '/moldes', label: 'Moldes', icon: Layers },
+  { href: '/guia', label: 'Guia do usuário', icon: BookOpen },
 ];
 
-const ALL_HREFS = [...PRIMARY_NAV, ...AUDITORIA_NAV].map((i) => i.href);
+const ALL_HREFS = [...PRIMARY_NAV, ...EXTRA_NAV].map((i) => i.href);
 
 /** Active = longest matching prefix (evita Comparações + Versões juntos). */
 export function isNavActive(pathname: string, href: string, allHrefs: string[] = ALL_HREFS): boolean {
@@ -67,14 +70,14 @@ function NavItemLink({
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const auditoriaActive = AUDITORIA_NAV.some((item) => isNavActive(pathname, item.href));
-  const [auditoriaOpen, setAuditoriaOpen] = useState(auditoriaActive);
+  const extrasActive = EXTRA_NAV.some((item) => isNavActive(pathname, item.href));
+  const [extrasOpen, setExtrasOpen] = useState(extrasActive);
 
   return (
     <nav className="flex-1 space-y-4 overflow-y-auto p-4" aria-label="Navegação principal">
       <div className="space-y-1">
         <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-widest text-content-subtle">
-          Elaborar TR
+          Revisar TR
         </p>
         {PRIMARY_NAV.map((item) => (
           <NavItemLink key={item.href} item={item} onNavigate={onNavigate} />
@@ -84,22 +87,19 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       <div className="space-y-1">
         <button
           type="button"
-          onClick={() => setAuditoriaOpen((v) => !v)}
+          onClick={() => setExtrasOpen((v) => !v)}
           className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-[10px] font-medium uppercase tracking-widest text-content-subtle outline-none hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-accent-500/60"
-          aria-expanded={auditoriaOpen}
+          aria-expanded={extrasOpen}
         >
           Mais ferramentas
           <ChevronDown
-            className={cn('h-3.5 w-3.5 transition-transform', auditoriaOpen && 'rotate-180')}
+            className={cn('h-3.5 w-3.5 transition-transform', extrasOpen && 'rotate-180')}
             aria-hidden
           />
         </button>
-        {auditoriaOpen && (
+        {extrasOpen && (
           <div className="space-y-1">
-            <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-widest text-content-subtle/70">
-              Auditoria (avançado)
-            </p>
-            {AUDITORIA_NAV.map((item) => (
+            {EXTRA_NAV.map((item) => (
               <NavItemLink key={item.href} item={item} onNavigate={onNavigate} />
             ))}
           </div>
@@ -129,16 +129,6 @@ function Brand() {
   );
 }
 
-function SidebarFooter() {
-  return (
-    <div className="border-t border-line-subtle p-4" style={{ background: 'linear-gradient(to top, rgba(58,164,164,0.04), transparent)' }}>
-      <p className="text-[11px] leading-relaxed text-content-muted">
-        IA sugere; você decide. Só o aprovado vai ao SEI.
-      </p>
-    </div>
-  );
-}
-
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <>
@@ -146,7 +136,6 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
         <Brand />
       </div>
       <NavLinks onNavigate={onNavigate} />
-      <SidebarFooter />
     </>
   );
 }
@@ -185,7 +174,6 @@ export default function Sidebar() {
             </button>
           </div>
           <NavLinks onNavigate={closeSidebar} />
-          <SidebarFooter />
         </SheetContent>
       </Sheet>
     </>

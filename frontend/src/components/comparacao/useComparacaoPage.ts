@@ -46,6 +46,7 @@ export function useComparacaoPage() {
   const loadAll = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const [cmp, docsData, moldesData, fornecedoresData] = await Promise.all([
         listComparacoes(),
         listDocuments(),

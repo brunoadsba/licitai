@@ -56,7 +56,7 @@ export default function CorrectionReviewActions({
   async function handleAdjustSubmit() {
     const text = adjustedText.trim();
     if (!text) {
-      toast.error('Informe o texto ajustado para o PARA.');
+      toast.error('Informe o texto corrigido ajustado.');
       return;
     }
     await applyReview('ajustada', {
@@ -68,7 +68,7 @@ export default function CorrectionReviewActions({
   return (
     <div className="mb-4 rounded-lg border border-line-subtle bg-canvas/30 p-3">
       <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-content-subtle">
-        Revisão humana (SEI)
+        Sua decisão
       </p>
       <div className="flex flex-wrap gap-2">
         <Button
@@ -106,7 +106,7 @@ export default function CorrectionReviewActions({
       {adjusting && (
         <div className="mt-3 space-y-2">
           <label className="block text-xs text-content-muted" htmlFor={`adj-${correction.id}`}>
-            Texto PARA ajustado
+            Texto sugerido (ajustado)
           </label>
           <textarea
             id={`adj-${correction.id}`}

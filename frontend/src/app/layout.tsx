@@ -54,11 +54,6 @@ export default function RootLayout({
               >
                 {children}
               </main>
-              <footer className="no-print mx-auto flex w-full max-w-[1440px] items-center justify-center border-t border-line-subtle/80 py-3 text-center">
-                <span className="text-[11px] uppercase tracking-[0.14em] text-content-subtle">
-                  Companhia das Docas do Estado da Bahia — CODEBA · Autoridade Portuária
-                </span>
-              </footer>
             </div>
 
             <div className="no-print">

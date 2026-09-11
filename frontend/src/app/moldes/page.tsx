@@ -50,6 +50,7 @@ export default function MoldesPage() {
     try {
       const data = await listMoldes();
       setMoldes(data.moldes);
+      setError(null);
     } catch {
       setError('Erro ao carregar moldes. Verifique se o backend está rodando.');
     } finally {

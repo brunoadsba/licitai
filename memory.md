@@ -111,7 +111,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **TOCTOU**: `start_analysis` usa `with_for_update()` no Document (serializa starts concorrentes no Postgres; no-op SQLite); `start_comparacao` idem via `db.get(..., with_for_update=True)`.
   - **N+1 eliminado**: `list_comparacoes` pré-carrega fornecedores da página em 1 query (`montar_comparacao_response(c, db, fornecedores_precarregados)`).
   - **Observabilidade**: providers Groq/Gemini/Ollama logam `llm_usage` (prompt/completion/total tokens + latência) e o FailoverProvider loga `llm_call` por chamada; `/metrics` in-memory.
-  - **Frontend**: `api.ts` tipado via BFF `/api/proxy/v1` (GET/POST/PUT/PATCH/DELETE); polling com `skipCache`, backoff e pausa em aba oculta (`lib/polling.ts`); cópia SEI só `aprovada|ajustada` (`CorrectionCard`/`ItemDetail`) **após revisão humana** (`PATCH /analysis/corrections/{id}` + UI Aprovar/Rejeitar/Ajustar).
+  - **Frontend**: `api.ts` tipado via BFF `/api/proxy/*` → backend `/api/v1/*` (GET/POST/PUT/PATCH/DELETE); polling com `skipCache`, backoff e pausa em aba oculta (`lib/polling.ts`); cópia SEI só `aprovada|ajustada` (`CorrectionCard`/`ItemDetail`) **após revisão humana** (`PATCH /analysis/corrections/{id}` + UI Aprovar/Rejeitar/Ajustar).
   - **Quick wins**: `main.py` lifespan; `/livez`/`/readyz`/`/health`; warning quando item >8000 chars é truncado.
   - **Tooling**: `backend/pyproject.toml` (ruff); **CI GitHub Actions permanece DESABILITADO** (`ci.yml.disabled`) — não reabilitar sem pedido explícito.
   - **Pendências da auditoria que FORAM feitas na confiabilidade (08/09)**: Alembic (substitui create_all em staging/prod; create_all só SQLite development), fila durável, filtro SEI, checklist Art. 6 correto, agentes tipados. Ainda fora de escopo: multi-tenant/RBAC, LangGraph, fine-tune, K8s.
@@ -250,7 +250,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `tailwind.config.js`: tokens semânticos (`accent`, `canvas`, `panel`, `elevated`, `content.*`, `line.*`).
 - `src/types/index.ts`: Mapeamento TypeScript dos schemas da API e tipos de âncora.
 - `src/lib/utils.ts`: `cn()` (clsx + tailwind-merge).
-- `src/lib/api.ts`: Cliente HTTP via **BFF** `/api/proxy/v1` (token só no servidor); `skipCache` em polling.
+- `src/lib/api.ts`: Cliente HTTP via **BFF** `/api/proxy/...` (token só no servidor; proxy monta `/api/v1/...`); `skipCache` em polling.
+- `src/app/guia/page.tsx` + `docs/guia-usuario.md`: guia do elaborador (4 passos) espelhado app/docs.
 - `src/lib/polling.ts`: Polling com deadline, backoff, limite de falhas, pausa em aba oculta.
 - `src/lib/badges.tsx`: `getCategoryTone` / `getSeverityTone` + `AGENT_ORIGIN_CONFIG` (Lucide) — consome o primitivo `Badge` (`tone`).
 - `src/lib/useCopy.ts`: Hook `useCopy()` com feedback de cópia (2s).
@@ -304,7 +305,7 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (10/09/2026)**: `main` — única branch remota de trabalho; excelência piloto + fixtures TR CODEBA mergeados. CI permanece desabilitado.
+- **Branch ativa (11/09/2026)**: `feat/ux-fluxo-elaborador` (UX elaborador + guia + fix BFF). Base remota de trabalho continua `main`. CI permanece desabilitado.
 - **Histórico consolidado (08–10/09/2026)**: runtime Docker confiável, modelos LLM atuais, E2E 17/17, UX Sprints 1–3, CSP Next.js, restore drill documentado, unificação `Badge` + Exportar PDF + `backend/tests/conftest.py`.
 - **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
   - **Fase A (Parsing)**: títulos de seção determinísticos via sha256+NFC (`T-{digest%100000}` — sem `hash()`); alíneas (`a)`, `b)`) detectadas como subitem e itens romanos (`I.`, `II.`) como seção. **+3 testes**.
@@ -401,6 +402,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 7. Bugs e Correções Anteriores
 
+- **BFF montava `/api/v1/v1/...` (11/09/2026)**: `api.ts` usava base `/api/proxy/v1` e o Route Handler em `/api/proxy/[...path]` prefixava de novo `/api/v1/` → 404 uvicorn. Sintoma: banners vermelhos em Comparações / Versões de TR / Moldes com backend saudável (`Sistema ativo`). Fix: cliente chama `/api/proxy${endpoint}`; proxy remove segmento `v1` inicial se presente; `listDocuments` sem trailing slash (evita 308 do Next). Validado: proxy 200 com listas vazias; UI sem falso erro.
 - **Background Task não commitava análise**: O endpoint `POST /analysis/{id}/start` usava `db.flush()` mas não commitava, então a background task (que abre sessão própria) não encontrava o registro da análise. Corrigido com `await db.commit()` antes de agendar a task.
 - **Fixture DOCX com magic bytes inválidos**: `python-docx` gerava arquivos detectados como `application/octet-stream` pelo `python-magic-bin` no Windows. A `generate_fixture.py` foi reescrita para construir o ZIP manualmente com estrutura OPC mínima, que é detectada corretamente.
 - **Rate limit inflexível**: Era hardcoded em 60 req/min. Adicionado campo `rate_limit_max` no `Settings` do Pydantic (lê de env var), usado pelo middleware.
@@ -496,12 +498,28 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 | Colar/anexar export no SEI real (ou minuta de teste) | Valida se HTML/DOCX/pacote serve no processo, não só na UI |
 | Benchmark quinzenal com 5 TRs ([piloto-qualidade.md](docs/ops/piloto-qualidade.md)) | Rodízio em `fixtures/trs-codeba/piloto-unico/` |
 
+### UX fluxo elaborador (11/09/2026 — branch `feat/ux-fluxo-elaborador`)
+
+| Entrega | Detalhe |
+|---------|---------|
+| Upload | DropZone dominante; econômico implícito; avançado colapsado |
+| Análise | CTA único **Copiar pacote SEI**; menus Exportar/Mais; fila **Revisar agora** |
+| Relatório | Leitura + Exportar PDF; SEI só na análise |
+| Copiloto | FAB **Perguntar**, fechado por default |
+| Nav | Painel + Enviar TR; Gerar/Comparações/Versões/Moldes/Guia em **Mais ferramentas** |
+| Guia | App `/guia` + [docs/guia-usuario.md](docs/guia-usuario.md); link no Painel/sidebar |
+| BFF | Cliente `/api/proxy/...`; proxy compatível com path legado `/api/proxy/v1/...` |
+| Dados | Samples de teste limpos; empty states nas ferramentas avançadas são normais sem TRs/moldes/fornecedores |
+
+Frontend Docker **sem bind mount** — mudanças de UI exigem `docker compose up -d --build frontend`.
+
 ### Agora (ops / Bruno) — ordem sugerida
-1. Iniciar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)) com TRs de `piloto-unico/`.
-2. Em paralelo: **1ª quinzena** de qualidade (5 TRs) + validar 1 export no SEI.
-3. Rotacionar secrets quando conveniente; anonimizar Emergência antes de cloud.
-4. Opcional (corpus): ingerir **RILC CODEBA completo** no RAG.
-5. **Não** abrir fine-tune até existir volume de feedback humano curado.
+1. Merge/revisão de `feat/ux-fluxo-elaborador` quando aprovado; usar guia em `/guia`.
+2. Iniciar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)) com TRs de `piloto-unico/`.
+3. Em paralelo: **1ª quinzena** de qualidade (5 TRs) + validar 1 export no SEI.
+4. Rotacionar secrets quando conveniente; anonimizar Emergência antes de cloud.
+5. Opcional (corpus): retomar stash **RILC CODEBA** (`feat/rilc-codeba-rag`) e ingerir no RAG.
+6. **Não** abrir fine-tune até existir volume de feedback humano curado.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
 > **E2E Docker (09/09/2026)**: 17/17 API verdes com Groq `openai/gpt-oss-20b`.  
@@ -512,4 +530,8 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 > **Fixtures TR CODEBA (10/09/2026)**: `fixtures/trs-codeba/` — **12 objetos** (meta ≥10); PDFs fora do Git.  
 > **Art. 6 coverage (10/09/2026)**: métrica ≥90% na API/UI; baseline fixtures ~71%.  
 > **UI tema claro/escuro (10/09/2026)**: toggle no header; commits `19aadbd`, `0126313`.  
-> **Pendências (10/09/2026)**: gate 14d, quinzena, SEI real, secrets, anonimizar, RILC completo opcional; ML bloqueado até dataset.
+> **UX fluxo elaborador (11/09/2026)**: Onda 1–3 em `feat/ux-fluxo-elaborador` — upload DropZone-first; análise com 1 CTA SEI + menus; relatório = leitura/print; copiloto sob demanda; badges Automática/IA; painel com hero-ação; nav Painel+Enviar + Mais ferramentas; guia `/guia` + `docs/guia-usuario.md`.  
+> **BFF proxy (11/09/2026)**: bug `/api/proxy/v1` + proxy que prefixava `/api/v1` → `/api/v1/v1/...` (404) nas telas Comparações/Versões/Moldes. Fix: cliente `/api/proxy/...`; proxy strip de `v1/` legado.  
+> **Dados piloto (11/09/2026)**: samples `sample-tr.docx` e órfãos removidos do Postgres/uploads; corpus jurídico preservado (~599 chunks). Painel vazio = esperado até TRs reais.  
+> **Pendências (10/09/2026)**: gate 14d, quinzena, SEI real, secrets, anonimizar, RILC completo opcional; ML bloqueado até dataset.  
+> **WIP separado**: stash `wip-rilc-codeba-rag` na branch `feat/rilc-codeba-rag` (fonte canônica RILC) — não misturar com UX.

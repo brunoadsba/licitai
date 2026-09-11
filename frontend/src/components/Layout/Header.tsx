@@ -10,15 +10,15 @@ import { ThemeToggle } from '@/components/theme/ThemeToggle';
 
 const BREADCRUMB_MAP: Record<string, string> = {
   '/': 'Painel',
-  '/upload': 'Enviar Documento',
-  '/wizard': 'Enviar Documento',
+  '/upload': 'Enviar TR',
+  '/wizard': 'Enviar TR',
   '/gerar-tr': 'Gerar TR',
   '/analysis': 'Análise',
   '/report': 'Relatório',
   '/comparacao': 'Comparações',
   '/comparacao/versoes': 'Versões de TR',
-  '/comparacao/matriz': 'Matriz de Conformidade',
   '/moldes': 'Moldes de Regras',
+  '/guia': 'Guia do usuário',
   '/design': 'Design System',
 };
 

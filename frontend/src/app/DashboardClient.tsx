@@ -2,15 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { FileText, FileUp, RefreshCw } from 'lucide-react';
+import { BookOpen, FileText, FileUp, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, MotionConfig } from 'framer-motion';
 import {
-  deleteDocument,
-  getMetricsSnapshot,
   getPendingSummary,
   listDocuments,
-  type MetricsSnapshot,
+  deleteDocument,
   type PendingSummaryResponse,
 } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
@@ -20,7 +18,7 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import DocumentListItem from '@/components/dashboard/DocumentListItem';
-import { PendingReviewList, PilotHealthPanel } from '@/components/dashboard/PilotSignals';
+import { PendingReviewList } from '@/components/dashboard/PilotSignals';
 import type { DocumentResponse } from '@/types';
 
 export default function DashboardClient({
@@ -35,24 +33,18 @@ export default function DashboardClient({
   const [confirmDelete, setConfirmDelete] = useState<DocumentResponse | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [pending, setPending] = useState<PendingSummaryResponse | null>(null);
-  const [metrics, setMetrics] = useState<MetricsSnapshot | null>(null);
-  const [healthOpen, setHealthOpen] = useState(false);
 
   const errorInfo = error ? getErrorMessage(error, 'documents') : null;
   const hasInFlight = documents.some(
     (d) => d.status === 'parsing' || d.status === 'analyzing' || d.status === 'uploaded',
   );
 
-  async function loadPilotSignals() {
+  async function loadPending() {
     try {
-      const [p, m] = await Promise.all([
-        getPendingSummary().catch(() => null),
-        getMetricsSnapshot().catch(() => null),
-      ]);
+      const p = await getPendingSummary().catch(() => null);
       if (p) setPending(p);
-      if (m) setMetrics(m);
     } catch {
-      /* painel piloto opcional */
+      /* pendências opcionais */
     }
   }
 
@@ -62,7 +54,7 @@ export default function DashboardClient({
       const data = await listDocuments();
       setDocuments(data.documents);
       setError(null);
-      await loadPilotSignals();
+      await loadPending();
     } catch {
       setError('Não foi possível carregar os documentos. Atualize a página ou tente novamente.');
     } finally {
@@ -71,7 +63,7 @@ export default function DashboardClient({
   }
 
   useEffect(() => {
-    void loadPilotSignals();
+    void loadPending();
   }, []);
 
   useEffect(() => {
@@ -93,20 +85,14 @@ export default function DashboardClient({
     }
   }
 
-  const stats = [
-    { label: 'Total', value: documents.length },
-    {
-      label: 'Em análise',
-      value: documents.filter((d) => d.status === 'analyzing' || d.status === 'parsing').length,
-    },
-    { label: 'Concluídos', value: documents.filter((d) => d.status === 'completed').length },
-    {
-      label: 'Aguardando revisão',
-      value: pending?.total ?? 0,
-    },
-  ];
-
+  const awaitingReview = pending?.total ?? 0;
+  const inFlight = documents.filter(
+    (d) => d.status === 'analyzing' || d.status === 'parsing',
+  ).length;
+  const nextToReview = pending?.items?.[0];
   const showLoading = refreshing && documents.length === 0;
+  /** Hero só quando há ação/status real — evita CTA duplicado com o header. */
+  const showHero = awaitingReview > 0 || inFlight > 0;
 
   return (
     <div className="animate-fade-in space-y-8">
@@ -116,58 +102,75 @@ export default function DashboardClient({
             Revisar Termos de Referência
           </h1>
           <p className="mt-1 max-w-xl text-sm text-content-muted">
-            IA sugere; você decide. Só correções aprovadas ou ajustadas vão para o SEI.
+            {awaitingReview > 0
+              ? `${awaitingReview} correção(ões) aguardando sua decisão.`
+              : 'Envie um TR, revise os achados e copie só o aprovado para o SEI.'}
           </p>
+          <Link
+            href="/guia"
+            className="mt-2 inline-flex items-center gap-1.5 text-xs text-content-subtle outline-none hover:text-accent-400 focus-visible:ring-2 focus-visible:ring-accent-500/60"
+          >
+            <BookOpen className="h-3.5 w-3.5" aria-hidden />
+            Guia do usuário
+          </Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            loading={refreshing}
-            onClick={() => void handleRefresh()}
-            aria-label="Atualizar lista de documentos"
-          >
-            <RefreshCw className="h-4 w-4" aria-hidden />
-            Atualizar
-          </Button>
+          {(hasInFlight || refreshing) && (
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={refreshing}
+              onClick={() => void handleRefresh()}
+              aria-label="Atualizar lista de documentos"
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              Atualizar
+            </Button>
+          )}
           {!(documents.length === 0 && !error) && (
-            <>
-              <Link href="/comparacao/versoes">
-                <Button size="sm" variant="secondary">
-                  Atualizar TR
-                </Button>
-              </Link>
-              <Link href="/upload">
-                <Button>
-                  <FileUp className="h-4 w-4" aria-hidden />
-                  Enviar e revisar TR
-                </Button>
-              </Link>
-            </>
+            <Link href="/upload">
+              <Button>
+                <FileUp className="h-4 w-4" aria-hidden />
+                Enviar TR
+              </Button>
+            </Link>
           )}
         </div>
       </div>
 
-      <dl className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <div key={stat.label} className="glass-card p-5">
-            <dt className="text-[11px] uppercase tracking-widest text-content-subtle">
-              {stat.label}
-            </dt>
-            <dd className="tnum mt-1 text-3xl font-semibold tracking-tight text-content-primary">
-              {stat.value}
-            </dd>
+      {showHero && (
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-accent-500/25 bg-accent-500/5 p-5">
+          <div>
+            <p className="text-sm font-medium text-content-primary">
+              {awaitingReview > 0
+                ? 'Há revisões pendentes'
+                : `${inFlight} análise(s) em andamento`}
+            </p>
+            <p className="mt-0.5 text-xs text-content-muted">
+              {nextToReview
+                ? `Próximo: ${nextToReview.filename}`
+                : 'A lista atualiza automaticamente.'}
+            </p>
           </div>
-        ))}
-      </dl>
+          {nextToReview?.document_id ? (
+            <Link href={`/analysis/${nextToReview.document_id}`}>
+              <Button size="sm">Continuar revisão</Button>
+            </Link>
+          ) : (
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={refreshing}
+              onClick={() => void handleRefresh()}
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden />
+              Atualizar
+            </Button>
+          )}
+        </div>
+      )}
 
       {pending && pending.items.length > 0 && <PendingReviewList pending={pending} />}
-
-      <PilotHealthPanel
-        metrics={metrics}
-        open={healthOpen}
-        onToggle={() => setHealthOpen((v) => !v)}
-      />
 
       {errorInfo && (
         <AlertBanner variant="error" title={errorInfo.title}>
@@ -183,16 +186,16 @@ export default function DashboardClient({
             ))}
           </div>
         ) : documents.length === 0 ? (
-          <div className="glass-card">
+          <div className="rounded-lg border border-line-subtle bg-surface/30">
             <EmptyState
               icon={FileText}
               title="Nenhum TR ainda"
-              description="Envie um Termo de Referência para revisar achados prioritários e copiar o aprovado para o SEI."
+              description="Envie um Termo de Referência para revisar achados e copiar o aprovado para o SEI."
               action={
                 <Link href="/upload">
                   <Button>
                     <FileUp className="h-4 w-4" aria-hidden />
-                    Enviar e revisar TR
+                    Enviar TR
                   </Button>
                 </Link>
               }

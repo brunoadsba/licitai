@@ -37,9 +37,10 @@ export function statusCta(
 ): { href: string; label: string; variant?: 'primary' | 'secondary' } | null {
   switch (doc.status) {
     case 'parsed':
-      return { href: `/analysis/${doc.id}`, label: 'Analisar' };
+      // Secondary: o primary da página é "Enviar TR"
+      return { href: `/analysis/${doc.id}`, label: 'Analisar', variant: 'secondary' };
     case 'completed':
-      return { href: `/analysis/${doc.id}`, label: 'Ver Resultado', variant: 'secondary' };
+      return { href: `/analysis/${doc.id}`, label: 'Ver resultado', variant: 'secondary' };
     case 'parsing':
     case 'analyzing':
     case 'uploaded':
@@ -68,7 +69,7 @@ export default function DocumentListItem({ doc, onRequestDelete }: DocumentListI
     >
       <Link
         href={`/analysis/${doc.id}`}
-        className="glass-card-interactive block p-5 outline-none focus-visible:ring-2 focus-visible:ring-accent-500/60"
+        className="block rounded-xl border border-line-subtle bg-surface/40 p-5 outline-none transition-colors hover:bg-surface-hover/50 focus-visible:ring-2 focus-visible:ring-accent-500/60"
       >
         <div className="flex flex-wrap items-center justify-between gap-4 sm:flex-nowrap">
           <div className="flex min-w-0 flex-1 items-center gap-4">
@@ -86,7 +87,7 @@ export default function DocumentListItem({ doc, onRequestDelete }: DocumentListI
               <p className="truncate text-sm font-medium text-content-primary">
                 {doc.filename_original}
               </p>
-              <div className="tnum mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-content-subtle">
+              <div className="tnum mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-content-muted">
                 <span>{formatFileSize(doc.file_size_bytes)}</span>
                 <span aria-hidden>·</span>
                 <span>{doc.total_items} itens</span>

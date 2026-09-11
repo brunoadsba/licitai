@@ -45,7 +45,7 @@ export default function ItemList({ items, selectedId, getCorrections, onSelect, 
               'focus-visible:ring-2 focus-visible:ring-accent-500/60',
               isActive
                 ? 'border border-accent-500/40 bg-accent-500/10'
-                : 'glass-card-interactive border border-transparent',
+                : 'rounded-xl border border-line-subtle bg-surface/40 hover:bg-surface-hover/60',
             )}
           >
             <div className="flex items-start justify-between gap-2">

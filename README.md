@@ -6,6 +6,8 @@ Sistema especialista para análise automatizada de Termos de Referência (TR) de
 
 Produto focado no **elaborador de TR**: enviar documento → revisar achados prioritários (IA sugere; você decide) → copiar só o aprovado/ajustado para o SEI. Módulos de auditoria TR×propostas ficam em “Mais ferramentas”.
 
+**Guia do usuário (elaboradores):** [docs/guia-usuario.md](docs/guia-usuario.md)
+
 Ops e pendências do piloto (gate 14 dias, cron, DOCX, Art. 6, fixtures): ver [docs/ops/piloto.md](docs/ops/piloto.md).
 
 ### Entregas recentes (piloto)
@@ -14,6 +16,7 @@ Ops e pendências do piloto (gate 14 dias, cron, DOCX, Art. 6, fixtures): ver [d
 - Modo `economic`, reanálise parcial, painel de pendências
 - Base local de TRs: [`fixtures/trs-codeba/`](fixtures/trs-codeba/) (12 objetos; PDFs fora do Git)
 - UI: tema **claro/escuro** (toggle no header) — contrato em [`frontend/DESIGN.md`](frontend/DESIGN.md)
+- UX elaborador (11/09): Enviar → Revisar agora → pacote SEI; relatório = leitura/PDF; copiloto sob demanda; guia em `/guia`
 
 ## Funcionalidades (MVP)
 

@@ -17,34 +17,33 @@ interface ChatCopilotProps {
   itemNumber?: string | null;
   title?: string;
   page?: string;
+  /** Na análise, fechado por default para não competir com a revisão. */
+  defaultOpen?: boolean;
 }
 
 /**
- * Desktop: painel inline. Mobile: FAB + Sheet full-height com focus trap (Radix).
+ * Assistente sob demanda (FAB). Fechado por default — não compete com a revisão.
  */
-export default function ChatCopilot(props: ChatCopilotProps) {
-  const [open, setOpen] = useState(false);
+export default function ChatCopilot({ defaultOpen = false, ...props }: ChatCopilotProps) {
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
     <>
-      <div className="hidden lg:block">
-        <ChatPanel {...props} variant="docked" />
-      </div>
-
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-accent-500/40 bg-accent-700 text-white shadow-rim outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-accent-500/60 lg:hidden"
-        aria-label="Abrir Copiloto LicitAI"
+        className="fixed bottom-5 right-5 z-40 flex h-12 items-center justify-center gap-2 rounded-lg border border-accent-500/40 bg-accent-700 px-4 text-sm font-medium text-white shadow-rim outline-none transition-transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-accent-500/60"
+        aria-label="Perguntar ao copiloto"
       >
-        <MessageCircle className="h-6 w-6" aria-hidden />
+        <MessageCircle className="h-5 w-5" aria-hidden />
+        <span className="hidden sm:inline">Perguntar</span>
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="bottom" className="lg:hidden" hideClose={false}>
+        <SheetContent side="right" className="w-full sm:max-w-md" hideClose={false}>
           <SheetHeader>
             <SheetTitle>Copiloto LicitAI</SheetTitle>
-            <SheetDescription>Assistente consultivo com citação de fontes</SheetDescription>
+            <SheetDescription>Pergunte sobre este documento; respostas citam fontes.</SheetDescription>
           </SheetHeader>
           <div className="min-h-0 flex-1 overflow-hidden px-0 pb-0">
             <ChatPanel {...props} variant="sheet" onClose={() => setOpen(false)} />
