@@ -215,8 +215,10 @@ licitacao/
 ├── db/init.sql              # Schema PostgreSQL (alinhado ao Alembic)
 ├── memory.md                # Memória contínua (contexto p/ agentes)
 ├── docs/ops/                # Deploy, restore, SLOs, piloto, gate 14d, cron
+├── docs/archive/            # PRDs/planos históricos (não usar no dia a dia)
 ├── fixtures/trs-codeba/     # TRs CODEBA locais (PDFs gitignored)
-├── scripts/                 # up/down Compose, backup, cron, smoke_readyz, score_art6_fixtures
+├── scripts/                 # up/down Compose, backup, cron, smoke_readyz
+├── scripts/windows/         # Atalhos PowerShell (backend nativo Windows)
 ├── backend/
 │   ├── Dockerfile
 │   ├── alembic/             # Migrações (head 20260908_003)

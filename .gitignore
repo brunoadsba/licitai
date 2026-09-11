@@ -56,6 +56,8 @@ Logo CODEBA.png
 
 # Temporary scratch files
 scratch/
+tmp/
+output/
 
 .omo/run-continuation/
 

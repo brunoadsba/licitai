@@ -148,7 +148,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `.env.example`: Template de configuração (BFF usa `API_TOKEN`; sem `NEXT_PUBLIC_API_TOKEN`).
 - `README.md`: Guia completo de instalação, segurança e arquitetura.
 - `memory.md`: Memória contínua do projeto.
-- `PLANO.md`: Plano do backlog pendente — fases priorizadas (hardening, qualidade, RF04, RAG v1.0, polimentos, v2.0) com tarefas, esforço e critérios de aceite.
+- `docs/archive/PLANO.md`: Backlog histórico por fases (maioria concluída). Docs vivos: `docs/ops/`, `docs/guia-usuario.md`, este `memory.md`.
 - `docs/ops/`: Deploy imutável, restore drill, SLOs, piloto, gate 14d, cron.
 - `fixtures/trs-codeba/`: Base local de TRs CODEBA para piloto/benchmark (**PDFs gitignored**). Ver README + MANIFEST.
 - `scripts/apply_reliability_schema.sql` + `scripts/smoke_readyz.sh`: migrate/smoke Postgres local.
@@ -442,7 +442,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Ver `PLANO.md` para backlog histórico. Branch ativa: **`main`** (FF de `feat/excelencia-piloto` em 10/09/2026). CI **não** reabilitar sem pedido.
+> Backlog histórico: [docs/archive/PLANO.md](docs/archive/PLANO.md). Branch ativa: **`main`**. CI **não** reabilitar sem pedido.
 
 ### Valor elaborador (Fases 0–4 — implementado, em `main`)
 - Fila Prioridade (alto/crítico + estrutural), pacote SEI, TR HTML corrigido, fluxo Atualizar TR (`?diffFrom=`), ops piloto (`docs/ops/piloto.md`, `scripts/backup_daily.sh`, `scripts/ops_alerts.sh`).
@@ -540,5 +540,6 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Dados piloto (11/09/2026)**: samples `sample-tr.docx` e órfãos removidos do Postgres/uploads; corpus jurídico preservado (~599 chunks). Painel vazio = esperado até TRs reais.  
 > **E2E full (11/09/2026)**: em `main` — Camada 0 `scripts/smoke_e2e_compose.sh`; API markers `e2e_fast`/`e2e_live`; Playwright P0–P2 em `frontend/e2e/`; doc [docs/ops/e2e-full.md](docs/ops/e2e-full.md). Guard: proposta não inicia análise de TR.  
 > **Compose/Postgres WSL (11/09/2026)**: `POSTGRES_PASSWORD` exportado no shell (às vezes com `\r`) sobrescrevia `.env` → `password authentication failed` / backend unhealthy. Fix ops: `.env` em LF; `unset` antes do compose; runbook em [docs/ops/deploy.md](docs/ops/deploy.md). Atalhos: `scripts/up.sh` / `scripts/down.sh` (`729d6e0`).  
+> **Organização docs (11/09/2026)**: PRDs/planos históricos movidos para [docs/archive/](docs/archive/) (sem exclusão). Vivos: README, memory, `docs/ops/`, `docs/guia-usuario.md`. `tmp/` e `output/` no `.gitignore`.  
 > **Pendências (10/09/2026)**: gate 14d, quinzena, SEI real, secrets, anonimizar, RILC completo opcional; ML bloqueado até dataset.  
 > **WIP separado**: stash `wip-rilc-codeba-rag` na branch `feat/rilc-codeba-rag` (fonte canônica RILC) — não misturar com UX.
