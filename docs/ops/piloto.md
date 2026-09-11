@@ -23,7 +23,17 @@ Checklist operacional do elaborador de TR em ambiente single-user.
 
 1. Rotacionar `GROQ_API_KEY` / `GEMINI_API_KEY` / `POSTGRES_PASSWORD` / `API_TOKEN` quando conveniente.
 2. Em `.env`, use driver async: `DATABASE_URL=postgresql+asyncpg://...` (nunca só `postgresql://` para a API).
-3. `.env` em **LF** (não CRLF). Antes do Compose: `unset POSTGRES_PASSWORD DATABASE_URL` — senão o shell pode sobrescrever o `.env` e deixar o backend `unhealthy`. Detalhes: [deploy.md](deploy.md#problemas-comuns-compose--postgres).
+3. `.env` em **LF** (não CRLF). Preferir `./scripts/up.sh` (já faz `unset POSTGRES_PASSWORD DATABASE_URL`). Se subir na mão sem o script, o shell pode sobrescrever o `.env` e deixar o backend `unhealthy`. Detalhes: [deploy.md](deploy.md#problemas-comuns-compose--postgres).
+
+## Subir / parar stack (Compose)
+
+```bash
+./scripts/up.sh            # dia a dia (após ligar o PC / Docker)
+./scripts/up.sh --build    # após mudança de frontend/imagem
+./scripts/down.sh          # opcional antes de desligar; não apaga dados
+```
+
+UI: `http://127.0.0.1:3000/` · API: `http://127.0.0.1:8000/`.
 
 ## Backup e alertas (cron)
 
@@ -62,7 +72,7 @@ PYTHONPATH=backend python backend/scripts/score_art6_fixtures.py
 
 ## Frontend (piloto)
 
-- URL: `http://127.0.0.1:3000/` (Compose)
+- URL: `http://127.0.0.1:3000/` (Compose) — ver seção Subir / parar stack
 - Tema claro/escuro: botão Sol/Lua no header (`licitai-theme` no `localStorage`)
 - Design: [frontend/DESIGN.md](../../frontend/DESIGN.md)
 

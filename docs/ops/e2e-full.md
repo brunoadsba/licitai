@@ -5,10 +5,11 @@ Runbook das três camadas. Branch de implementação: `feat/e2e-full`.
 ## Pré-requisitos
 
 ```bash
-unset POSTGRES_PASSWORD DATABASE_URL   # WSL: evita senha com \r do shell
-docker compose up -d --build
-# stack healthy: db, backend, worker, frontend
+./scripts/up.sh --build --e2e
+# stack healthy: db, backend, worker, frontend (+ BFF proxy OK)
 ```
+
+Equivalente manual: `unset POSTGRES_PASSWORD DATABASE_URL` → `docker compose up -d --build` → `./scripts/smoke_e2e_compose.sh`.
 
 Se `sei-backend` ficar `unhealthy` com erro de senha `sei_user`, ver [deploy.md — Problemas comuns](deploy.md#problemas-comuns-compose--postgres).
 
@@ -24,8 +25,9 @@ Variáveis úteis:
 
 ## Camada 0 — Smoke Compose
 
+Já coberto por `./scripts/up.sh --e2e`. Isolado:
+
 ```bash
-chmod +x scripts/smoke_e2e_compose.sh
 ./scripts/smoke_e2e_compose.sh
 ```
 

@@ -40,13 +40,22 @@ Bloquear promote se CRITICAL sem mitigação documentada.
 
 - Serviços: `db`, `backend` (API), **`worker`** (processa `jobs`), `frontend` (BFF injeta `API_TOKEN`).
 - Sem o `worker`, `POST .../start` só enfileira — análise/comparação não avançam.
-- Subir (frontend sem bind mount — mudanças de UI exigem rebuild):
+- Subir / parar (atalhos; frontend sem bind mount — mudanças de UI exigem `--build`):
 
 ```bash
-unset POSTGRES_PASSWORD DATABASE_URL   # evita override sujo do shell (ver abaixo)
+./scripts/up.sh              # unset env sujo + compose up -d + smoke_readyz
+./scripts/up.sh --build      # após mudança de UI/imagem
+./scripts/up.sh --e2e        # + smoke_e2e_compose (readyz + BFF /api/proxy)
+./scripts/down.sh            # compose down; NÃO apaga pgdata
+```
+
+Equivalente manual:
+
+```bash
+unset POSTGRES_PASSWORD DATABASE_URL
 docker compose up -d --build
-./scripts/smoke_readyz.sh              # readiness básico
-./scripts/smoke_e2e_compose.sh         # readiness + BFF /api/proxy
+./scripts/smoke_readyz.sh
+# ou: ./scripts/smoke_e2e_compose.sh
 ```
 
 - Frontend: build arg `BACKEND_URL=http://backend:8000` obrigatório (rewrites do Next são embutidos no build).
@@ -89,7 +98,7 @@ docker compose up -d --no-deps worker frontend
 
 **Evitar:** `docker compose down -v` apaga o volume `pgdata` (dados locais). Só use se for reset deliberado.
 
-**Prevenção:** antes de todo `compose up`, `unset POSTGRES_PASSWORD DATABASE_URL`; manter `.env` em LF no WSL.
+**Prevenção:** preferir `./scripts/up.sh` (já faz `unset`); manter `.env` em LF no WSL. Se subir na mão: `unset POSTGRES_PASSWORD DATABASE_URL` antes do compose.
 
 ## Checklist pré-promote
 

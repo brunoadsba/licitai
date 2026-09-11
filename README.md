@@ -206,7 +206,7 @@ licitacao/
 ├── memory.md                # Memória contínua (contexto p/ agentes)
 ├── docs/ops/                # Deploy, restore, SLOs, piloto, gate 14d, cron
 ├── fixtures/trs-codeba/     # TRs CODEBA locais (PDFs gitignored)
-├── scripts/                 # backup, cron, smoke_readyz, score_art6_fixtures
+├── scripts/                 # up/down Compose, backup, cron, smoke_readyz, score_art6_fixtures
 ├── backend/
 │   ├── Dockerfile
 │   ├── alembic/             # Migrações (head 20260908_003)
