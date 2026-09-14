@@ -463,8 +463,8 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 | # | Pendência | Tipo | Detalhe / doc |
 |---|-----------|------|----------------|
-| 1 | **Gate 14 dias** de uso real CODEBA | **Aberto 14/09 → 28/09** | Sessão 0 (TR ouro) feita; continuar uso + SEI real. [gate-piloto-14d.md](docs/ops/gate-piloto-14d.md) |
-| 2 | **Benchmark quinzenal** (5 TRs) | Baseline + sessão ouro | Art.6 heurística 76%; sessão ouro LLM `09-ti-pabx-nuvem` (rejeição 90% nos 10 pendentes, SEI+DOCX OK). Demais TRs LLM sob cota. [quinzena-2026-09-14.md](docs/ops/quinzena-2026-09-14.md) |
+| 1 | **Gate 14 dias** de uso real CODEBA | **Aberto 14/09 → 28/09** | Sessão 0 (TR ouro) feita; **próximo (15/09):** re-upload + reanálise `09-ti-pabx-nuvem` pós-hardening. [gate-piloto-14d.md](docs/ops/gate-piloto-14d.md) |
+| 2 | **Benchmark quinzenal** (5 TRs) | Baseline + sessão ouro; **continuar 15/09** | Art.6 heurística 76%; sessão ouro LLM ~13 min. Demais TRs LLM sob cota. [quinzena-2026-09-14.md](docs/ops/quinzena-2026-09-14.md) |
 | 3 | **Validar export no SEI real** | Humano | Colar/anexar HTML/DOCX/pacote em minuta ou processo de teste |
 | 4 | **Rotação de secrets** | Ops manual | `GROQ_API_KEY` / `GEMINI_API_KEY` / `POSTGRES_PASSWORD` / `API_TOKEN` |
 | 5 | **Anonimizar** e-mails nos TRs de Emergência | Dados | Antes de free-tier cloud |
