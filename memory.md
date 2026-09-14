@@ -557,11 +557,11 @@ Tokens claros endurecidos (`--text-muted` `#475569`, borders mais fortes); `Badg
 Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh --build` (ou `docker compose up -d --build frontend`).
 
 ### Agora (ops / Bruno) — ordem sugerida
-1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`.
-2. Iniciar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)) com TRs de `piloto-unico/`.
-3. Em paralelo: **1ª quinzena** de qualidade (5 TRs) + validar 1 export no SEI.
-4. Rotacionar secrets quando conveniente; anonimizar Emergência antes de cloud.
-5. **RILC CODEBA completo** no RAG: pronto — ver `backend/data/rilc/README.md` e `scripts/ingest_rilc_codeba.py`.
+1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build` (worker precisa de `defusedxml`).
+2. **Próxima sessão (15/09/2026):** testes reais com TR de TI `fixtures/trs-codeba/piloto-unico/09-ti-pabx-nuvem.pdf` — **re-upload** (parser TOC/hardening pós-14/09); economic + `ANALYSIS_MAX_LLM_CALLS=24`; expectativa **~10–15 min** (sessão ouro: 13 min / 778 s).
+3. Continuar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)): revisar alto/crítico, anotar rejeição, validar pacote SEI/DOCX.
+4. Em paralelo quando houver cota: demais TRs da quinzena (`07` → `11` → `01` → `05`) + colar export no SEI real.
+5. Rotacionar secrets quando conveniente; anonimizar Emergência antes de cloud.
 6. **Não** abrir fine-tune até existir volume de feedback humano curado.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
