@@ -415,6 +415,23 @@ async def get_analysis(
     summary = summarize_art6_coverage(checklist_rows)
     resp.art6_coverage = summary["art6_coverage"]
     resp.art6_meets_target = summary["art6_meets_target"]
+
+    snapshot = analysis.run_snapshot or {}
+    raw_ids = snapshot.get("analyzed_item_ids") or []
+    parsed_ids: list[uuid.UUID] = []
+    for raw in raw_ids:
+        try:
+            parsed_ids.append(uuid.UUID(str(raw)))
+        except (ValueError, TypeError):
+            continue
+    resp.analyzed_item_ids = parsed_ids
+    resp.budget_truncated = bool(snapshot.get("budget_truncated"))
+    if not resp.budget_truncated and analysis.error_message:
+        msg = analysis.error_message
+        resp.budget_truncated = (
+            "ANALYSIS_MAX_LLM_CALLS" in msg
+            or "itens prioritários" in msg
+        )
     return resp
 
 
@@ -713,10 +730,19 @@ async def reanalyze_partial(
     analysis_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
 ):
-    """Enfileira nova análise só dos itens com coverage_errors na análise anterior."""
+    """
+    Enfileira nova análise dos itens faltantes:
+    - itens com coverage_errors na análise anterior; e/ou
+    - cláusulas substantivas ainda não analisadas (orçamento truncado).
+    """
+    from app.services.parser.detection import is_substantive_content
+
     result = await db.execute(
         select(Analysis)
-        .options(selectinload(Analysis.corrections))
+        .options(
+            selectinload(Analysis.corrections),
+            selectinload(Analysis.document).selectinload(Document.items),
+        )
         .where(Analysis.id == analysis_id)
     )
     analysis = result.scalar_one_or_none()
@@ -734,10 +760,33 @@ async def reanalyze_partial(
         if evidence.get("coverage_errors"):
             item_ids.add(str(c.document_item_id))
 
+    snapshot_prev = analysis.run_snapshot or {}
+    already = {str(x) for x in (snapshot_prev.get("analyzed_item_ids") or [])}
+    budget_cut = bool(snapshot_prev.get("budget_truncated"))
+    if not budget_cut and analysis.error_message:
+        budget_cut = (
+            "ANALYSIS_MAX_LLM_CALLS" in analysis.error_message
+            or "itens prioritários" in analysis.error_message
+        )
+    if budget_cut and analysis.document:
+        for item in analysis.document.items:
+            if getattr(item, "archived_at", None) is not None:
+                continue
+            sid = str(item.id)
+            if sid in already:
+                continue
+            if is_substantive_content(
+                item.content or "",
+                item.title,
+                item.item_number,
+                item.item_type,
+            ):
+                item_ids.add(sid)
+
     if not item_ids:
         raise HTTPException(
             status_code=404,
-            detail="Nenhum item com coverage_errors para reanalisar.",
+            detail="Nenhum item pendente para reanalisar.",
         )
 
     doc_result = await db.execute(
@@ -825,6 +874,16 @@ async def list_document_analyses(
     for a in analyses:
         resp = AnalysisDetailResponse.model_validate(a)
         resp.tokens_estimated = estimate_tokens(a)
+        snapshot = a.run_snapshot or {}
+        raw_ids = snapshot.get("analyzed_item_ids") or []
+        parsed: list[uuid.UUID] = []
+        for raw in raw_ids:
+            try:
+                parsed.append(uuid.UUID(str(raw)))
+            except (ValueError, TypeError):
+                continue
+        resp.analyzed_item_ids = parsed
+        resp.budget_truncated = bool(snapshot.get("budget_truncated"))
         out.append(resp)
     return out
 

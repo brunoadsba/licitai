@@ -494,7 +494,13 @@ export default function AnalysisPage() {
       {analysis?.status === 'completed_with_errors' && (
         <AlertBanner
           variant="warning"
-          title="Análise concluída, mas alguns trechos falharam"
+          title={
+            analysis.budget_truncated ||
+            (analysis.error_message?.includes('itens prioritários') ?? false) ||
+            (analysis.error_message?.includes('ANALYSIS_MAX_LLM_CALLS') ?? false)
+              ? 'Análise preliminar concluída'
+              : 'Análise concluída, mas alguns trechos falharam'
+          }
           action={
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={() => void handleReanalyzePartial()} loading={analyzing}>
@@ -506,8 +512,12 @@ export default function AnalysisPage() {
             </div>
           }
         >
-          {analysis.error_message ||
-            'Parte da análise falhou. Não trate todos os itens como adequados.'}
+          {analysis.budget_truncated ||
+          analysis.error_message?.includes('itens prioritários') ||
+          analysis.error_message?.includes('ANALYSIS_MAX_LLM_CALLS')
+            ? 'Análise preliminar de itens prioritários concluída. Para auditar os demais trechos substantivos, utilize "Reanalisar faltantes".'
+            : analysis.error_message ||
+              'Parte da análise falhou. Não trate todos os itens como adequados.'}
         </AlertBanner>
       )}
       {errorInfo && (
@@ -526,7 +536,7 @@ export default function AnalysisPage() {
 
       {analysis && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-content-muted">Fila:</span>
+          <span className="text-xs font-medium text-content-secondary">Próximo passo:</span>
           <Button
             size="sm"
             variant={priorityMode === 'priority' ? 'primary' : 'secondary'}
@@ -544,7 +554,7 @@ export default function AnalysisPage() {
             Ver todas
           </Button>
           <span className="text-xs text-content-subtle">
-            Sugestões graves e partes faltantes do TR
+            Comece pelas sugestões graves e partes faltantes do TR
           </span>
         </div>
       )}
@@ -576,6 +586,8 @@ export default function AnalysisPage() {
             getUpdatedItemText={getUpdatedItemText}
             showCorrections={!!analysis}
             onReviewUpdated={handleReviewUpdated}
+            analyzedItemIds={analysis?.analyzed_item_ids}
+            analysisDone={analysisDone}
             className={diffFrom ? 'lg:col-span-6' : undefined}
           />
         ) : (

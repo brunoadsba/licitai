@@ -1,11 +1,11 @@
 """
 Testes de regressão do estruturador de documentos.
 
-Cobrem os dois bugs corrigidos em documentos padrão SEI:
-1. Número de seção/item em linha isolada ("1." seguido de "O OBJETO" na linha seguinte)
-2. Dados de tabela (ex.: "9.000 BTU") que eram erroneamente detectados como itens
+Cobrem bugs em documentos padrão SEI, exclusão de SUMÁRIO/ÍNDICE
+e classificação de conteúdo substantivo vs título puro.
 """
 
+from app.services.parser.detection import is_substantive_content
 from app.services.parser.structurer import structure_items
 
 
@@ -129,3 +129,95 @@ def test_item_romano_detectado():
     numero = item.get("item_number", item.get("number"))
     assert tipo == "section"
     assert numero == "I"
+
+
+def test_sumario_nao_gera_itens():
+    """Linhas do SUMÁRIO não viram DocumentItem; o corpo do TR sim."""
+    texto = """
+HISTÓRICO DE REVISÕES
+SUMÁRIO
+01 – OBJETO DA CONTRATAÇÃO
+02 – DESCRIÇÃO DA SOLUÇÃO DE TIC
+03 – JUSTIFICATIVA PARA A CONTRATAÇÃO
+4.1. Requisitos de Negócio
+Termo de Referência / Projeto Básico 3 versão 2.0 (11776923)         SEI 50903.003322/2026-52 / pg. 1
+4.8. Requisitos de Capacitação
+05 – RESPONSABILIDADES
+TERMO DE REFERÊNCIA OU PROJETO BÁSICO
+1.
+OBJETO DA CONTRATAÇÃO
+1.1.
+A presente contratação tem por objeto a prestação de serviços de telefonia
+fixa corporativa, contemplando STFC integrado à solução de PABX em nuvem.
+"""
+    items = structure_items(texto, pages=[])
+    numeros = [it["item_number"] for it in items]
+    # Não deve haver "01", "02", "03", "4.8", "05" do sumário
+    assert "01" not in numeros
+    assert "02" not in numeros
+    assert "03" not in numeros
+    assert "4.1" not in numeros
+    assert "4.8" not in numeros
+    assert "05" not in numeros
+    assert "1" in numeros
+    assert "1.1" in numeros
+    assert any(
+        "telefonia" in it["content"].lower()
+        for it in items
+        if it["item_number"] == "1.1"
+    )
+
+
+def test_indice_nao_gera_itens():
+    texto = """
+ÍNDICE
+1. Objeto
+2. Justificativa
+TERMO DE REFERÊNCIA
+1. Objeto
+A contratação visa a aquisição de materiais de escritório em quantidade
+suficiente para atender as unidades administrativas durante doze meses.
+"""
+    items = structure_items(texto, pages=[])
+    # Apenas o corpo (seção 1 com texto), não a linha do índice
+    assert len(items) == 1
+    assert items[0]["item_number"] == "1"
+    assert "aquisição" in items[0]["content"].lower()
+
+
+def test_is_substantive_titulo_puro_falso():
+    assert not is_substantive_content(
+        "01 – OBJETO DA CONTRATAÇÃO",
+        title="OBJETO DA CONTRATAÇÃO",
+        item_number="01",
+        item_type="section",
+    )
+    assert not is_substantive_content(
+        "1. OBJETO DA CONTRATAÇÃO",
+        title="OBJETO DA CONTRATAÇÃO",
+        item_number="1",
+        item_type="section",
+    )
+
+
+def test_is_substantive_clausula_real_verdadeiro():
+    content = (
+        "1.1. A presente contratação tem por objeto a prestação de serviços de "
+        "telefonia fixa corporativa, contemplando STFC integrado à solução de "
+        "PABX em nuvem durante a vigência contratual."
+    )
+    assert is_substantive_content(
+        content,
+        title="A presente contratação tem por objeto",
+        item_number="1.1",
+        item_type="item",
+    )
+
+
+def test_is_substantive_tabela_sempre_falso():
+    assert not is_substantive_content(
+        "Data | Versão | Descrição | Autor",
+        title="Tabela",
+        item_number="TAB-1",
+        item_type="table",
+    )

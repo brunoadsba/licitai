@@ -471,7 +471,22 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 | 7 | ~~**RILC CODEBA completo** no RAG~~ | Feito (14/09/2026) | Fonte `backend/data/rilc/source/` + `provenance.json`; ingestão `python scripts/ingest_rilc_codeba.py` (287 arts., page em metadata) |
 | 8 | **Fine-tune / treino ML** | Bloqueado | Só após gate + dataset de aprovar/rejeitar/thumbs-down (`promote_feedback.py`). Treinar agora sem rótulos estáveis não é o próximo passo |
 
-**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`.
+**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`, exclusão de sumário/títulos na análise + UX análise (14/09/2026).
+
+### Correção análise: sumário/títulos + UX (14/09/2026)
+
+Causa raiz da sessão ouro: o estruturador transformava linhas do **SUMÁRIO** (`01 – OBJETO…`) em `DocumentItem` sem corpo; com `ANALYSIS_MAX_LLM_CALLS=24` o motor gastava a cota só nesses títulos → falsos positivos Art. 6º.
+
+| Camada | Entrega |
+|--------|---------|
+| Parser | Ignora bloco `SUMÁRIO`/`ÍNDICE` até título do corpo (`TERMO DE REFERÊNCIA…`); rodapé SEI não encerra o TOC cedo |
+| Substantivo | `is_substantive_content()` — títulos/tabelas fora da LLM |
+| Engine | `select_items_for_analysis()` filtra headings + prioriza seções 1/3/4/5/7; snapshot `analyzed_item_ids` / `budget_truncated` |
+| Agente estrutural | Não exige Art. 6º inteiro em cada cláusula isolada |
+| API | `analyzed_item_ids` + `budget_truncated` na análise; reanalyze-partial cobre itens cortados por orçamento |
+| UI | Estados Tópico / Não analisado / Conformidade; card limpo (gravidade+status → DE/PARA → decisão → Copiar SEI → fundamentação); banner sem jargão `ANALYSIS_MAX_LLM_CALLS` |
+
+Testes: `test_structurer` + `test_engine` (22) + regressão fixture `09-ti-pabx-nuvem` (orçamento inicia em `1.1`…`3.x`). **Re-upload** do TR antigo necessário para limpar itens de sumário já persistidos.
 
 ### UI / Design system (10/09/2026)
 
@@ -545,4 +560,5 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Embeddings (14/09/2026)**: `ingest_embeddings.py` — **599/599** processados, 0 falhas, 0 pendentes.  
 > **Quinzena Art.6 (14/09/2026)**: baseline heurística em 5 TRs — média **76%**, ≥90% **2/5**; [docs/ops/quinzena-2026-09-14.md](docs/ops/quinzena-2026-09-14.md).  
 > **Sessão ouro + gate (14/09/2026)**: analysis `6f673b1b-…` economic com `ANALYSIS_MAX_LLM_CALLS=24`; `completed_with_errors`; SEI+DOCX OK; gate aberto até 28/09; outreach [outreach-solange-2026-09-14.md](docs/ops/outreach-solange-2026-09-14.md).  
+> **Fix análise sumário/títulos + UX (14/09/2026)**: TOC ignorado no parser; só cláusulas substantivas na LLM; priorização Art.6; UI sem falso “Item adequado”; banner PT-BR. Re-upload do TR ouro antes de reanalisar.  
 > **Pendências**: Solange enviar TRs, colar SEI real, secrets, anonimizar Emergência; ML bloqueado até dataset.

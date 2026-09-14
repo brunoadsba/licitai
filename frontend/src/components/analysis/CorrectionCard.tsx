@@ -1,13 +1,15 @@
 'use client';
 
+import { useState } from 'react';
 import type { CorrectionResponse, ReviewStatus } from '@/types';
-import { CATEGORY_LABELS, SEVERITY_LABELS } from '@/types';
-import { AGENT_ORIGIN_CONFIG, getCategoryTone, getSeverityTone } from '@/lib/badges';
+import { SEVERITY_LABELS } from '@/types';
+import { getSeverityTone } from '@/lib/badges';
 import type { Tone } from '@/lib/badges';
 import { Badge } from '@/components/ui/Badge';
 import { useCopy } from '@/lib/useCopy';
 import CorrectionReviewActions from '@/components/analysis/CorrectionReviewActions';
-import { Check, ClipboardCopy, TriangleAlert } from 'lucide-react';
+import { Check, ChevronDown, ClipboardCopy, TriangleAlert } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface CorrectionCardProps {
   correction: CorrectionResponse;
@@ -43,59 +45,22 @@ export default function CorrectionCard({
   onReviewUpdated,
 }: CorrectionCardProps) {
   const { copy, isCopied } = useCopy();
-  const agent = correction.agent_origin ? AGENT_ORIGIN_CONFIG[correction.agent_origin] : null;
   const reviewStatus = correction.review_status ?? 'pendente';
   const canCopyPara = isSeiCopyAllowed(reviewStatus);
+  const [fundOpen, setFundOpen] = useState(false);
 
   return (
     <div
       className="animate-slide-up rounded-lg border border-line-subtle bg-surface/50 p-5"
       style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}
     >
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {agent && (
-            <Badge tone={agent.trust === 'automatica' ? 'info' : 'neutral'}>
-              {agent.trust === 'automatica' ? 'Automática' : 'IA'}
-            </Badge>
-          )}
-          <Badge tone={getSeverityTone(correction.severity)}>
-            {SEVERITY_LABELS[correction.severity] || correction.severity}
-          </Badge>
-          <Badge tone={getCategoryTone(correction.category)}>
-            {CATEGORY_LABELS[correction.category] || correction.category}
-          </Badge>
-          <Badge tone={REVIEW_STATUS_TONE[reviewStatus]}>
-            {REVIEW_STATUS_LABELS[reviewStatus]}
-          </Badge>
-        </div>
-
-        <button
-          type="button"
-          disabled={!canCopyPara}
-          onClick={() => {
-            if (!canCopyPara) return;
-            copy(correction.suggested_text, `para_${correction.id}`);
-          }}
-          title={
-            canCopyPara
-              ? 'Copiar texto de substituição para colar no SEI'
-              : 'Disponível apenas para correções aprovadas ou ajustadas'
-          }
-          className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/15 px-3 py-1.5 text-xs font-medium text-green-300 outline-none transition-colors hover:bg-green-500/25 focus-visible:ring-2 focus-visible:ring-green-500/60 disabled:cursor-not-allowed disabled:border-line-subtle disabled:bg-canvas/40 disabled:text-content-subtle disabled:hover:bg-canvas/40"
-        >
-          {isCopied(`para_${correction.id}`) ? (
-            <>
-              <Check className="h-3.5 w-3.5 text-green-400" aria-hidden />
-              Texto copiado
-            </>
-          ) : (
-            <>
-              <ClipboardCopy className="h-3.5 w-3.5" aria-hidden />
-              Copiar texto corrigido
-            </>
-          )}
-        </button>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Badge tone={getSeverityTone(correction.severity)}>
+          {SEVERITY_LABELS[correction.severity] || correction.severity}
+        </Badge>
+        <Badge tone={REVIEW_STATUS_TONE[reviewStatus]}>
+          {REVIEW_STATUS_LABELS[reviewStatus]}
+        </Badge>
       </div>
 
       <p className="mb-4 text-sm text-content-secondary">{correction.problem}</p>
@@ -107,28 +72,10 @@ export default function CorrectionCard({
           </p>
           <p className="text-sm text-red-300/90">{correction.original_text}</p>
         </div>
-        <div className="diff-added group relative">
-          <div className="mb-1 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wider text-green-400/70">
-              Sugerido
-            </p>
-            <button
-              type="button"
-              disabled={!canCopyPara}
-              onClick={() => {
-                if (!canCopyPara) return;
-                copy(correction.suggested_text, `para_sub_${correction.id}`);
-              }}
-              title={
-                canCopyPara
-                  ? undefined
-                  : 'Disponível apenas para correções aprovadas ou ajustadas'
-              }
-              className="text-[11px] text-green-400/80 underline outline-none hover:text-green-300 focus-visible:ring-2 focus-visible:ring-green-500/60 disabled:cursor-not-allowed disabled:text-content-subtle disabled:no-underline disabled:hover:text-content-subtle"
-            >
-              {isCopied(`para_sub_${correction.id}`) ? 'Copiado!' : 'Copiar'}
-            </button>
-          </div>
+        <div className="diff-added">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-green-400/70">
+            Sugerido
+          </p>
           <p className="text-sm text-green-300/90">{correction.suggested_text}</p>
         </div>
       </div>
@@ -140,33 +87,60 @@ export default function CorrectionCard({
         />
       )}
 
-      <div className="relative rounded-lg border border-line-subtle bg-canvas/40 p-3">
-        <div className="mb-1 flex items-center justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wider text-content-subtle">
-            Justificativa &amp; Fundamentação
-          </p>
+      {canCopyPara && (
+        <div className="mb-3">
           <button
             type="button"
-            onClick={() =>
-              copy(
-                `${correction.justification}${correction.legal_basis ? ` (Fundamento: ${correction.legal_basis})` : ''}`,
-                `just_${correction.id}`,
-              )
-            }
-            className="text-[11px] text-accent-400/80 underline outline-none hover:text-accent-300 focus-visible:ring-2 focus-visible:ring-accent-500/60"
+            onClick={() => copy(correction.suggested_text, `para_${correction.id}`)}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/15 px-3 py-2.5 text-sm font-medium text-green-300 outline-none transition-colors hover:bg-green-500/25 focus-visible:ring-2 focus-visible:ring-green-500/60 sm:w-auto"
           >
-            {isCopied(`just_${correction.id}`) ? 'Copiado!' : 'Copiar Justificativa'}
+            {isCopied(`para_${correction.id}`) ? (
+              <>
+                <Check className="h-4 w-4 text-green-400" aria-hidden />
+                Texto copiado
+              </>
+            ) : (
+              <>
+                <ClipboardCopy className="h-4 w-4" aria-hidden />
+                Copiar para o SEI
+              </>
+            )}
           </button>
         </div>
-        <p className="text-sm text-content-muted">{correction.justification}</p>
-        {correction.legal_basis && (
-          <p className="tnum mt-2 font-mono text-xs text-accent-400">{correction.legal_basis}</p>
-        )}
-      </div>
+      )}
 
-      <div className="mt-3 flex items-start gap-2">
-        <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" aria-hidden />
-        <p className="text-xs text-yellow-400/70">{correction.risk}</p>
+      <div className="relative rounded-lg border border-line-subtle bg-canvas/40">
+        <button
+          type="button"
+          onClick={() => setFundOpen((v) => !v)}
+          className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent-500/60"
+          aria-expanded={fundOpen}
+        >
+          <span className="text-xs font-semibold uppercase tracking-wider text-content-subtle">
+            Ver fundamentação jurídica
+          </span>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 shrink-0 text-content-subtle transition-transform',
+              fundOpen && 'rotate-180',
+            )}
+            aria-hidden
+          />
+        </button>
+        {fundOpen && (
+          <div className="border-t border-line-subtle px-3 pb-3 pt-2">
+            <p className="text-sm text-content-muted">{correction.justification}</p>
+            {correction.legal_basis && (
+              <p className="tnum mt-2 font-mono text-xs text-accent-400">{correction.legal_basis}</p>
+            )}
+            {correction.risk && (
+              <div className="mt-3 flex items-start gap-2">
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" aria-hidden />
+                <p className="text-xs text-yellow-400/70">{correction.risk}</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

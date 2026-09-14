@@ -147,6 +147,8 @@ class AnalysisDetailResponse(BaseModel):
     art6_checklist: list[Art6ChecklistItem] = []
     art6_coverage: float | None = None
     art6_meets_target: bool | None = None
+    analyzed_item_ids: list[uuid.UUID] = []
+    budget_truncated: bool = False
 
 
 class ScoreDetail(BaseModel):

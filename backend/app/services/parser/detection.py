@@ -51,7 +51,26 @@ PATTERNS = {
     # Tabela marcada
     "table_start": re.compile(r"^\[TABELA\]", re.MULTILINE),
     "table_end": re.compile(r"^\[/TABELA\]", re.MULTILINE),
+
+    # Sumário / Índice (início do bloco)
+    "toc_start": re.compile(
+        r"^(SUM[AÁ]RIO|ÍNDICE|INDICE)(\s|$)",
+        re.IGNORECASE,
+    ),
+
+    # Fim típico do sumário: título do corpo do documento (linha curta, sem rodapé)
+    "toc_end": re.compile(
+        r"^(TERMO\s+DE\s+REFER[EÊ]NCIA(\s+(OU|/)\s+PROJETO\s+B[AÁ]SICO)?|"
+        r"PROJETO\s+B[AÁ]SICO)\s*$",
+        re.IGNORECASE,
+    ),
 }
+
+
+# Mínimos para considerar conteúdo substantivo (cláusula real, não só título)
+_MIN_BODY_CHARS = 50
+_MIN_BODY_WORDS = 8
+_SENTENCE_PUNCT = frozenset(".…;:")
 
 
 def _is_table_data_title(title: str) -> bool:
@@ -83,6 +102,111 @@ def _is_footer_like(line: str) -> bool:
     )
     lowered = line.lower()
     return any(marker in lowered for marker in footer_markers)
+
+
+def _is_toc_start(line: str) -> bool:
+    """Linha que inicia bloco de sumário/índice."""
+    return bool(PATTERNS["toc_start"].match(line.strip()))
+
+
+def _is_toc_end(line: str) -> bool:
+    """
+    Linha que encerra o bloco de sumário (início do corpo do TR).
+
+    Ignora rodapés SEI do tipo
+    "Termo de Referência / Projeto Básico 3 versão 2.0 … SEI …".
+    """
+    stripped = line.strip()
+    if not stripped:
+        return False
+    # Rodapé / cabeçalho de página — não encerra o sumário
+    lowered = stripped.lower()
+    if "sei " in lowered or "sei nº" in lowered or " / pg." in lowered:
+        return False
+    if "versão" in lowered and any(ch.isdigit() for ch in stripped):
+        # "Termo de Referência / Projeto Básico 3 versão 2.0 (...)"
+        if len(stripped) > 40:
+            return False
+    return bool(PATTERNS["toc_end"].match(stripped))
+
+
+def _strip_heading_prefix(
+    content: str,
+    title: str | None,
+    item_number: str | None,
+) -> str:
+    """Remove número e título do início do conteúdo, deixando só o corpo."""
+    body = (content or "").strip()
+    if not body:
+        return ""
+
+    # Remover primeira linha se for só o cabeçalho
+    lines = body.split("\n")
+    first = lines[0].strip()
+    candidates: list[str] = []
+    if title:
+        candidates.append(title.strip())
+    if item_number and title:
+        candidates.extend(
+            [
+                f"{item_number} {title}".strip(),
+                f"{item_number}. {title}".strip(),
+                f"{item_number} – {title}".strip(),
+                f"{item_number} - {title}".strip(),
+                f"{item_number}—{title}".strip(),
+            ]
+        )
+    if item_number:
+        candidates.append(item_number.strip())
+
+    normalized_first = re.sub(r"\s+", " ", first).casefold()
+    for cand in candidates:
+        if not cand:
+            continue
+        if normalized_first == re.sub(r"\s+", " ", cand).casefold():
+            return "\n".join(lines[1:]).strip()
+
+    # Conteúdo inteiro idêntico ao título/cabeçalho
+    normalized_body = re.sub(r"\s+", " ", body).casefold()
+    for cand in candidates:
+        if cand and normalized_body == re.sub(r"\s+", " ", cand).casefold():
+            return ""
+
+    return body
+
+
+def is_substantive_content(
+    content: str,
+    title: str | None = None,
+    item_number: str | None = None,
+    item_type: str | None = None,
+) -> bool:
+    """
+    Indica se o item tem texto de cláusula (obrigação, descrição, regra).
+
+    Títulos, tópicos e subtópicos sem corpo retornam False — não devem
+    ir para a LLM. Tabelas não são auditadas como cláusula.
+    """
+    if item_type == "table":
+        return False
+
+    body = _strip_heading_prefix(content, title, item_number)
+    if not body:
+        return False
+
+    # Remover espaços e medir corpo restante
+    compact = re.sub(r"\s+", " ", body).strip()
+    if len(compact) < _MIN_BODY_CHARS:
+        return False
+
+    words = [w for w in re.split(r"\s+", compact) if w]
+    if len(words) < _MIN_BODY_WORDS:
+        return False
+
+    if not any(ch in _SENTENCE_PUNCT for ch in compact):
+        return False
+
+    return True
 
 
 def _detect_item_type(line: str) -> dict | None:

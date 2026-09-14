@@ -8,14 +8,26 @@ Recebe texto bruto e identifica a estrutura hierárquica do documento:
 - Títulos
 - Tabelas
 - Anexos
+
+Ignora blocos de SUMÁRIO/ÍNDICE para não transformar linhas do índice
+em DocumentItems vazios (causa raiz de falsos positivos Art. 6º).
 """
 
 import logging
 
-from app.services.parser.detection import PATTERNS, _detect_item_type, _is_footer_like
+from app.services.parser.detection import (
+    PATTERNS,
+    _detect_item_type,
+    _is_footer_like,
+    _is_toc_end,
+    _is_toc_start,
+    is_substantive_content,
+)
 from app.services.parser.pagemap import _build_page_map, _get_page_for_position
 
 logger = logging.getLogger(__name__)
+
+__all__ = ["structure_items", "is_substantive_content"]
 
 
 def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
@@ -41,14 +53,34 @@ def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
     current_item = None
     current_content_lines = []
     in_table = False
+    in_toc = False
     table_content = []
 
     line_idx = 0
     while line_idx < len(lines):
         stripped = lines[line_idx].strip()
         if not stripped:
-            if current_content_lines:
+            if current_content_lines and not in_toc:
                 current_content_lines.append("")
+            line_idx += 1
+            continue
+
+        # --- Bloco SUMÁRIO / ÍNDICE: não gera DocumentItem ---
+        if _is_toc_start(stripped):
+            in_toc = True
+            # Descarta item em construção (não deve acumular sumário)
+            current_item = None
+            current_content_lines = []
+            line_idx += 1
+            continue
+
+        if in_toc:
+            if _is_toc_end(stripped):
+                in_toc = False
+                # Não processar a linha de fim como item; só sair do bloco
+                line_idx += 1
+                continue
+            # Dentro do sumário: pular qualquer linha (numerada ou não)
             line_idx += 1
             continue
 

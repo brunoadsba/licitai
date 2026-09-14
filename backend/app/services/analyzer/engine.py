@@ -13,6 +13,7 @@ Orquestra a análise item a item usando LLM em fases:
 import asyncio
 import hashlib
 import logging
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -43,10 +44,14 @@ from app.services.analyzer.scoring import (
     sanitize_scores,
 )
 from app.services.llm import get_llm_provider
+from app.services.parser.detection import is_substantive_content
 from app.services.rag.retriever import retrieve
 from app.utils.metrics import metrics
 
 logger = logging.getLogger(__name__)
+
+# Prefixos de numeração priorizados no orçamento (Art. 6º / cláusulas críticas)
+_PRIORITY_SECTION_PREFIXES = ("1", "3", "4", "5", "7")
 
 
 def _build_orchestrator(mode: str) -> MultiAgentOrchestrator | None:
@@ -63,6 +68,66 @@ def _calls_per_item(mode: str) -> int:
     if mode == "single":
         return 1
     return 4
+
+
+def _item_is_substantive(item: DocumentItem) -> bool:
+    return is_substantive_content(
+        content=item.content or "",
+        title=item.title,
+        item_number=item.item_number,
+        item_type=item.item_type,
+    )
+
+
+def _section_root(item_number: str) -> str:
+    """Raiz numérica da seção (ex.: '4.3.1' → '4', '01' → '1', '4.8-1' → '4')."""
+    raw = (item_number or "").strip()
+    # Sufixo de desambiguação do estruturador (ex.: a-1, 4.8-1)
+    raw = re.sub(r"-\d+$", "", raw)
+    first = raw.split(".", 1)[0]
+    digits = "".join(ch for ch in first if ch.isdigit())
+    if not digits:
+        return raw
+    return str(int(digits))
+
+
+def _priority_rank(item: DocumentItem) -> tuple[int, int]:
+    """
+    Ordenação para orçamento limitado: seções críticas primeiro,
+    depois ordem original do documento.
+    """
+    root = _section_root(item.item_number)
+    if root in _PRIORITY_SECTION_PREFIXES:
+        return (0, _PRIORITY_SECTION_PREFIXES.index(root))
+    return (1, 99)
+
+
+def select_items_for_analysis(
+    items: list[DocumentItem],
+    max_items: int | None = None,
+) -> tuple[list[DocumentItem], list[DocumentItem], bool]:
+    """
+    Filtra títulos/subtópicos e aplica teto de orçamento nas cláusulas reais.
+
+    Returns:
+        (work_items, skipped_headings, budget_truncated)
+    """
+    substantive = [i for i in items if _item_is_substantive(i)]
+    headings = [i for i in items if not _item_is_substantive(i)]
+
+    budget_truncated = False
+    if max_items is not None and max_items > 0 and len(substantive) > max_items:
+        # Preservar ordem do documento, mas priorizar seções críticas
+        ranked = sorted(
+            enumerate(substantive),
+            key=lambda pair: (_priority_rank(pair[1]), pair[0]),
+        )
+        chosen_idx = {idx for idx, _ in ranked[:max_items]}
+        # Manter ordem relativa do documento entre os escolhidos
+        substantive = [item for idx, item in enumerate(substantive) if idx in chosen_idx]
+        budget_truncated = True
+
+    return substantive, headings, budget_truncated
 
 
 async def run_analysis(
@@ -116,31 +181,42 @@ async def run_analysis(
     mode = getattr(analysis, "analysis_mode", "multi_agent") or "multi_agent"
     orchestrator = _build_orchestrator(mode)
 
-    snapshot = analysis.run_snapshot or {}
+    snapshot = dict(analysis.run_snapshot or {})
     only_ids = snapshot.get("only_item_ids")
     all_items = [
         i for i in document.items if getattr(i, "archived_at", None) is None
     ]
     if only_ids:
         id_set = {str(x) for x in only_ids}
-        work_items = [i for i in all_items if str(i.id) in id_set]
+        candidates = [i for i in all_items if str(i.id) in id_set]
     else:
-        work_items = list(all_items)
+        candidates = list(all_items)
 
-    budget_truncated = False
     max_calls = int(getattr(settings, "analysis_max_llm_calls", 0) or 0)
-    if max_calls > 0:
-        max_items = max(1, max_calls // _calls_per_item(mode))
-        if len(work_items) > max_items:
-            work_items = work_items[:max_items]
-            budget_truncated = True
-            logger.warning(
-                "Análise %s: orçamento LLM limitou a %d itens (mode=%s)",
-                analysis_id,
-                max_items,
-                mode,
-            )
+    max_items = (
+        max(1, max_calls // _calls_per_item(mode)) if max_calls > 0 else None
+    )
+    work_items, skipped_headings, budget_truncated = select_items_for_analysis(
+        candidates, max_items=max_items
+    )
+    if skipped_headings:
+        logger.info(
+            "Análise %s: %d tópicos/títulos ignorados (sem corpo substantivo)",
+            analysis_id,
+            len(skipped_headings),
+        )
+    if budget_truncated:
+        logger.warning(
+            "Análise %s: orçamento LLM limitou a %d cláusulas (mode=%s)",
+            analysis_id,
+            len(work_items),
+            mode,
+        )
 
+    snapshot["skipped_heading_ids"] = [str(i.id) for i in skipped_headings]
+    snapshot["analyzed_item_ids"] = [str(i.id) for i in work_items]
+    snapshot["budget_truncated"] = budget_truncated
+    analysis.run_snapshot = snapshot
     analysis.total_items = len(work_items)
     await db.commit()
 
@@ -320,13 +396,18 @@ async def run_analysis(
     # Finalizar
     if coverage_incomplete:
         analysis.status = "completed_with_errors"
-        msg = (
-            "Análise concluída com cobertura incompleta de agentes/itens. "
-            "Não tratar todos os itens como adequados; reexecute os faltantes."
-        )
         if budget_truncated:
-            msg += " Orçamento ANALYSIS_MAX_LLM_CALLS atingido."
-        analysis.error_message = msg
+            analysis.error_message = (
+                "Análise preliminar de itens prioritários concluída. "
+                "Para auditar os demais trechos substantivos, utilize "
+                '"Reanalisar faltantes".'
+            )
+        else:
+            analysis.error_message = (
+                "Análise concluída, mas alguns trechos falharam. "
+                "Não trate todos os itens como adequados; "
+                'use "Reanalisar faltantes" para completar.'
+            )
     else:
         analysis.status = "completed"
         analysis.error_message = None

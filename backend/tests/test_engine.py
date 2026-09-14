@@ -128,7 +128,10 @@ async def _montar_e_analisar(
                 document_id=doc.id,
                 item_number=num,
                 title=f"Item {num}",
-                content="Conteúdo do item para análise.",
+                content=(
+                    "Conteúdo do item para análise. A contratação deverá observar "
+                    "os requisitos técnicos e jurídicos estabelecidos neste termo."
+                ),
                 page_number=1,
                 item_order=int(float(num) * 10),
                 item_type="item",
@@ -244,3 +247,84 @@ def test_run_analysis_erro_quando_documento_inexistente():
     assert analysis.status == "error"
     assert "Documento não encontrado" in analysis.error_message
     assert n_corrections == 0
+
+def test_select_items_ignora_titulos_e_prioriza_clausulas():
+    """Orçamento deve cair só em cláusulas substantivas, não em títulos."""
+    from app.services.analyzer.engine import select_items_for_analysis
+
+    heading = DocumentItem(
+        id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        item_number="01",
+        title="OBJETO DA CONTRATAÇÃO",
+        content="01 – OBJETO DA CONTRATAÇÃO",
+        item_order=0,
+        item_type="section",
+    )
+    clause_obj = DocumentItem(
+        id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        item_number="1.1",
+        title="Objeto",
+        content=(
+            "1.1. A presente contratação tem por objeto a prestação de serviços "
+            "de telefonia fixa corporativa com PABX em nuvem."
+        ),
+        item_order=1,
+        item_type="item",
+    )
+    clause_late = DocumentItem(
+        id=uuid.uuid4(),
+        document_id=uuid.uuid4(),
+        item_number="9.1",
+        title="Matriz",
+        content=(
+            "9.1. A matriz de riscos identifica eventos de atraso na implantação "
+            "e define responsabilidades entre as partes contratantes."
+        ),
+        item_order=2,
+        item_type="item",
+    )
+
+    work, skipped, truncated = select_items_for_analysis(
+        [heading, clause_obj, clause_late],
+        max_items=1,
+    )
+    assert len(skipped) == 1
+    assert skipped[0].item_number == "01"
+    assert truncated is True
+    assert len(work) == 1
+    assert work[0].item_number == "1.1"  # prioridade seção 1 sobre 9
+
+
+def test_select_items_sem_limite_mantem_todos_substantivos():
+    from app.services.analyzer.engine import select_items_for_analysis
+
+    items = [
+        DocumentItem(
+            id=uuid.uuid4(),
+            document_id=uuid.uuid4(),
+            item_number="2.1",
+            title="Solução",
+            content=(
+                "2.1. A solução objeto da contratação consiste na prestação "
+                "integrada de serviços de telefonia fixa corporativa."
+            ),
+            item_order=0,
+            item_type="item",
+        ),
+        DocumentItem(
+            id=uuid.uuid4(),
+            document_id=uuid.uuid4(),
+            item_number="2",
+            title="DESCRIÇÃO",
+            content="2. DESCRIÇÃO DA SOLUÇÃO DE TIC",
+            item_order=1,
+            item_type="section",
+        ),
+    ]
+    work, skipped, truncated = select_items_for_analysis(items, max_items=None)
+    assert truncated is False
+    assert len(work) == 1
+    assert work[0].item_number == "2.1"
+    assert len(skipped) == 1

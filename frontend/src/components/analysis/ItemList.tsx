@@ -55,7 +55,8 @@ export default function ItemList({ items, selectedId, getCorrections, onSelect, 
                   <p className="mt-0.5 truncate text-sm font-medium text-content-primary">{item.title}</p>
                 )}
                 <p className="tnum mt-1 text-xs text-content-subtle">
-                  {item.item_type} · pág. {item.page_number || '—'}
+                  {item.is_substantive === false ? 'Tópico' : 'Cláusula'}
+                  {item.page_number ? ` · pág. ${item.page_number}` : ''}
                 </p>
               </div>
 

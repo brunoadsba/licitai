@@ -6,7 +6,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
+
+from app.services.parser.detection import is_substantive_content
 
 
 def _ensure_tz(v: datetime) -> datetime:
@@ -38,6 +40,17 @@ class DocumentItemResponse(BaseModel):
     item_order: int
     item_type: str
     corrections_count: int = 0
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_substantive(self) -> bool:
+        """True se o item tem texto de cláusula (não só título/tópico)."""
+        return is_substantive_content(
+            self.content,
+            self.title,
+            self.item_number,
+            self.item_type,
+        )
 
 
 class DocumentResponse(BaseModel):

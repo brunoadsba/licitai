@@ -26,6 +26,8 @@ export interface DocumentItemResponse {
   item_order: number;
   item_type: string;
   corrections_count: number;
+  /** True se o item tem texto de cláusula (não só título/tópico). */
+  is_substantive?: boolean;
 }
 
 export interface DocumentDetailResponse extends DocumentResponse {
@@ -91,6 +93,8 @@ export interface AnalysisDetailResponse {
   art6_checklist?: Art6ChecklistItem[];
   art6_coverage?: number | null;
   art6_meets_target?: boolean | null;
+  analyzed_item_ids?: string[];
+  budget_truncated?: boolean;
 }
 
 export interface Art6ChecklistItem {
