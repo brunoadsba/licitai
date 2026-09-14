@@ -186,3 +186,30 @@ class TestValidateAnswer:
             raw, require_grounding=True, valid_source_ids={"legal:1"}
         )
         assert resultado.confidence == 1.0
+
+
+class TestGreetingAndSoftAnswer:
+    def test_is_greeting_detecta_cumprimentos(self):
+        from app.services.chat.warnings_pt import is_greeting
+        assert is_greeting("oi")
+        assert is_greeting("Olá!")
+        assert is_greeting("bom dia")
+        assert not is_greeting("o que falta no art 6")
+        assert not is_greeting("oi, o objeto está ok?")
+
+    def test_saudacao_ungrounded_sem_citacao_permitida(self):
+        raw = json.dumps(
+            {
+                "refused": False,
+                "answer": "Olá! Posso ajudar com este TR.",
+                "grounded": False,
+                "citations": [],
+            },
+            ensure_ascii=False,
+        )
+        resultado = validate_llm_answer(
+            raw, require_grounding=True, valid_source_ids={"legal:1"}
+        )
+        assert resultado.refused is False
+        assert resultado.grounded is False
+        assert "Olá" in resultado.content

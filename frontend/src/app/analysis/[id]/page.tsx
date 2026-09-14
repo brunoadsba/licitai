@@ -502,14 +502,9 @@ export default function AnalysisPage() {
               : 'Análise concluída, mas alguns trechos falharam'
           }
           action={
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="secondary" onClick={() => void handleReanalyzePartial()} loading={analyzing}>
-                Reanalisar faltantes
-              </Button>
-              <Button size="sm" onClick={handleStartAnalysis} loading={analyzing}>
-                Reanalisar
-              </Button>
-            </div>
+            <Button size="sm" onClick={() => void handleReanalyzePartial()} loading={analyzing}>
+              Reanalisar faltantes
+            </Button>
           }
         >
           {analysis.budget_truncated ||
@@ -553,7 +548,7 @@ export default function AnalysisPage() {
           >
             Ver todas
           </Button>
-          <span className="text-xs text-content-subtle">
+          <span className="text-xs text-content-muted">
             Comece pelas sugestões graves e partes faltantes do TR
           </span>
         </div>
@@ -608,6 +603,7 @@ export default function AnalysisPage() {
         documentId={documentId}
         analysisId={analysis?.id}
         itemNumber={selectedItem?.item_number}
+        documentLabel={document.filename_original}
         title={`Copiloto — ${document.filename_original}`}
         page="analysis"
         defaultOpen={false}

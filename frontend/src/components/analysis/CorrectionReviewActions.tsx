@@ -5,12 +5,15 @@ import { toast } from 'sonner';
 import type { CorrectionResponse, ReviewStatus } from '@/types';
 import { updateCorrectionReview } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
+import { hasPlaceholderText } from '@/lib/placeholderText';
 import { Button } from '@/components/ui/Button';
 import { CheckCheck, Pencil, X } from 'lucide-react';
 
 interface CorrectionReviewActionsProps {
   correction: CorrectionResponse;
   onReviewUpdated: (correction: CorrectionResponse) => void;
+  /** Destaca Ajustar quando a sugestão tem placeholders */
+  preferAdjust?: boolean;
 }
 
 /**
@@ -19,12 +22,17 @@ interface CorrectionReviewActionsProps {
 export default function CorrectionReviewActions({
   correction,
   onReviewUpdated,
+  preferAdjust = false,
 }: CorrectionReviewActionsProps) {
   const reviewStatus = correction.review_status ?? 'pendente';
   const [saving, setSaving] = useState(false);
-  const [adjusting, setAdjusting] = useState(false);
+  const [adjusting, setAdjusting] = useState(preferAdjust);
   const [adjustedText, setAdjustedText] = useState(correction.suggested_text);
   const [adjustNote, setAdjustNote] = useState(correction.review_note ?? '');
+
+  const blockApprove =
+    preferAdjust ||
+    (reviewStatus === 'pendente' && hasPlaceholderText(correction.suggested_text));
 
   async function applyReview(
     status: ReviewStatus,
@@ -53,10 +61,24 @@ export default function CorrectionReviewActions({
     }
   }
 
+  async function handleApprove() {
+    if (blockApprove && hasPlaceholderText(correction.suggested_text)) {
+      toast.error('Preencha os campos (X, Y, Z…) com Ajustar antes de aprovar.');
+      setAdjusting(true);
+      setAdjustedText(correction.suggested_text);
+      return;
+    }
+    await applyReview('aprovada');
+  }
+
   async function handleAdjustSubmit() {
     const text = adjustedText.trim();
     if (!text) {
       toast.error('Informe o texto corrigido ajustado.');
+      return;
+    }
+    if (hasPlaceholderText(text)) {
+      toast.error('Ainda há campos a preencher no texto ajustado.');
       return;
     }
     await applyReview('ajustada', {
@@ -71,15 +93,59 @@ export default function CorrectionReviewActions({
         Sua decisão
       </p>
       <div className="flex flex-wrap gap-2">
-        <Button
-          size="sm"
-          disabled={saving || reviewStatus === 'aprovada'}
-          data-testid="review-approve"
-          onClick={() => applyReview('aprovada')}
-        >
-          <CheckCheck className="h-3.5 w-3.5" aria-hidden />
-          Aprovar
-        </Button>
+        {preferAdjust ? (
+          <>
+            <Button
+              size="sm"
+              disabled={saving}
+              data-testid="review-adjust"
+              onClick={() => {
+                setAdjustedText(correction.suggested_text);
+                setAdjustNote(correction.review_note ?? '');
+                setAdjusting(true);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Ajustar
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={saving || reviewStatus === 'aprovada'}
+              data-testid="review-approve"
+              onClick={() => void handleApprove()}
+            >
+              <CheckCheck className="h-3.5 w-3.5" aria-hidden />
+              Aprovar
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button
+              size="sm"
+              disabled={saving || reviewStatus === 'aprovada'}
+              data-testid="review-approve"
+              onClick={() => void handleApprove()}
+            >
+              <CheckCheck className="h-3.5 w-3.5" aria-hidden />
+              Aprovar
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={saving}
+              data-testid="review-adjust"
+              onClick={() => {
+                setAdjustedText(correction.suggested_text);
+                setAdjustNote(correction.review_note ?? '');
+                setAdjusting((v) => !v);
+              }}
+            >
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Ajustar
+            </Button>
+          </>
+        )}
         <Button
           size="sm"
           variant="secondary"
@@ -89,20 +155,6 @@ export default function CorrectionReviewActions({
         >
           <X className="h-3.5 w-3.5" aria-hidden />
           Rejeitar
-        </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          disabled={saving}
-          data-testid="review-adjust"
-          onClick={() => {
-            setAdjustedText(correction.suggested_text);
-            setAdjustNote(correction.review_note ?? '');
-            setAdjusting((v) => !v);
-          }}
-        >
-          <Pencil className="h-3.5 w-3.5" aria-hidden />
-          Ajustar
         </Button>
       </div>
 

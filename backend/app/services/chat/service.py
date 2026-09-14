@@ -24,7 +24,12 @@ from app.services.chat.llm_adapter import ChatLLMProvider, get_chat_llm
 from app.services.chat.prompts import build_messages
 from app.services.chat.sources import build_sources, source_ids_from
 from app.services.chat.validator import ValidatedAnswer, validate_llm_answer
-from app.services.chat.warnings_pt import FALHA_LLM_MESSAGE, warning_message_pt
+from app.services.chat.warnings_pt import (
+    FALHA_LLM_MESSAGE,
+    GREETING_MESSAGE,
+    is_greeting,
+    warning_message_pt,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +99,19 @@ async def send_message(
         "chat.message.received conversation_id=%s length=%d",
         conversation_id, len(content),
     )
+
+    # Cumprimento curto: resposta acolhedora sem gastar LLM / grounding
+    if is_greeting(content):
+        return await _persistir_mensagem(
+            db,
+            conversation,
+            "assistant",
+            GREETING_MESSAGE,
+            grounded=False,
+            provider="local",
+            model="greeting",
+            latency_ms=0,
+        )
 
     try:
         fontes = await build_sources(

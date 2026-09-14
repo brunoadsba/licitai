@@ -15,6 +15,8 @@ interface ChatCopilotProps {
   documentId?: string;
   analysisId?: string;
   itemNumber?: string | null;
+  /** Nome do documento (ex.: filename_original) */
+  documentLabel?: string | null;
   title?: string;
   page?: string;
   /** Na análise, fechado por default para não competir com a revisão. */
@@ -24,8 +26,15 @@ interface ChatCopilotProps {
 /**
  * Assistente sob demanda (FAB). Fechado por default — não compete com a revisão.
  */
-export default function ChatCopilot({ defaultOpen = false, ...props }: ChatCopilotProps) {
+export default function ChatCopilot({
+  defaultOpen = false,
+  documentLabel,
+  ...props
+}: ChatCopilotProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const label =
+    documentLabel ??
+    (props.title ? props.title.replace(/^Copiloto\s*[—–-]\s*/i, '') : null);
 
   return (
     <>
@@ -40,13 +49,22 @@ export default function ChatCopilot({ defaultOpen = false, ...props }: ChatCopil
       </button>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-md" hideClose={false}>
-          <SheetHeader>
+        <SheetContent
+          side="right"
+          className="flex h-full w-full flex-col p-0 sm:max-w-md"
+          hideClose={false}
+        >
+          <SheetHeader className="shrink-0">
             <SheetTitle>Copiloto LicitAI</SheetTitle>
-            <SheetDescription>Pergunte sobre este documento; respostas citam fontes.</SheetDescription>
+            <SheetDescription>Respostas com base no TR e na lei</SheetDescription>
           </SheetHeader>
-          <div className="min-h-0 flex-1 overflow-hidden px-0 pb-0">
-            <ChatPanel {...props} variant="sheet" onClose={() => setOpen(false)} />
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <ChatPanel
+              {...props}
+              documentLabel={label}
+              variant="sheet"
+              onClose={() => setOpen(false)}
+            />
           </div>
         </SheetContent>
       </Sheet>

@@ -31,7 +31,7 @@ Paleta extraída de `Logo CODEBA.png`:
 
 ### Tokens semânticos
 
-Valores abaixo = **escuro** (`html.dark`). No **claro** (`html.light` / `:root`): canvas `#F3F6FB`, panel/surface `#FFFFFF`, textos slate (`#0F172A`…`#94A3B8`), bordas `rgba(15,23,42,…)`. Ver `globals.css`.
+Valores abaixo = **escuro** (`html.dark`). No **claro** (`html.light` / `:root`): canvas `#F3F6FB`, panel/surface `#FFFFFF`, textos slate (`#0F172A` / `#334155` / muted `#475569` / subtle `#64748B`), bordas `rgba(15,23,42,0.14–0.22)`. Ver `globals.css`.
 
 | Token | Escuro | Uso |
 |---|---|---|
@@ -54,6 +54,7 @@ Valores abaixo = **escuro** (`html.dark`). No **claro** (`html.light` / `:root`)
 - Preferência: `localStorage['licitai-theme']` = `light` \| `dark`
 - Script anti-FOUC no `<head>` do `layout.tsx`
 - Toaster (Sonner) acompanha o tema
+- **Claro (contraste AA):** muted `#475569`, subtle `#64748B`, borders `0.14`/`0.22`, surface-hover `#E2E8F0`
 
 ### Accent único — teal CODEBA `#3AA4A4`
 
@@ -62,7 +63,7 @@ Rampa centrada no teal do logo. Botão primary: gradiente vertical `accent-400 �
 ### Semânticos de risco (mantidos, mesma família)
 
 `risk-low #22c55e · risk-medium #eab308 · risk-high #f97316 · risk-critical #ef4444`
-Badges: sempre fundo `{cor}/10` + texto `{cor}-400` + borda `{cor}/20`. Badge informativo neutro: cinza, não azul.
+Badges: **claro** = fundo pastel + texto 800/900; **escuro** = fundo `{cor}/10` + texto `{cor}-400` + borda `{cor}/20`. Neutro: cinza, não azul.
 
 ## 3. Tipografia
 

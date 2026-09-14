@@ -194,7 +194,14 @@ def validate_llm_answer(
     grounded = bool(dados.get("grounded", False)) and bool(citations)
     confidence = _normalizar_confidence(dados.get("confidence"))
 
-    if require_grounding and not citations:
+    # Saudação / redirecionamento: LLM marca grounded=false sem citações
+    allow_ungrounded = (
+        dados.get("grounded") is False
+        and not citations
+        and len(answer.strip()) <= 600
+    )
+
+    if require_grounding and not citations and not allow_ungrounded:
         logger.info(
             "Resposta sem citação válida recusada (grounding obrigatório)"
         )

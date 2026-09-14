@@ -29,8 +29,13 @@ REFUSAL_MESSAGE = (
 )
 
 FORA_ESCOPO_MESSAGE = (
-    "Só consigo ajudar com licitações públicas e o Termo de Referência "
-    "em análise. Reformule a pergunta nesse contexto."
+    "Posso ajudar com este Termo de Referência e com licitações públicas. "
+    "Reformule a pergunta nesse contexto — ou use uma das sugestões abaixo."
+)
+
+GREETING_MESSAGE = (
+    "Olá! Posso ajudar com este Termo de Referência e com a legislação "
+    "aplicável. Escolha uma sugestão ou pergunte com suas palavras."
 )
 
 FALHA_LLM_MESSAGE = (
@@ -65,6 +70,22 @@ _OUT_OF_SCOPE_RE = re.compile(
     r")",
     re.IGNORECASE,
 )
+
+_GREETING_RE = re.compile(
+    r"^\s*("
+    r"oi|ol[aá]|ola|hey|hello|hi|"
+    r"bom\s+dia|boa\s+tarde|boa\s+noite|"
+    r"e\s*a[ií]|eai|tudo\s+bem\??|td\s+bem\??"
+    r")\s*[!.?]*\s*$",
+    re.IGNORECASE,
+)
+
+
+def is_greeting(text: str | None) -> bool:
+    """Detecta cumprimento curto (ex.: oi, olá, bom dia)."""
+    if not text:
+        return False
+    return bool(_GREETING_RE.match(text.strip()))
 
 
 def normalize_reason(raw: str | None) -> str:

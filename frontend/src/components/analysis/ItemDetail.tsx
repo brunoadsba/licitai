@@ -93,7 +93,7 @@ export default function ItemDetail({
         {showCorrections && corrections.length > 0 && !showCopyItem && (
           <div className="border-t border-line-subtle pt-3">
             <span className="flex items-center gap-1.5 text-xs text-content-muted">
-              <Lightbulb className="h-3.5 w-3.5 text-content-subtle" aria-hidden />
+              <Lightbulb className="h-3.5 w-3.5 text-content-muted" aria-hidden />
               Cópia do item para o SEI disponível somente com correções aprovadas ou ajustadas.
             </span>
           </div>

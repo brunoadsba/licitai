@@ -1,11 +1,23 @@
 'use client';
 
 import type { DocumentItemResponse, CorrectionResponse } from '@/types';
-import { getSeverityTone } from '@/lib/badges';
+import type { Tone } from '@/lib/badges';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
 
 const SEVERITY_ORDER = ['info', 'baixo', 'medio', 'alto', 'critico'];
+
+/** Tom na lista: baixo/info nunca verdes (falso “resolvido”). */
+function pendingListTone(severity: string): Tone {
+  if (severity === 'critico') return 'critical';
+  if (severity === 'alto') return 'high';
+  if (severity === 'medio') return 'medium';
+  return 'neutral';
+}
+
+function isPending(c: CorrectionResponse): boolean {
+  return !c.review_status || c.review_status === 'pendente';
+}
 
 interface ItemListProps {
   items: DocumentItemResponse[];
@@ -16,7 +28,7 @@ interface ItemListProps {
 }
 
 /**
- * Lista de itens do documento com badge de severidade máxima.
+ * Lista de itens do documento com badge só de pendências.
  * Empilha acima do detalhe no mobile (col-span-12) e vira coluna lateral no desktop.
  */
 export default function ItemList({ items, selectedId, getCorrections, onSelect, className }: ItemListProps) {
@@ -29,9 +41,9 @@ export default function ItemList({ items, selectedId, getCorrections, onSelect, 
     >
       {items.map((item) => {
         const corrections = getCorrections(item.id);
+        const pending = corrections.filter(isPending);
         const isActive = selectedId === item.id;
-        const hasIssues = corrections.length > 0;
-        const maxSeverity = corrections.reduce((max: string, c: CorrectionResponse) => {
+        const maxSeverity = pending.reduce((max: string, c: CorrectionResponse) => {
           return SEVERITY_ORDER.indexOf(c.severity) > SEVERITY_ORDER.indexOf(max) ? c.severity : max;
         }, 'info');
 
@@ -52,17 +64,19 @@ export default function ItemList({ items, selectedId, getCorrections, onSelect, 
               <div className="min-w-0">
                 <span className="tnum font-mono text-xs text-accent-400">{item.item_number}</span>
                 {item.title && (
-                  <p className="mt-0.5 truncate text-sm font-medium text-content-primary">{item.title}</p>
+                  <p className="mt-0.5 line-clamp-2 text-sm font-medium text-content-primary">
+                    {item.title}
+                  </p>
                 )}
-                <p className="tnum mt-1 text-xs text-content-subtle">
+                <p className="tnum mt-1 text-xs text-content-muted">
                   {item.is_substantive === false ? 'Tópico' : 'Cláusula'}
                   {item.page_number ? ` · pág. ${item.page_number}` : ''}
                 </p>
               </div>
 
-              {hasIssues && (
-                <Badge tone={getSeverityTone(maxSeverity)} className="text-[10px]">
-                  {corrections.length}
+              {pending.length > 0 && (
+                <Badge tone={pendingListTone(maxSeverity)} className="text-[10px]">
+                  {pending.length}
                 </Badge>
               )}
             </div>

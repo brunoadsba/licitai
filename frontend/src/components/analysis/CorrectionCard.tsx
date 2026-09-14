@@ -8,6 +8,8 @@ import type { Tone } from '@/lib/badges';
 import { Badge } from '@/components/ui/Badge';
 import { useCopy } from '@/lib/useCopy';
 import CorrectionReviewActions from '@/components/analysis/CorrectionReviewActions';
+import { formatOriginalForDisplay } from '@/lib/diffDisplay';
+import { hasPlaceholderText } from '@/lib/placeholderText';
 import { Check, ChevronDown, ClipboardCopy, TriangleAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +50,12 @@ export default function CorrectionCard({
   const reviewStatus = correction.review_status ?? 'pendente';
   const canCopyPara = isSeiCopyAllowed(reviewStatus);
   const [fundOpen, setFundOpen] = useState(false);
+  const originalDisplay = formatOriginalForDisplay(
+    correction.original_text,
+    correction.suggested_text,
+  );
+  const needsAdjust =
+    reviewStatus === 'pendente' && hasPlaceholderText(correction.suggested_text);
 
   return (
     <div
@@ -66,24 +74,37 @@ export default function CorrectionCard({
       <p className="mb-4 text-sm text-content-secondary">{correction.problem}</p>
 
       <div className="mb-4 space-y-2">
-        <div className="diff-removed">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-red-400/70">
-            Original
-          </p>
-          <p className="text-sm text-red-300/90">{correction.original_text}</p>
-        </div>
+        {originalDisplay.mode !== 'omit' && originalDisplay.mode !== 'insertion' && originalDisplay.text && (
+          <div className="diff-removed">
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-red-800 dark:text-red-300/80">
+              {originalDisplay.label}
+            </p>
+            <p className="diff-removed-text">{originalDisplay.text}</p>
+          </div>
+        )}
+        {originalDisplay.mode === 'insertion' && (
+          <p className="text-xs font-medium text-content-muted">{originalDisplay.label}</p>
+        )}
         <div className="diff-added">
-          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-green-400/70">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-green-800 dark:text-green-300/80">
             Sugerido
           </p>
-          <p className="text-sm text-green-300/90">{correction.suggested_text}</p>
+          <p className="diff-added-text">{correction.suggested_text}</p>
         </div>
       </div>
+
+      {needsAdjust && (
+        <p className="mb-3 flex items-start gap-1.5 rounded-lg border border-amber-700/40 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:font-normal dark:text-amber-200">
+          <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-800 dark:text-amber-200" aria-hidden />
+          <span>Texto com campos a preencher — use Ajustar antes de aprovar.</span>
+        </p>
+      )}
 
       {onReviewUpdated && (
         <CorrectionReviewActions
           correction={correction}
           onReviewUpdated={onReviewUpdated}
+          preferAdjust={needsAdjust}
         />
       )}
 
@@ -92,7 +113,7 @@ export default function CorrectionCard({
           <button
             type="button"
             onClick={() => copy(correction.suggested_text, `para_${correction.id}`)}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-green-500/40 bg-green-500/15 px-3 py-2.5 text-sm font-medium text-green-300 outline-none transition-colors hover:bg-green-500/25 focus-visible:ring-2 focus-visible:ring-green-500/60 sm:w-auto"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg border border-green-700/30 bg-green-100 px-3 py-2.5 text-sm font-medium text-green-900 outline-none transition-colors hover:bg-green-200 focus-visible:ring-2 focus-visible:ring-green-500/60 dark:border-green-500/40 dark:bg-green-500/15 dark:text-green-200 dark:hover:bg-green-500/25 sm:w-auto"
           >
             {isCopied(`para_${correction.id}`) ? (
               <>
@@ -135,8 +156,8 @@ export default function CorrectionCard({
             )}
             {correction.risk && (
               <div className="mt-3 flex items-start gap-2">
-                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-yellow-400" aria-hidden />
-                <p className="text-xs text-yellow-400/70">{correction.risk}</p>
+                <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-800 dark:text-yellow-400" aria-hidden />
+                <p className="text-xs text-amber-950/90 dark:text-yellow-400/70">{correction.risk}</p>
               </div>
             )}
           </div>
