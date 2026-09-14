@@ -26,7 +26,7 @@ from app.models.job import Job  # noqa: F401 — registra metadata
 from app.services.analyzer.engine import run_analysis
 from app.services.comparator.runner import executar_comparacao
 from app.services.jobs import claim, complete, fail, queue_depth, reclaim_expired
-from app.services.jobs.queue import claim_by_id
+from app.services.jobs.queue import claim_by_id, renew_lease
 from app.services.upload_service import parse_e_inserir_itens
 from app.utils.logging_config import setup_logging
 from app.utils.metrics import metrics
@@ -35,6 +35,7 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 JOB_TYPES = ("analysis", "comparacao", "parse")
+HEARTBEAT_INTERVAL_SECONDS = 60.0
 
 
 @dataclass
@@ -44,6 +45,24 @@ class _JobRef:
     payload: dict
     attempts: int = 0
     max_attempts: int = 3
+
+
+async def _heartbeat(job_id: uuid.UUID) -> None:
+    """Renova lease do job periodicamente enquanto o handler roda."""
+    while True:
+        await asyncio.sleep(HEARTBEAT_INTERVAL_SECONDS)
+        try:
+            async with async_session_factory() as db:
+                ok = await renew_lease(db, job_id)
+                await db.commit()
+            if not ok:
+                logger.warning("job.heartbeat.miss id=%s", job_id)
+                return
+            logger.debug("job.heartbeat id=%s", job_id)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("job.heartbeat.error id=%s", job_id)
 
 
 async def _handle_orphans() -> None:
@@ -135,6 +154,7 @@ async def process_job(job: _JobRef | Job) -> None:
     job_id = job.id
     job_type = job.type
     payload = dict(job.payload or {})
+    heartbeat_task = asyncio.create_task(_heartbeat(job_id))
 
     try:
         if job_type == "analysis":
@@ -162,6 +182,12 @@ async def process_job(job: _JobRef | Job) -> None:
         async with async_session_factory() as db:
             await fail(db, job_id, str(exc), requeue=True)
             await db.commit()
+    finally:
+        heartbeat_task.cancel()
+        try:
+            await heartbeat_task
+        except asyncio.CancelledError:
+            pass
 
 
 async def _run_analysis_job(payload: dict) -> None:

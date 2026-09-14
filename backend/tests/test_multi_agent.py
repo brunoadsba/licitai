@@ -144,3 +144,26 @@ def test_orchestrator_deduplication():
     assert len(dedup) == 2
     assert dedup[0]["agent_origin"] == "juridico"
     assert dedup[1]["agent_origin"] == "redacao"
+
+
+def test_orchestrator_deduplication_keeps_higher_severity():
+    """Em duplicata, mantém a correção de maior severidade."""
+    orchestrator = MultiAgentOrchestrator()
+    raw = [
+        {
+            "original_text": "abc",
+            "problem": "prob1",
+            "severity": "baixo",
+            "agent_origin": "redacao",
+        },
+        {
+            "original_text": "abc",
+            "problem": "prob1",
+            "severity": "critico",
+            "agent_origin": "juridico",
+        },
+    ]
+    dedup = orchestrator._deduplicate_corrections(raw)
+    assert len(dedup) == 1
+    assert dedup[0]["severity"] == "critico"
+    assert dedup[0]["agent_origin"] == "juridico"

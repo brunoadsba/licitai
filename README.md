@@ -15,8 +15,9 @@ Ops e pendências do piloto (gate 14 dias, cron, DOCX, Art. 6, fixtures): ver [d
 - Pacote SEI, TR HTML/DOCX corrigido, fila Prioridade, checklist Art. 6º com **`art6_coverage` ≥90%**
 - Modo `economic`, reanálise parcial, painel de pendências
 - Base local de TRs: [`fixtures/trs-codeba/`](fixtures/trs-codeba/) (12 objetos; PDFs fora do Git)
-- UI: tema **claro/escuro** (toggle no header) — contrato em [`frontend/DESIGN.md`](frontend/DESIGN.md)
+- UI: tema **claro/escuro** (toggle no header) — contrato em [`frontend/DESIGN.md`](frontend/DESIGN.md); contraste AA no claro (tokens + Badge/AlertBanner)
 - UX elaborador (11/09): Enviar → Revisar agora → pacote SEI; relatório = leitura/PDF; copiloto sob demanda; guia em `/guia`
+- Backend (14/09): TOC sem engolir corpo; reanálise de itens falhos; lease/heartbeat do worker; páginas PDF alinhadas; scores pós-review; ODT com `defusedxml`
 
 ## Funcionalidades (MVP)
 

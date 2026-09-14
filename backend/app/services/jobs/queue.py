@@ -207,6 +207,24 @@ async def reclaim_expired(db: AsyncSession) -> int:
     return count
 
 
+async def renew_lease(
+    db: AsyncSession,
+    job_id: uuid.UUID,
+    *,
+    lease_seconds: int | None = None,
+) -> bool:
+    """Estende lease_until de um job running. Retorna False se não encontrado/ativo."""
+    lease = lease_seconds if lease_seconds is not None else settings.job_lease_seconds
+    now = datetime.now(timezone.utc)
+    job = await db.get(Job, job_id)
+    if not job or job.status != STATUS_RUNNING:
+        return False
+    job.lease_until = now + timedelta(seconds=lease)
+    job.updated_at = now
+    await db.flush()
+    return True
+
+
 async def queue_depth(db: AsyncSession) -> int:
     """Quantidade de jobs pending (+ running opcionalmente só pending)."""
     result = await db.execute(

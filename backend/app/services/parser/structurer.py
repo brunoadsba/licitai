@@ -21,6 +21,7 @@ from app.services.parser.detection import (
     _is_footer_like,
     _is_toc_end,
     _is_toc_start,
+    _looks_like_body_start,
     is_substantive_content,
 )
 from app.services.parser.pagemap import _build_page_map, _get_page_for_position
@@ -28,6 +29,9 @@ from app.services.parser.pagemap import _build_page_map, _get_page_for_position
 logger = logging.getLogger(__name__)
 
 __all__ = ["structure_items", "is_substantive_content"]
+
+# Segurança: se o sumário nunca encontrar fim explícito, força saída
+MAX_TOC_LINES = 100
 
 
 def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
@@ -54,6 +58,7 @@ def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
     current_content_lines = []
     in_table = False
     in_toc = False
+    toc_line_count = 0
     table_content = []
 
     line_idx = 0
@@ -68,6 +73,7 @@ def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
         # --- Bloco SUMÁRIO / ÍNDICE: não gera DocumentItem ---
         if _is_toc_start(stripped):
             in_toc = True
+            toc_line_count = 0
             # Descarta item em construção (não deve acumular sumário)
             current_item = None
             current_content_lines = []
@@ -75,14 +81,29 @@ def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
             continue
 
         if in_toc:
+            toc_line_count += 1
             if _is_toc_end(stripped):
                 in_toc = False
+                toc_line_count = 0
                 # Não processar a linha de fim como item; só sair do bloco
                 line_idx += 1
                 continue
-            # Dentro do sumário: pular qualquer linha (numerada ou não)
-            line_idx += 1
-            continue
+            # Corpo começa sem cabeçalho TERMO DE REFERÊNCIA → sair e processar a linha
+            if _looks_like_body_start(lines, line_idx):
+                in_toc = False
+                toc_line_count = 0
+                # Não incrementar line_idx: cai no fluxo normal abaixo
+            elif toc_line_count >= MAX_TOC_LINES:
+                logger.warning(
+                    "Sumário excedeu %d linhas sem fim explícito; retomando corpo",
+                    MAX_TOC_LINES,
+                )
+                in_toc = False
+                toc_line_count = 0
+            else:
+                # Dentro do sumário: pular qualquer linha (numerada ou não)
+                line_idx += 1
+                continue
 
         # Verificar se estamos dentro de uma tabela
         if PATTERNS["table_start"].match(stripped):

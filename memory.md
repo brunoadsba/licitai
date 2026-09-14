@@ -167,7 +167,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `Dockerfile`: Imagem Python 3.12-slim com `tesseract-ocr`, `tesseract-ocr-por` e `libmagic1`.
 - `alembic.ini` + `alembic/versions/`: Migrações de schema (head atual `20260908_003`).
 - `requirements.txt` / `requirements-dev.txt`: Dependências runtime e teste (inclui Alembic).
-- `app/worker.py`: Worker da fila `jobs` (`python -m app.worker`).
+- `app/worker.py`: Worker da fila `jobs` (`python -m app.worker`); heartbeat de lease a cada 60s (`renew_lease`); default `job_lease_seconds=900`.
 - `scripts/seed_moldes.py`: Seed idempotente de moldes padrão (TR geral, serviços continuados, obras públicas).
 - `scripts/download_laws.py` e `scripts/ingest_laws.py`: Corpus jurídico (Lei 14.133 + 13.303).
 - `scripts/backup.sh` + `scripts/promote_feedback.py`: Backup Postgres/uploads e promoção de stubs golden.
@@ -202,9 +202,10 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `app/services/parser/`:
   - `pdf_parser.py`: PyMuPDF primário -> pdfplumber fallback (tabelas) -> Tesseract OCR.
   - `docx_parser.py`: Extração via `python-docx` com detecção de estilos e tabelas.
-  - `structurer.py`: Regex para extração da árvore de itens numerados e anexos (orquestra `detection.py` + `pagemap.py` desde 13/08).
-  - `detection.py`: Detecção de padrões de numeração/seções (extraído de `structurer.py` em 13/08).
-  - `pagemap.py`: Mapeamento de texto por página (extraído de `structurer.py` em 13/08).
+  - `structurer.py`: Regex para extração da árvore de itens numerados e anexos (orquestra `detection.py` + `pagemap.py` desde 13/08). TOC com saída por corpo substantivo + `MAX_TOC_LINES` (14/09).
+  - `detection.py`: Detecção de padrões de numeração/seções; `_looks_like_body_start` para TOC sem cabeçalho.
+  - `pagemap.py`: Mapeamento linha→página alinhado ao join `\n\n` do PDF (corrige drift).
+  - `odt_parser.py`: Extração ODT com `defusedxml` + limite de `content.xml` (50 MB).
 - `app/services/upload_service.py`: Orquestração de upload de documentos (extraído de `api/documents.py` em 13/08).
 - `app/services/rag/`:
   - `retriever.py`: Retrieval híbrido (semântico + FTS5 com RRF) e cache de embeddings (orquestra `backends.py` + `semantic.py` desde 13/08).
@@ -215,9 +216,9 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `groq_provider.py`, `gemini_provider.py`, `ollama_provider.py`: Implementações dos provedores.
 - `app/services/analyzer/`:
   - `prompts.py`: Persona do Especialista Sênior, regras estritas, checklist do Art. 6º XXIII, prompts de análise e de revisão cruzada.
-  - `engine.py`: Motor de execução da análise item a item + revisão cruzada pós-análise + pontuação global (orquestra `item_analysis.py` + `scoring.py` desde 13/08).
+  - `engine.py`: Motor de execução da análise item a item + revisão cruzada pós-análise + pontuação global (orquestra `item_analysis.py` + `scoring.py` desde 13/08). Snapshot `failed_item_ids` / `analyzed_item_ids` pós-execução (14/09).
   - `item_analysis.py`: Análise individual de um item (extraído de `engine.py` em 13/08).
-  - `scoring.py`: Pontuação global e por severidade (extraído de `engine.py` em 13/08).
+  - `scoring.py`: Pontuação global e por severidade (extraído de `engine.py` em 13/08); recalculado após review humana via API.
   - `review.py`: Revisão cruzada das correções pelo LLM (aprova/rejeita/ajusta) — Fase 2.2.
   - `report.py`: Gerador de relatórios em Markdown formatado.
 - `app/services/rules/` (Auditoria RF02):
@@ -471,7 +472,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 | 7 | ~~**RILC CODEBA completo** no RAG~~ | Feito (14/09/2026) | Fonte `backend/data/rilc/source/` + `provenance.json`; ingestão `python scripts/ingest_rilc_codeba.py` (287 arts., page em metadata) |
 | 8 | **Fine-tune / treino ML** | Bloqueado | Só após gate + dataset de aprovar/rejeitar/thumbs-down (`promote_feedback.py`). Treinar agora sem rótulos estáveis não é o próximo passo |
 
-**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`, exclusão de sumário/títulos na análise + UX análise (14/09/2026).
+**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`, exclusão de sumário/títulos na análise + UX análise (14/09/2026), **hardening backend** (TOC/reanálise/lease/pagemap/scores/ODT — 14/09/2026), contraste modo claro na UI.
 
 ### Correção análise: sumário/títulos + UX (14/09/2026)
 
@@ -487,6 +488,28 @@ Causa raiz da sessão ouro: o estruturador transformava linhas do **SUMÁRIO** (
 | UI | Estados Tópico / Não analisado / Conformidade; card limpo (gravidade+status → DE/PARA → decisão → Copiar SEI → fundamentação); banner sem jargão `ANALYSIS_MAX_LLM_CALLS` |
 
 Testes: `test_structurer` + `test_engine` (22) + regressão fixture `09-ti-pabx-nuvem` (orçamento inicia em `1.1`…`3.x`). **Re-upload** do TR antigo necessário para limpar itens de sumário já persistidos.
+
+### Hardening backend (14/09/2026)
+
+Auditoria + correções de confiabilidade (258 testes verdes):
+
+| Bug | Correção |
+|-----|----------|
+| TOC sem `TERMO DE REFERÊNCIA` engolia o corpo do TR | `_looks_like_body_start()` + `MAX_TOC_LINES=100` em `structurer`/`detection` |
+| Timeout LLM → item inelegível a “Reanalisar faltantes” | Snapshot `failed_item_ids` + `analyzed_item_ids` só com sucesso; reanalyze-partial inclui falhos |
+| Job `completed` com análise `error` (0 itens) | `RuntimeError` após marcar `error` para o worker não chamar `complete` |
+| Lease 300s sem heartbeat → workers duplicados | `job_lease_seconds=900` + `renew_lease` + heartbeat 60s no `worker` |
+| `page_number` drift (join `\n\n`) | `pagemap` compensa linha em branco entre páginas e ignora páginas vazias |
+| Review humana não atualizava nota/risco | `recalculate_analysis_scores()` no `PATCH /corrections/{id}` |
+| Dedup “first wins” descartava `critico` | Orchestrator mantém maior severidade |
+| `pending-summary.total` = nº de docs | `total = sum(pending_priority)` (correções) |
+| ODT XXE / zip bomb | `defusedxml` + limite 50 MB em `content.xml` (`requirements.txt`) |
+
+Arquivos-chave: `engine.py`, `analysis.py`, `worker.py`, `jobs/queue.py`, `pagemap.py`, `odt_parser.py`, `orchestrator.py`. Testes novos: `test_pagemap.py`, `test_odt_parser.py`.
+
+### Contraste UI modo claro (14/09/2026)
+
+Tokens claros endurecidos (`--text-muted` `#475569`, borders mais fortes); `Badge`/`AlertBanner` dual light/dark; aviso de placeholders em `CorrectionCard` legível no claro. Contrato: [frontend/DESIGN.md](frontend/DESIGN.md).
 
 ### UI / Design system (10/09/2026)
 
@@ -561,4 +584,6 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Quinzena Art.6 (14/09/2026)**: baseline heurística em 5 TRs — média **76%**, ≥90% **2/5**; [docs/ops/quinzena-2026-09-14.md](docs/ops/quinzena-2026-09-14.md).  
 > **Sessão ouro + gate (14/09/2026)**: analysis `6f673b1b-…` economic com `ANALYSIS_MAX_LLM_CALLS=24`; `completed_with_errors`; SEI+DOCX OK; gate aberto até 28/09; outreach [outreach-solange-2026-09-14.md](docs/ops/outreach-solange-2026-09-14.md).  
 > **Fix análise sumário/títulos + UX (14/09/2026)**: TOC ignorado no parser; só cláusulas substantivas na LLM; priorização Art.6; UI sem falso “Item adequado”; banner PT-BR. Re-upload do TR ouro antes de reanalisar.  
+> **Hardening backend (14/09/2026)**: TOC body-start; `failed_item_ids`; lease 900s+heartbeat; pagemap; scores pós-review; dedup por severidade; pending total=correções; ODT defusedxml. 258 testes.
+> **Contraste claro + UX análise/copiloto (14/09/2026)**: tokens/Badge/AlertBanner; CorrectionCard aviso placeholders; chips/saudação no chat.
 > **Pendências**: Solange enviar TRs, colar SEI real, secrets, anonimizar Emergência; ML bloqueado até dataset.

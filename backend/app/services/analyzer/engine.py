@@ -215,6 +215,7 @@ async def run_analysis(
 
     snapshot["skipped_heading_ids"] = [str(i.id) for i in skipped_headings]
     snapshot["analyzed_item_ids"] = [str(i.id) for i in work_items]
+    snapshot["failed_item_ids"] = []
     snapshot["budget_truncated"] = budget_truncated
     analysis.run_snapshot = snapshot
     analysis.total_items = len(work_items)
@@ -236,10 +237,13 @@ async def run_analysis(
     pending_reviews: list[tuple[DocumentItem, str, list[Correction]]] = []
     all_corrections: list[dict] = []
     coverage_incomplete = False
+    successfully_analyzed_ids: list[str] = []
+    failed_item_ids: list[str] = []
 
     for (item, legal_context), outcome in zip(items_context, results, strict=False):
         if isinstance(outcome, Exception):
             coverage_incomplete = True
+            failed_item_ids.append(str(item.id))
             logger.warning(
                 "Erro ao analisar item %s do documento %s: %s",
                 item.item_number, document_id, outcome,
@@ -332,6 +336,7 @@ async def run_analysis(
         corrigiveis = [c for c in correction_objs if c.review_status != "rejeitada"]
         pending_reviews.append((item, legal_context, corrigiveis))
         analyzed_count += 1
+        successfully_analyzed_ids.append(str(item.id))
         analysis.analyzed_items = analyzed_count
         await db.commit()
 
@@ -343,11 +348,17 @@ async def run_analysis(
             len(outcome),
         )
 
+    # Atualiza snapshot com o que de fato concluiu vs falhou (elegível a reanalyze)
+    snapshot["analyzed_item_ids"] = successfully_analyzed_ids
+    snapshot["failed_item_ids"] = failed_item_ids
+    analysis.run_snapshot = snapshot
+    await db.commit()
+
     if analyzed_count < len(work_items) or budget_truncated:
         coverage_incomplete = True
 
     # Se nenhum item foi analisado, os provedores LLM estão indisponíveis:
-    # marcar como erro em vez de reportar sucesso falso.
+    # marcar como erro e propagar para o worker não marcar o job como completed.
     if analyzed_count == 0:
         analysis.status = "error"
         analysis.completed_at = datetime.now(timezone.utc)
@@ -361,7 +372,7 @@ async def run_analysis(
             "(provedores LLM indisponíveis)",
             analysis_id,
         )
-        return
+        raise RuntimeError(analysis.error_message)
 
     # --- Fase 2.2: revisão cruzada das correções (após análise completa) ---
     all_corrections = await _run_cross_review(db, llm, pending_reviews)

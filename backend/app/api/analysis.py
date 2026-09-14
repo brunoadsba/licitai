@@ -40,6 +40,7 @@ from app.services.analyzer.corrected_document import (
     build_corrected_html,
     build_sei_pack_text,
 )
+from app.services.analyzer.scoring import calculate_deterministic_scores
 from app.services.jobs import enqueue
 from app.services.privacy import (
     CloudPrivacyError,
@@ -59,6 +60,38 @@ def estimate_tokens(analysis: Analysis) -> int:
     base = (analysis.total_items or 0) * 900 + (analysis.analyzed_items or 0) * 100
     corr = len(getattr(analysis, "corrections", []) or [])
     return base + corr * 350 + 800
+
+
+async def recalculate_analysis_scores(
+    db: AsyncSession, analysis_id: uuid.UUID
+) -> None:
+    """Recalcula notas/risco após revisão humana (exclui rejeitadas)."""
+    result = await db.execute(
+        select(Analysis)
+        .options(selectinload(Analysis.corrections))
+        .where(Analysis.id == analysis_id)
+    )
+    analysis = result.scalar_one_or_none()
+    if not analysis:
+        return
+
+    active = [
+        {
+            "category": c.category,
+            "severity": c.severity,
+            "problem": c.problem,
+        }
+        for c in (analysis.corrections or [])
+        if getattr(c, "review_status", None) != "rejeitada"
+    ]
+    scores = calculate_deterministic_scores(active, analysis.total_items or 0)
+    analysis.score_overall = scores["score_overall"]
+    analysis.score_juridical = scores["score_juridical"]
+    analysis.score_technical = scores["score_technical"]
+    analysis.score_writing = scores["score_writing"]
+    analysis.score_structural = scores["score_structural"]
+    analysis.risk_level = scores["risk_level"]
+    analysis.final_opinion = scores["final_opinion"]
 
 
 def _score_details(analysis: Analysis) -> list[ScoreDetail]:
@@ -273,6 +306,7 @@ async def update_correction_review(
         if payload.justification is not None:
             correction.justification = payload.justification
 
+    await recalculate_analysis_scores(db, correction.analysis_id)
     await db.commit()
     await db.refresh(correction)
 
@@ -332,7 +366,8 @@ async def pending_summary(db: AsyncSession = Depends(get_db)):
                 status=analysis.status,
             )
         )
-    return PendingSummaryResponse(total=len(items), items=items)
+    total_corrections = sum(item.pending_priority for item in items)
+    return PendingSummaryResponse(total=total_corrections, items=items)
 
 
 def _filter_corrections(
@@ -762,6 +797,8 @@ async def reanalyze_partial(
 
     snapshot_prev = analysis.run_snapshot or {}
     already = {str(x) for x in (snapshot_prev.get("analyzed_item_ids") or [])}
+    for failed_id in snapshot_prev.get("failed_item_ids") or []:
+        item_ids.add(str(failed_id))
     budget_cut = bool(snapshot_prev.get("budget_truncated"))
     if not budget_cut and analysis.error_message:
         budget_cut = (

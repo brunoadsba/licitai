@@ -94,7 +94,7 @@ class Settings(BaseSettings):
     api_token: str = ""
 
     # --- Jobs / Worker ---
-    job_lease_seconds: int = 300
+    job_lease_seconds: int = 900
     job_max_attempts: int = 3
     worker_poll_interval_seconds: float = 2.0
 

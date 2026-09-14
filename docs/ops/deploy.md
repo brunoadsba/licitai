@@ -40,6 +40,7 @@ Bloquear promote se CRITICAL sem mitigação documentada.
 
 - Serviços: `db`, `backend` (API), **`worker`** (processa `jobs`), `frontend` (BFF injeta `API_TOKEN`).
 - Sem o `worker`, `POST .../start` só enfileira — análise/comparação não avançam.
+- Lease padrão do job: **900s** com renovação (heartbeat) a cada 60s enquanto o handler roda — evita reclaim prematuro em análises longas.
 - Subir / parar (atalhos; frontend sem bind mount — mudanças de UI exigem `--build`):
 
 ```bash

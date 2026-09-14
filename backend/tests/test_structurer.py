@@ -185,6 +185,27 @@ suficiente para atender as unidades administrativas durante doze meses.
     assert "aquisição" in items[0]["content"].lower()
 
 
+def test_sumario_sem_termo_referencia_nao_engole_corpo():
+    """Corpo após SUMÁRIO sem linha TERMO DE REFERÊNCIA ainda é estruturado."""
+    texto = """
+SUMÁRIO
+1. Objeto
+2. Justificativa
+1. Objeto
+A contratação visa a aquisição de materiais de escritório em quantidade
+suficiente para atender as unidades administrativas durante doze meses.
+2. Justificativa
+A demanda decorre da necessidade contínua de suprimentos administrativos
+para as unidades da autarquia no exercício vigente.
+"""
+    items = structure_items(texto, pages=[])
+    numeros = [it["item_number"] for it in items]
+    assert "1" in numeros
+    assert "2" in numeros
+    assert any("aquisição" in it["content"].lower() for it in items)
+    assert any("demanda" in it["content"].lower() for it in items)
+
+
 def test_is_substantive_titulo_puro_falso():
     assert not is_substantive_content(
         "01 – OBJETO DA CONTRATAÇÃO",

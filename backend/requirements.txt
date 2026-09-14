@@ -27,6 +27,7 @@ httpx==0.28.1
 # --- Validação e Segurança ---
 python-magic==0.4.27
 pydantic-settings==2.9.1
+defusedxml==0.7.1
 
 # --- Utilidades ---
 aiofiles==24.1.0

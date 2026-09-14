@@ -153,21 +153,36 @@ class MultiAgentOrchestrator:
         self, corrections: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         """
-        Remove duplicatas mantendo a correção de maior severidade/especificidade.
+        Remove duplicatas mantendo a correção de maior severidade.
         """
-        seen: set[tuple[str, str]] = set()
-        unique_list: list[dict[str, Any]] = []
+        severity_rank = {
+            "info": 0,
+            "baixo": 1,
+            "medio": 2,
+            "alto": 3,
+            "critico": 4,
+        }
+        best_by_key: dict[tuple[str, str], dict[str, Any]] = {}
+        passthrough: list[dict[str, Any]] = []
 
         for corr in corrections:
             orig = (corr.get("original_text") or "").strip().lower()
             prob = (corr.get("problem") or "").strip().lower()
-            key = (orig, prob)
-
-            if key in seen and orig and prob:
+            if not orig or not prob:
+                passthrough.append(corr)
                 continue
+            key = (orig, prob)
+            existing = best_by_key.get(key)
+            if existing is None:
+                best_by_key[key] = corr
+                continue
+            new_rank = severity_rank.get(
+                (corr.get("severity") or "").strip().lower(), -1
+            )
+            old_rank = severity_rank.get(
+                (existing.get("severity") or "").strip().lower(), -1
+            )
+            if new_rank > old_rank:
+                best_by_key[key] = corr
 
-            if orig and prob:
-                seen.add(key)
-            unique_list.append(corr)
-
-        return unique_list
+        return list(best_by_key.values()) + passthrough

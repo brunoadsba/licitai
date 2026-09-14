@@ -7,6 +7,7 @@ from app.services.jobs.queue import (
     fail,
     queue_depth,
     reclaim_expired,
+    renew_lease,
 )
 
 __all__ = [
@@ -15,5 +16,6 @@ __all__ = [
     "complete",
     "fail",
     "reclaim_expired",
+    "renew_lease",
     "queue_depth",
 ]

@@ -11,9 +11,9 @@ from app.services.agents.structural_agent import StructuralAgent
 def test_structural_agent_system_prompt_contains_strict_checklist():
     agent = StructuralAgent()
     prompt = agent.system_prompt
-    assert "CHECKLIST ESTRITO DE COMPLETUDE" in prompt
+    assert "Checklist de referência" in prompt
     assert "Art. 6º, XXIII" in prompt
-    assert "Sensibilidade a Omissões" in prompt
+    assert "CHECKLIST OBRIGATÓRIO DO TR" in prompt
 
 
 def test_structural_agent_build_user_prompt():
