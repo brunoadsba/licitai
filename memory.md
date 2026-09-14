@@ -462,8 +462,8 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 | # | Pendência | Tipo | Detalhe / doc |
 |---|-----------|------|----------------|
-| 1 | **Gate 14 dias** de uso real CODEBA | Humano | Enviar → Prioridade/Art. 6 → aprovar/rejeitar → SEI/HTML/DOCX; medir métricas. [gate-piloto-14d.md](docs/ops/gate-piloto-14d.md) |
-| 2 | **Benchmark quinzenal** (5 TRs) | Humano + baseline | Baseline Art.6 heurística: [quinzena-2026-09-14.md](docs/ops/quinzena-2026-09-14.md) (média 76% nos 5; ≥90% 2/5). Análise LLM + rejeição humana ainda pendentes. [piloto-qualidade.md](docs/ops/piloto-qualidade.md) |
+| 1 | **Gate 14 dias** de uso real CODEBA | **Aberto 14/09 → 28/09** | Sessão 0 (TR ouro) feita; continuar uso + SEI real. [gate-piloto-14d.md](docs/ops/gate-piloto-14d.md) |
+| 2 | **Benchmark quinzenal** (5 TRs) | Baseline + sessão ouro | Art.6 heurística 76%; sessão ouro LLM `09-ti-pabx-nuvem` (rejeição 90% nos 10 pendentes, SEI+DOCX OK). Demais TRs LLM sob cota. [quinzena-2026-09-14.md](docs/ops/quinzena-2026-09-14.md) |
 | 3 | **Validar export no SEI real** | Humano | Colar/anexar HTML/DOCX/pacote em minuta ou processo de teste |
 | 4 | **Rotação de secrets** | Ops manual | `GROQ_API_KEY` / `GEMINI_API_KEY` / `POSTGRES_PASSWORD` / `API_TOKEN` |
 | 5 | **Anonimizar** e-mails nos TRs de Emergência | Dados | Antes de free-tier cloud |
@@ -544,4 +544,5 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **RILC CODEBA (14/09/2026)**: PDF canônico em `backend/data/rilc/source/` (gitignored; SHA-256 pinado); stub removido de `ingest_juris_tcu.py`; ingestão `ingest_rilc_codeba.py`. Piloto Postgres: **6 docs / 599 chunks** (RILC 287 arts. com `page` no metadata).  
 > **Embeddings (14/09/2026)**: `ingest_embeddings.py` — **599/599** processados, 0 falhas, 0 pendentes.  
 > **Quinzena Art.6 (14/09/2026)**: baseline heurística em 5 TRs — média **76%**, ≥90% **2/5**; [docs/ops/quinzena-2026-09-14.md](docs/ops/quinzena-2026-09-14.md).  
-> **Pendências (10/09/2026)**: gate 14d, quinzena LLM/humana, SEI real, secrets, anonimizar; ML bloqueado até dataset.
+> **Sessão ouro + gate (14/09/2026)**: analysis `6f673b1b-…` economic com `ANALYSIS_MAX_LLM_CALLS=24`; `completed_with_errors`; SEI+DOCX OK; gate aberto até 28/09; outreach [outreach-solange-2026-09-14.md](docs/ops/outreach-solange-2026-09-14.md).  
+> **Pendências**: Solange enviar TRs, colar SEI real, secrets, anonimizar Emergência; ML bloqueado até dataset.

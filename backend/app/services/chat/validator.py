@@ -14,14 +14,24 @@ import re
 from pydantic import ValidationError
 
 from app.schemas.chat import ChatCitation
+from app.services.chat.warnings_pt import (
+    REFUSAL_MESSAGE,
+    normalize_reason,
+    refusal_content_pt,
+    warning_message_pt,
+)
 
 logger = logging.getLogger(__name__)
 
-REFUSAL_MESSAGE = (
-    "Não encontrei fontes suficientes para responder essa pergunta com "
-    "segurança. Reformule a pergunta ou pergunte sobre itens específicos "
-    "do documento analisado."
-)
+# Re-export para testes e callers existentes.
+__all__ = [
+    "REFUSAL_MESSAGE",
+    "ValidatedAnswer",
+    "normalize_reason",
+    "validate_llm_answer",
+    "warning_message_pt",
+    "_extract_json",
+]
 
 _CITATION_TYPES = {"legal", "analysis", "correction", "document_item"}
 
@@ -43,7 +53,7 @@ class ValidatedAnswer:
         self.confidence = confidence
         self.citations = citations or []
         self.refused = refused
-        self.reason = reason
+        self.reason = reason  # slug estável; nunca prosa do LLM
 
 
 def _extract_json(raw: str) -> dict:
@@ -56,7 +66,6 @@ def _extract_json(raw: str) -> dict:
     except (TypeError, ValueError):
         pass
 
-    # Remove fences de markdown ```json ... ```
     fenced = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.IGNORECASE)
     fenced = re.sub(r"\s*```$", "", fenced).strip()
     try:
@@ -66,7 +75,6 @@ def _extract_json(raw: str) -> dict:
     except (TypeError, ValueError):
         pass
 
-    # Último recurso: isola o primeiro {...} balanceado
     inicio = raw.find("{")
     fim = raw.rfind("}")
     if inicio != -1 and fim != -1 and fim > inicio:
@@ -110,7 +118,6 @@ def _parse_citations(
 
         if allowed is not None:
             if not source_id_str:
-                # Sem ID quando IDs foram fornecidos: ignora a citação
                 continue
             if source_id_str not in allowed:
                 logger.warning(
@@ -140,6 +147,15 @@ def _normalizar_confidence(valor) -> float | None:
     return max(0.0, min(1.0, float(valor)))
 
 
+def _recusa(reason_raw: str | None) -> ValidatedAnswer:
+    slug = normalize_reason(reason_raw)
+    return ValidatedAnswer(
+        content=refusal_content_pt(slug),
+        refused=True,
+        reason=slug,
+    )
+
+
 def validate_llm_answer(
     raw: str,
     require_grounding: bool,
@@ -152,31 +168,20 @@ def validate_llm_answer(
       fornecidos na chamada).
     - Fail-closed: citar ID inexistente → recusa.
     - Se `require_grounding` e não houver citação válida → recusa.
+    - `reason` devolvido é sempre slug; prosa do LLM não vaza.
     """
     try:
         dados = _extract_json(raw)
     except ValueError as exc:
         logger.warning("Resposta do LLM inválida: %s", exc)
-        return ValidatedAnswer(
-            content=REFUSAL_MESSAGE,
-            refused=True,
-            reason="resposta-invalida",
-        )
+        return _recusa("resposta-invalida")
 
     if dados.get("refused") is True:
-        return ValidatedAnswer(
-            content=REFUSAL_MESSAGE,
-            refused=True,
-            reason=str(dados.get("reason") or "recusa-llm"),
-        )
+        return _recusa(dados.get("reason"))
 
     answer = dados.get("answer")
     if not isinstance(answer, str) or not answer.strip():
-        return ValidatedAnswer(
-            content=REFUSAL_MESSAGE,
-            refused=True,
-            reason="resposta-vazia",
-        )
+        return _recusa("resposta-vazia")
 
     citations, id_inexistente = _parse_citations(
         dados.get("citations"), valid_source_ids
@@ -184,11 +189,7 @@ def validate_llm_answer(
 
     if id_inexistente:
         logger.info("Resposta recusada: citação com source_id inexistente (fail-closed)")
-        return ValidatedAnswer(
-            content=REFUSAL_MESSAGE,
-            refused=True,
-            reason="source-id-inexistente",
-        )
+        return _recusa("source-id-inexistente")
 
     grounded = bool(dados.get("grounded", False)) and bool(citations)
     confidence = _normalizar_confidence(dados.get("confidence"))
@@ -197,13 +198,8 @@ def validate_llm_answer(
         logger.info(
             "Resposta sem citação válida recusada (grounding obrigatório)"
         )
-        return ValidatedAnswer(
-            content=REFUSAL_MESSAGE,
-            refused=True,
-            reason="sem-citacao",
-        )
+        return _recusa("sem-citacao")
 
-    # suggested_actions do LLM são DESCARTADAS no MVP (nada é aplicado).
     return ValidatedAnswer(
         content=answer.strip(),
         grounded=grounded if citations else False,

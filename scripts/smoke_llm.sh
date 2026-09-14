@@ -34,9 +34,8 @@ from app.services.llm import get_llm_provider
 async def main():
     llm = get_llm_provider()
     text = await llm.generate(
-        system="Responda só OK.",
-        user="Diga OK",
-        temperature=0,
+        system_prompt="Responda só OK.",
+        user_prompt="Diga OK",
     )
     print("provider_ok", bool(text), "preview", (text or "")[:80])
 

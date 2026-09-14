@@ -107,7 +107,7 @@ function Breadcrumb({ pathname }: { pathname: string }) {
 
 export default function Header() {
   const pathname = usePathname();
-  const { openSidebar } = useShell();
+  const { openSidebar, desktopNavHidden, showDesktopNav } = useShell();
   const status = useBackendStatus();
   const statusConfig = STATUS_CONFIG[status];
   const StatusIcon = statusConfig.icon;
@@ -120,19 +120,34 @@ export default function Header() {
       <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <div className="flex min-w-0 items-center gap-3">
           <button
+            type="button"
             onClick={openSidebar}
             aria-label="Abrir menu de navegação"
             className="rounded-lg p-2 text-content-muted outline-none transition-colors hover:bg-white/[0.06] hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60 lg:hidden"
           >
             <Menu className="h-5 w-5" aria-hidden />
           </button>
+          {desktopNavHidden && (
+            <button
+              type="button"
+              onClick={showDesktopNav}
+              aria-label="Mostrar menu lateral"
+              title="Mostrar menu"
+              className="hidden rounded-lg p-2 text-content-muted outline-none transition-colors hover:bg-white/[0.06] hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60 lg:inline-flex"
+            >
+              <Menu className="h-5 w-5" aria-hidden />
+            </button>
+          )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/logo-codeba.png"
             alt="CODEBA"
             width={90}
             height={24}
-            className="h-6 w-auto rounded-md border border-white/10 bg-white px-1.5 py-0.5 object-contain lg:hidden"
+            className={cn(
+              'h-6 w-auto rounded-md border border-white/10 bg-white px-1.5 py-0.5 object-contain',
+              desktopNavHidden ? 'lg:block' : 'lg:hidden',
+            )}
           />
           <div className="min-w-0">
             <Breadcrumb pathname={pathname} />

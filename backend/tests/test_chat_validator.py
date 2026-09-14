@@ -14,8 +14,11 @@ from app.services.chat.validator import (
     REFUSAL_MESSAGE,
     ValidatedAnswer,
     _extract_json,
+    normalize_reason,
     validate_llm_answer,
+    warning_message_pt,
 )
+from app.services.chat.warnings_pt import FORA_ESCOPO_MESSAGE
 
 
 def _resposta_ok(citations=True, suggested=(), source_id="legal:1"):
@@ -123,6 +126,36 @@ class TestValidateAnswer:
         )
         assert resultado.refused is True
         assert resultado.reason == "sem-fontes"
+        assert resultado.content == REFUSAL_MESSAGE
+        assert "não sei" not in resultado.content
+        assert warning_message_pt(resultado.reason) is None
+
+    def test_recusa_reason_ingles_vira_fora_escopo_pt(self):
+        english = (
+            "The request does not pertain to public procurement, "
+            "analysis of Terms of Reference, or the provided sources."
+        )
+        raw = json.dumps(
+            {"refused": True, "reason": english, "answer": english},
+            ensure_ascii=False,
+        )
+        resultado = validate_llm_answer(
+            raw, require_grounding=True, valid_source_ids={"legal:1"}
+        )
+        assert resultado.refused is True
+        assert resultado.reason == "fora-escopo"
+        assert resultado.content == FORA_ESCOPO_MESSAGE
+        assert "pertain" not in resultado.content.lower()
+        assert "procurement" not in resultado.content.lower()
+        warning = warning_message_pt(resultado.reason)
+        assert warning is None or "pertain" not in warning.lower()
+
+    def test_normalize_reason_slug_conhecido(self):
+        assert normalize_reason("sem-citacao") == "sem-citacao"
+        assert normalize_reason("FORA-ESCOPO") == "fora-escopo"
+
+    def test_normalize_reason_prosa_desconhecida_vira_recusa_llm(self):
+        assert normalize_reason("algum texto aleatório do modelo") == "recusa-llm"
 
     def test_resposta_nao_json_recusa(self):
         resultado: ValidatedAnswer = validate_llm_answer(

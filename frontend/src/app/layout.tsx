@@ -2,11 +2,9 @@ import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import './globals.css';
-import Sidebar from '@/components/Layout/Sidebar';
-import Header from '@/components/Layout/Header';
+import { AppShell } from '@/components/Layout/AppShell';
 import { ShellProvider } from '@/components/Layout/ShellContext';
 import { ThemeProvider, themeInitScript } from '@/components/theme/ThemeProvider';
-import { Toaster } from '@/components/ui/Toaster';
 
 export const metadata: Metadata = {
   title: 'Análise de Termos de Referência | SEI',
@@ -39,26 +37,7 @@ export default function RootLayout({
             <a href="#conteudo-principal" className="skip-link">
               Pular para o conteúdo
             </a>
-
-            <div className="no-print">
-              <Sidebar />
-            </div>
-
-            <div className="flex flex-1 flex-col lg:pl-64">
-              <div className="no-print">
-                <Header />
-              </div>
-              <main
-                id="conteudo-principal"
-                className="mx-auto w-full max-w-[1440px] flex-1 p-4 sm:p-6 lg:p-8 print:max-w-none print:p-0"
-              >
-                {children}
-              </main>
-            </div>
-
-            <div className="no-print">
-              <Toaster />
-            </div>
+            <AppShell>{children}</AppShell>
           </ShellProvider>
         </ThemeProvider>
       </body>

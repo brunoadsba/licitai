@@ -14,9 +14,9 @@ Checklist operacional do elaborador de TR em ambiente single-user.
 | Fixtures TR CODEBA (12 objetos) | **Feito** em `fixtures/trs-codeba/` (PDFs gitignored) |
 | Cron backup diário + alertas | **Feito neste host** via `./scripts/install_ops_cron.sh --apply` — ver [cron.md](cron.md) |
 | Backup dry-run | **Feito** (`scripts/backup_daily.sh` → `backups/licitai_*`) |
-| Gate 14 dias de uso real CODEBA | **Pendente** (Bruno / elaboradores) — [gate-piloto-14d.md](gate-piloto-14d.md) |
+| Gate 14 dias de uso real CODEBA | **Aberto 2026-09-14 → 2026-09-28** (sessão 0 = TR ouro) — [gate-piloto-14d.md](gate-piloto-14d.md) |
 | Rotação de secrets | **Pendente** (manual) |
-| Benchmark quinzenal com 5 TRs CODEBA | **Baseline Art.6** [quinzena-2026-09-14.md](quinzena-2026-09-14.md); LLM/humana pendente — [piloto-qualidade.md](piloto-qualidade.md) · fixtures em `fixtures/trs-codeba/` |
+| Benchmark quinzenal com 5 TRs CODEBA | **Baseline Art.6** + **sessão ouro LLM** em [quinzena-2026-09-14.md](quinzena-2026-09-14.md) — [piloto-qualidade.md](piloto-qualidade.md) · fixtures em `fixtures/trs-codeba/` |
 | CI GitHub / K8s / fine-tune / multi-tenant | **Fora de escopo** (não fazer) |
 
 ## Secrets (manual Bruno)
@@ -58,12 +58,13 @@ Evite aliases `*-latest` em produção sem smoke. Defaults atuais no Compose:
 # LLM_SMOKE_REAL=1 ./scripts/smoke_llm.sh
 ```
 
-Modo padrão do piloto: **economic** (jurídico + Art. 6). Orçamento opcional: `ANALYSIS_MAX_LLM_CALLS` (0 = ilimitado).
+Modo padrão do piloto: **economic** (jurídico + Art. 6). Orçamento: `ANALYSIS_MAX_LLM_CALLS` (Compose/piloto free tier default **24** ≈ 12 itens no economic; `0` = ilimitado — evita estourar TPM em TRs com 100+ itens).
 
 ## Qualidade e gate 14 dias
 
-- [piloto-qualidade.md](piloto-qualidade.md) — rotina quinzenal (**execução pendente**)
-- [gate-piloto-14d.md](gate-piloto-14d.md) — critérios de uso real (**janela não iniciada**)
+- [piloto-qualidade.md](piloto-qualidade.md) — rotina quinzenal (Art. 6 + sessão ouro LLM em [quinzena-2026-09-14.md](quinzena-2026-09-14.md))
+- [gate-piloto-14d.md](gate-piloto-14d.md) — critérios de uso real (**janela aberta 2026-09-14**)
+- Outreach Solange: [outreach-solange-2026-09-14.md](outreach-solange-2026-09-14.md) (Bruno envia)
 - Meta estrutural Art. 6º: **≥90%** (`art6_coverage` na API/UI). Score local sem LLM:
 
 ```bash

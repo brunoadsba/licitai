@@ -24,6 +24,7 @@ from app.services.chat.llm_adapter import ChatLLMProvider, get_chat_llm
 from app.services.chat.prompts import build_messages
 from app.services.chat.sources import build_sources, source_ids_from
 from app.services.chat.validator import ValidatedAnswer, validate_llm_answer
+from app.services.chat.warnings_pt import FALHA_LLM_MESSAGE, warning_message_pt
 
 logger = logging.getLogger(__name__)
 
@@ -130,17 +131,18 @@ async def send_message(
             getattr(provider, "provider_name", "desconhecido"),
         )
         resposta = ValidatedAnswer(
-            content=(
-                "Não foi possível processar sua pergunta agora. "
-                "Tente novamente em instantes."
-            ),
+            content=FALHA_LLM_MESSAGE,
             refused=True,
             reason="falha-llm",
         )
         latency_ms = int((time.monotonic() - inicio) * 1000)
 
     if resposta.refused:
-        logger.info("chat.answer.refused conversation_id=%s", conversation_id)
+        logger.info(
+            "chat.answer.refused conversation_id=%s reason=%s",
+            conversation_id,
+            resposta.reason,
+        )
 
     return await _persistir_mensagem(
         db,
@@ -153,5 +155,5 @@ async def send_message(
         provider=getattr(provider, "provider_name", "desconhecido"),
         model=getattr(provider, "model_name", None),
         latency_ms=latency_ms,
-        warning=resposta.reason,
+        warning=warning_message_pt(resposta.reason) if resposta.refused else None,
     )

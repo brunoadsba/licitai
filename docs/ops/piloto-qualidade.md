@@ -1,6 +1,6 @@
 # Qualidade do piloto CODEBA (sem LLM paga)
 
-**Status:** procedimento escrito; **última execução:** [quinzena-2026-09-14.md](quinzena-2026-09-14.md) (baseline Art. 6º heurística em 5 TRs; análises LLM / rejeição humana ainda pendentes).
+**Status:** procedimento escrito; **última execução:** [quinzena-2026-09-14.md](quinzena-2026-09-14.md) (baseline Art. 6º em 5 TRs + sessão ouro LLM `09-ti-pabx-nuvem` com revisão/SEI/DOCX).
 
 Rotina quinzenal para manter precision em **alto/crítico** e Art. 6º.
 

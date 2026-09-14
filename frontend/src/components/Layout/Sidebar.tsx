@@ -12,6 +12,7 @@ import {
   FilePenLine,
   Layers,
   BookOpen,
+  PanelLeftClose,
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -130,9 +131,20 @@ function Brand() {
 }
 
 function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
+  const { hideDesktopNav } = useShell();
+
   return (
     <>
-      <div className="border-b border-line-subtle p-6">
+      <div className="relative border-b border-line-subtle p-6">
+        <button
+          type="button"
+          onClick={hideDesktopNav}
+          aria-label="Esconder menu lateral"
+          title="Esconder menu"
+          className="absolute right-3 top-3 hidden rounded-md p-1.5 text-content-subtle outline-none transition-colors hover:bg-white/[0.06] hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60 lg:inline-flex"
+        >
+          <PanelLeftClose className="h-4 w-4" aria-hidden />
+        </button>
         <Brand />
       </div>
       <NavLinks onNavigate={onNavigate} />
@@ -141,11 +153,17 @@ function SidebarBody({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export default function Sidebar() {
-  const { sidebarOpen, closeSidebar } = useShell();
+  const { sidebarOpen, closeSidebar, desktopNavHidden } = useShell();
 
   return (
     <>
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line-subtle bg-panel/95 backdrop-blur-xl lg:flex">
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-line-subtle bg-panel/95 backdrop-blur-xl transition-transform duration-200 ease-out lg:flex',
+          desktopNavHidden && '-translate-x-full pointer-events-none',
+        )}
+        aria-hidden={desktopNavHidden}
+      >
         <SidebarBody />
       </aside>
 

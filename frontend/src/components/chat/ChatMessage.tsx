@@ -13,12 +13,6 @@ interface ChatMessageProps {
   onFeedback?: (messageId: number, rating: 'up' | 'down') => void;
 }
 
-function formatLatency(ms: number | null): string {
-  if (ms === null || ms === undefined) return '';
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
 export default function ChatMessageView({
   message,
   sending,
@@ -41,35 +35,20 @@ export default function ChatMessageView({
           <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.content}</p>
         ) : (
           <>
-            <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-              {message.grounded && (
+            {message.grounded && (
+              <div className="mb-1.5">
                 <Badge tone="low" className="text-[9px]">
-                  Ancorado
+                  Com base nas fontes
                 </Badge>
-              )}
-              {message.confidence !== null && message.confidence !== undefined && (
-                <Badge tone="neutral" className="tnum text-[9px]">
-                  {Math.round(message.confidence * 100)}% confiança
-                </Badge>
-              )}
-              {message.provider && (
-                <Badge tone="medium" className="text-[9px]">
-                  {message.provider}
-                </Badge>
-              )}
-              {message.latency_ms !== null && message.latency_ms !== undefined && (
-                <span className="tnum font-mono text-[9px] text-content-subtle">
-                  {formatLatency(message.latency_ms)}
-                </span>
-              )}
-            </div>
+              </div>
+            )}
 
             <p className="whitespace-pre-wrap text-sm leading-relaxed">
               {sending && !message.content ? 'Gerando resposta…' : message.content}
             </p>
 
             {message.warning && (
-              <p className="mt-2 flex items-start gap-1.5 text-[11px] text-yellow-400/70">
+              <p className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-yellow-400/80">
                 <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span>{message.warning}</span>
               </p>
@@ -80,6 +59,7 @@ export default function ChatMessageView({
             {onFeedback && !feedbackGiven.has(message.id) && message.id > 0 && (
               <div className="mt-2 flex items-center gap-1">
                 <button
+                  type="button"
                   onClick={() => onFeedback(message.id, 'up')}
                   className="rounded-md px-1 py-0.5 text-content-subtle outline-none transition-colors hover:text-green-400 focus-visible:ring-2 focus-visible:ring-accent-500/60"
                   title="Resposta útil"
@@ -88,6 +68,7 @@ export default function ChatMessageView({
                   <ThumbsUp className="h-4 w-4" aria-hidden />
                 </button>
                 <button
+                  type="button"
                   onClick={() => onFeedback(message.id, 'down')}
                   className="rounded-md px-1 py-0.5 text-content-subtle outline-none transition-colors hover:text-red-400 focus-visible:ring-2 focus-visible:ring-red-500/60"
                   title="Resposta não útil"
