@@ -1,6 +1,6 @@
 # Qualidade do piloto CODEBA (sem LLM paga)
 
-**Status:** procedimento escrito; **execução quinzenal pendente** (Bruno / elaboradores).
+**Status:** procedimento escrito; **última execução:** [quinzena-2026-09-14.md](quinzena-2026-09-14.md) (baseline Art. 6º heurística em 5 TRs; análises LLM / rejeição humana ainda pendentes).
 
 Rotina quinzenal para manter precision em **alto/crítico** e Art. 6º.
 
