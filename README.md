@@ -31,7 +31,7 @@ Ops e pendências do piloto (gate 14 dias, cron, DOCX, Art. 6, fixtures): ver [d
   - 👑 **Orquestrador Multi-Agente**: Execução concorrente assíncrona (`asyncio.gather`) + deduplicação de achados
 - **RAG v1.0 & Corpus Jurídico Expandido**:
   - Embeddings semânticos com `get_embeddings_provider()` (Gemini / Ollama `bge-m3`)
-  - **Jurisprudência do TCU** (Súmula 247, Súmula 272, Acórdão 1214/2013) e **RILC CODEBA-2023** (315 chunks no índice FTS5/Semântico)
+  - **Jurisprudência do TCU** (Súmula 247, Súmula 272, Acórdão 1214/2013) e **RILC CODEBA** completo (fonte atos_normativos; ver `backend/data/rilc/`)
   - **Busca sem acento** (FTS5 `remove_diacritics 2`): consultas com/sem acentuação retornam os mesmos resultados
   - **Retrieval híbrido RRF**: combina busca semântica + textual com fusão por rank recíproco
   - **Comparador Visual de Versões de TR** (`/comparacao/versoes`): Alinhamento por item com identificação de `alterado`, `adicionado` e `removido`
@@ -425,11 +425,12 @@ Get-Content .env | Where-Object { $_ -match '^[A-Z_]+=' } | ForEach-Object {
 cd backend
 .\.venv\Scripts\python.exe scripts\ingest_laws.py
 .\.venv\Scripts\python.exe scripts\ingest_juris_tcu.py
+.\.venv\Scripts\python.exe scripts\ingest_rilc_codeba.py
 .\.venv\Scripts\python.exe scripts\ingest_corpus_extra.py
 .\.venv\Scripts\python.exe scripts\ingest_embeddings.py
 ```
 
-Resultado esperado: **7 documentos, 315 chunks, 100% com embedding**. Dica: se `ingest_embeddings.py` falhar com `429 RESOURCE_EXHAUSTED`, aguarde ~60s (cota free tier de ~100 req/min do Gemini) e rode novamente — o script é idempotente (só processa chunks sem embedding).
+O RILC completo usa `backend/data/rilc/source/provenance.json` (PDF local gitignored; hash pinado). Resultado típico no piloto Postgres: **6 docs / ~599 chunks** (14.133 + 13.303 + TCU + RILC ~287 arts.); 100% com embedding após `ingest_embeddings.py`. Dica: se `ingest_embeddings.py` falhar com `429 RESOURCE_EXHAUSTED`, aguarde ~60s (cota free tier) e rode novamente — o script é idempotente.
 
 ## 💬 API do Copiloto (Chat Consultivo)
 
@@ -455,7 +456,7 @@ Regras de comportamento:
 - [x] **MVP**: Upload, parsing, análise com IA, relatório
 - [x] **RF02/RF03**: Auditoria TR × Propostas — moldes de regras + matriz de conformidade
 - [x] **Auditoria (polimentos)**: editor visual de moldes + seed + tipos data/percentual/monetário
-- [x] **RAG v1.0**: legislação + jurisprudência TCU/RILC (315 chunks), busca semântica, busca sem acento, diff de versões
+- [x] **RAG v1.0**: legislação + jurisprudência TCU + RILC CODEBA completo (~599 chunks no piloto), busca semântica, busca sem acento, diff de versões
 - [x] **RF04**: Feedback/e-mail por fornecedor (endpoint + UI; requer `SMTP_HOST`/`SMTP_FROM` no `.env`)
 - [x] **Correções de alto impacto (PRD v2.0)**: parsing determinístico, extração por âncoras robusta, FTS com diacríticos, schema Postgres sincronizado, paginação backward-compatible
 - [x] **Copiloto LicitAI (chat consultivo)**: API + painel na tela de análise com grounding e citações (26 testes novos + 4 de schema)

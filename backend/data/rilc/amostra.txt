@@ -1,3 +1,4 @@
+# Stub histórico — NÃO usar no RAG. Fonte canônica: source/ + ingest_rilc_codeba.py
 # RILC 01/2024
 # Título: Instrução normativa da CODEBA sobre licitações internas
 A Codeba, em sua atuação como empresa pública, deve observar os princípios da legalidade, impessoalidade, moralidade, publicidade e eficiência em todos os seus procedimentos licitatórios.

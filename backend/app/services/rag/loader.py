@@ -18,10 +18,17 @@ from app.models.legal import LegalChunk, LegalDocument
 
 logger = logging.getLogger(__name__)
 
-# Marcos estruturais da lei
+# Marcos estruturais da lei (leis federais: "Art. N"; RILC CODEBA: "Artigo N")
 _SECTION_RE = re.compile(r"^(TÍTULO|CAPÍTULO|SEÇÃO|SUBSECÇÃO)\s+[IVXLCDM0-9]+")
-_ARTICLE_RE = re.compile(r"^Art\.\s*\d+[º\-A-Z]?")
+_ARTICLE_RE = re.compile(
+    r"^(?:Art\.|Artigo)\s*\d+[º°\-A-Z]?",
+    re.IGNORECASE,
+)
 _FOOTER_MARK = "Este texto não substitui o publicado no DOU"
+# Marcador injetado na extração PDF (# Página N ou [[pagina:N]])
+_PAGE_MARKER_RE = re.compile(
+    r"^(?:#\s*[Pp]ágina\s+(\d+)|\[\[pagina:(\d+)\]\])$"
+)
 
 
 @dataclass
@@ -31,6 +38,7 @@ class LawChunk:
     article: str
     section: str
     text: str
+    page: int | None = None
 
 
 def parse_law_text(content: str) -> list[LawChunk]:
@@ -39,10 +47,14 @@ def parse_law_text(content: str) -> list[LawChunk]:
 
     Agrupa o artigo com seus §§ e incisos. Rastreia título/capítulo.
     Ignora cabeçalho (antes do 1º artigo) e rodapé (após a nota DOU).
+    Preserva página de origem quando houver marcadores `# Página N`
+    ou `[[pagina:N]]`.
     """
     chunks: list[LawChunk] = []
     current_article: str | None = None
     current_section = ""
+    current_page: int | None = None
+    article_page: int | None = None
     buffer: list[str] = []
 
     for raw_line in content.splitlines():
@@ -52,6 +64,11 @@ def parse_law_text(content: str) -> list[LawChunk]:
         if _FOOTER_MARK in line:
             break
 
+        page_match = _PAGE_MARKER_RE.match(line)
+        if page_match:
+            current_page = int(page_match.group(1) or page_match.group(2))
+            continue
+
         # Novo artigo: fecha o chunk anterior e inicia outro
         if _ARTICLE_RE.match(line):
             if current_article and buffer:
@@ -60,9 +77,11 @@ def parse_law_text(content: str) -> list[LawChunk]:
                         article=current_article,
                         section=current_section,
                         text="\n".join(buffer),
+                        page=article_page,
                     )
                 )
             current_article = _extract_article_ref(line)
+            article_page = current_page
             buffer = [line]
             continue
 
@@ -86,6 +105,7 @@ def parse_law_text(content: str) -> list[LawChunk]:
                 article=current_article,
                 section=current_section,
                 text="\n".join(buffer),
+                page=article_page,
             )
         )
 
@@ -93,8 +113,12 @@ def parse_law_text(content: str) -> list[LawChunk]:
 
 
 def _extract_article_ref(line: str) -> str:
-    """Extrai a referência do artigo ('Art. 6º', 'Art. 19-A.')."""
-    match = re.match(r"^Art\.\s*([^\s]+)", line)
+    """Extrai a referência do artigo ('Art. 6º', 'Art. 19-A', 'Artigo 52')."""
+    match = re.match(
+        r"^(?:Art\.|Artigo)\s*([^\s]+)",
+        line,
+        re.IGNORECASE,
+    )
     return f"Art. {match.group(1).rstrip('.')}" if match else line[:60]
 
 
@@ -172,6 +196,13 @@ async def _persist_document(
     await db.flush()
 
     for idx, chunk in enumerate(chunks):
+        meta: dict = {
+            "law_number": law_number,
+            "law_title": law_title,
+            "article": chunk.article,
+        }
+        if chunk.page is not None:
+            meta["page"] = chunk.page
         db.add(
             LegalChunk(
                 legal_document_id=doc.id,
@@ -179,11 +210,7 @@ async def _persist_document(
                 article=chunk.article,
                 section=chunk.section,
                 chunk_text=chunk.text,
-                doc_metadata={
-                    "law_number": law_number,
-                    "law_title": law_title,
-                    "article": chunk.article,
-                },
+                doc_metadata=meta,
             )
         )
 

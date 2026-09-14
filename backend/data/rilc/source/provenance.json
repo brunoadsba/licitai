@@ -1,0 +1,20 @@
+{
+  "documento": "RILC CODEBA",
+  "titulo": "Regulamento Interno de Licitações e Contratos da CODEBA",
+  "revisao": "1",
+  "data_revisao": "2022-03-31",
+  "data_criacao": "2018-05-15",
+  "inicio_vigencia": "2018-06-30",
+  "status": "vigente",
+  "arquivo_local": "rilc-codeba-rev1-2022-03-31.pdf",
+  "bytes": 1418402,
+  "paginas": 130,
+  "sha256": "cc5f8493d75f1e15898ad2341a654c5cef64acd25a21b2e72882409ac2e146f9",
+  "url_canonica": "https://www.codeba.gov.br/eficiente/repositorio/Codeba/atos_normativos/2022/17995.pdf",
+  "url_espelho": "https://www.codeba.gov.br/eficiente/repositorio/Licitacoes/20933.pdf",
+  "pagina_descoberta": "https://www.codeba.gov.br/eficiente/sites/portalcodeba/pt-br/site.php?secao=regulamentos",
+  "law_number": "RILC-CODEBA",
+  "version": "Revisão 1 (2022-03-31)",
+  "coletado_em": "2026-09-14",
+  "notas": "Canônica = atos_normativos; espelho Licitações tem o mesmo SHA-256. PDF local gitignored; manifesto versionado."
+}

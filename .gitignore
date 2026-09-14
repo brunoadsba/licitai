@@ -51,6 +51,8 @@ frontend/dev-server.log
 tr_modelo.pdf
 Base de Dados com TR para teste/
 fixtures/trs-codeba/**/*.pdf
+# PDF oficial do RILC (binário local; manifesto em provenance.json)
+backend/data/rilc/source/*.pdf
 # Duplicata da logo (a oficial vive em frontend/public/logo-codeba.png)
 Logo CODEBA.png
 

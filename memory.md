@@ -22,7 +22,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - Sugestões de melhoria fundamentadas no formato **DE → PARA** (com gravidade, risco, justificativa e embasamento legal).
 - **RAG v1.0 & Busca Semântica por Embeddings**:
   - Embeddings semânticos com `get_embeddings_provider()` (Gemini / Ollama `bge-m3`).
-  - Base jurídica expandida com **Jurisprudência do TCU** (Súmulas 247, 272, Acórdão 1214/2013) e **RILC CODEBA-2023** (315 chunks no índice FTS5/Semântico).
+  - Base jurídica expandida com **Jurisprudência do TCU** (Súmulas 247, 272, Acórdão 1214/2013) e **RILC CODEBA** completo (fonte atos_normativos; ingestão `ingest_rilc_codeba.py`).
   - **Comparador Visual de Versões de TR** (`/comparacao/versoes`): Alinhamento inteligente por `item_number` classificando itens em `inalterado`, `alterado`, `adicionado`, `removido`.
 - **Auditoria TR × Propostas** (módulo aditivo):
   - **Moldes de regras configuráveis** (RF02) com 10 tipos de âncoras (numéricas, por extenso, booleanas, legais, datas, percentuais, monetárias, **CNPJ**, **prazo relativo** e **CEP**).
@@ -45,7 +45,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `MultiAgentOrchestrator`: Dispara chamadas paralelas aos agentes especializados e deduplica os achados idênticos.
 - **RAG v1.0 & Corpus Jurídico (`services/rag/` + `services/embeddings/`)**:
   - Embeddings vetoriais via `GeminiEmbeddingsProvider` / `OllamaEmbeddingsProvider` armazenados na coluna `legal_chunks.embedding`.
-  - Ingestão de acórdãos TCU e RILC CODEBA (`ingest_juris_tcu.py`) com reconstrução de índice FTS5.
+  - Ingestão de acórdãos TCU (`ingest_juris_tcu.py`) e RILC CODEBA completo (`ingest_rilc_codeba.py`) com reconstrução de índice FTS5.
   - Diff entre versões do TR (`services/comparator/diff.py`) e endpoint `/documents/diff`.
 - **Módulo de Auditoria TR × Propostas & Polimentos**:
   - **Novos Extratores**: CNPJ (dígitos verificadores), Prazo Relativo (ex: "30 dias"), CEP (`#####-###`).
@@ -468,7 +468,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 | 4 | **Rotação de secrets** | Ops manual | `GROQ_API_KEY` / `GEMINI_API_KEY` / `POSTGRES_PASSWORD` / `API_TOKEN` |
 | 5 | **Anonimizar** e-mails nos TRs de Emergência | Dados | Antes de free-tier cloud |
 | 6 | Subir **`art6_coverage`** nos TRs reais (~71% → ≥90%) | Uso + curadoria | Já medível na UI/API; lacunas típicas: solução como um todo + adequação orçamentária |
-| 7 | **RILC CODEBA completo** no RAG (hoje é recorte) | Dados / ingestão | Prioridade alta se for reforçar corpus; 14.133 e 13.303 já estão em `backend/data/laws/` |
+| 7 | ~~**RILC CODEBA completo** no RAG~~ | Feito (14/09/2026) | Fonte `backend/data/rilc/source/` + `provenance.json`; ingestão `python scripts/ingest_rilc_codeba.py` (287 arts., page em metadata) |
 | 8 | **Fine-tune / treino ML** | Bloqueado | Só após gate + dataset de aprovar/rejeitar/thumbs-down (`promote_feedback.py`). Treinar agora sem rótulos estáveis não é o próximo passo |
 
 **Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`.
@@ -523,7 +523,7 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 2. Iniciar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)) com TRs de `piloto-unico/`.
 3. Em paralelo: **1ª quinzena** de qualidade (5 TRs) + validar 1 export no SEI.
 4. Rotacionar secrets quando conveniente; anonimizar Emergência antes de cloud.
-5. Opcional (corpus): retomar stash **RILC CODEBA** (`feat/rilc-codeba-rag`) e ingerir no RAG.
+5. **RILC CODEBA completo** no RAG: pronto — ver `backend/data/rilc/README.md` e `scripts/ingest_rilc_codeba.py`.
 6. **Não** abrir fine-tune até existir volume de feedback humano curado.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
@@ -541,5 +541,6 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **E2E full (11/09/2026)**: em `main` — Camada 0 `scripts/smoke_e2e_compose.sh`; API markers `e2e_fast`/`e2e_live`; Playwright P0–P2 em `frontend/e2e/`; doc [docs/ops/e2e-full.md](docs/ops/e2e-full.md). Guard: proposta não inicia análise de TR.  
 > **Compose/Postgres WSL (11/09/2026)**: `POSTGRES_PASSWORD` exportado no shell (às vezes com `\r`) sobrescrevia `.env` → `password authentication failed` / backend unhealthy. Fix ops: `.env` em LF; `unset` antes do compose; runbook em [docs/ops/deploy.md](docs/ops/deploy.md). Atalhos: `scripts/up.sh` / `scripts/down.sh` (`729d6e0`).  
 > **Organização docs (11/09/2026)**: PRDs/planos históricos movidos para [docs/archive/](docs/archive/) (sem exclusão). Vivos: README, memory, `docs/ops/`, `docs/guia-usuario.md`. `tmp/` e `output/` no `.gitignore`.  
-> **Pendências (10/09/2026)**: gate 14d, quinzena, SEI real, secrets, anonimizar, RILC completo opcional; ML bloqueado até dataset.  
-> **WIP separado**: stash `wip-rilc-codeba-rag` na branch `feat/rilc-codeba-rag` (fonte canônica RILC) — não misturar com UX.
+> **RILC CODEBA (14/09/2026)**: PDF canônico em `backend/data/rilc/source/` (gitignored; SHA-256 pinado); stub removido de `ingest_juris_tcu.py`; ingestão `ingest_rilc_codeba.py`. Piloto Postgres: **6 docs / 599 chunks** (RILC 287 arts. com `page` no metadata).  
+> **Pendências (10/09/2026)**: gate 14d, quinzena, SEI real, secrets, anonimizar; ML bloqueado até dataset.  
+> **WIP stash antigo**: `wip-rilc-codeba-rag` pode ser descartado após merge desta branch.
