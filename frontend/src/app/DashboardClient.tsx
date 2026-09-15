@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import DocumentListItem from '@/components/dashboard/DocumentListItem';
 import { PendingReviewList } from '@/components/dashboard/PilotSignals';
+import DashboardReviewerStats from '@/components/dashboard/DashboardReviewerStats';
 import type { DocumentResponse } from '@/types';
 
 export default function DashboardClient({
@@ -171,6 +172,8 @@ export default function DashboardClient({
       )}
 
       {pending && pending.items.length > 0 && <PendingReviewList pending={pending} />}
+
+      <DashboardReviewerStats />
 
       {errorInfo && (
         <AlertBanner variant="error" title={errorInfo.title}>
