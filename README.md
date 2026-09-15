@@ -12,8 +12,10 @@ Ops e pendências do piloto (gate 14 dias, cron, DOCX, Art. 6, fixtures): ver [d
 
 ### Entregas recentes (piloto)
 
+- **Revisão guiada + revisor-assistente (15/09):** modo **1 por vez** (grave primeiro, barra 3/9) com banner de **sugestão + confiança** (aprovar 84% / ajustar 88% / rejeitar 95% fail-closed), 1 clique para aceitar; também em "Ver todas" como selo discreto. Métrica de aceitação no relatório/dashboard (`review_suggestion_*`). Opt-in `REVIEWER_SECOND_OPINION=1` para 2ª opinião Ollama local.
+- Higiene 0 arquivos >300: `analysis.py` 953→8 módulos, `types`/`api` em domínios, `engine`/`detection`/`worker`/`versoes` fatiados — zero comportamento, `272 passed`, `tsc 0`
 - Pacote SEI, TR HTML/DOCX corrigido, fila Prioridade, checklist Art. 6º com **`art6_coverage` ≥90%**
-- Modo `economic`, reanálise parcial, painel de pendências
+- Modo `economic`, reanálise parcial, painel de pendências + widget do revisor no dashboard
 - Base local de TRs: [`fixtures/trs-codeba/`](fixtures/trs-codeba/) (12 objetos; PDFs fora do Git)
 - UI: tema **claro/escuro** (toggle no header) — contrato em [`frontend/DESIGN.md`](frontend/DESIGN.md); contraste AA no claro (tokens + Badge/AlertBanner)
 - UX elaborador (11/09): Enviar → Revisar agora → pacote SEI; relatório = leitura/PDF; copiloto sob demanda; guia em `/guia`
@@ -38,7 +40,9 @@ Ops e pendências do piloto (gate 14 dias, cron, DOCX, Art. 6, fixtures): ver [d
   - **Comparador Visual de Versões de TR** (`/comparacao/versoes`): Alinhamento por item com identificação de `alterado`, `adicionado` e `removido`
 - **Correções no formato DE → PARA** com fundamentação legal
 - **Fluxo SEI (cópia filtrada + revisão humana)**:
-  - Revisão cruzada LLM + **revisão humana** (Aprovar / Rejeitar / Ajustar) via `PATCH /api/v1/analysis/corrections/{id}`
+  - **Revisão guiada:** botão **Revisar agora** mostra 1 sugestão prioritária por vez (crítico/alto + estrutural), barra de progresso e navegação Anterior/Próxima; **Ver todas** mantém o grid por item.
+  - **Revisor-assistente (consultivo):** banner "Sugestão: aprovar 84% · motivo" com **Aceitar sugestão** (1 clique). Nunca auto-aprova; ajuste com placeholders exige edição humana. Métrica `POST /review-suggestions/*/track` + painel no relatório/dashboard. API `GET /analysis/{id}/review-suggestions`.
+  - Revisão humana (Aprovar / Rejeitar / Ajustar) via `PATCH /api/v1/analysis/corrections/{id}`
   - Cópia para o SEI **somente** com correções `aprovada` ou `ajustada`
   - **Fila Prioridade** (alto/crítico + Art. 6º/estrutural) na análise
   - **Copiar pacote SEI** (`GET /analysis/{id}/sei-pack`), **TR HTML** (`…/corrected-html`) e **DOCX** (`…/corrected-docx`)
@@ -226,29 +230,30 @@ licitacao/
 │   ├── requirements.txt
 │   └── app/
 │       ├── main.py          # FastAPI + /livez /readyz /metrics
-│       ├── worker.py        # Processa fila jobs (obrigatório)
+│       ├── worker.py        # Loop + heartbeat (handlers em services/jobs/handlers.py)
 │       ├── config.py        # Settings (env vars)
 │       ├── database.py      # SQLAlchemy async
 │       ├── models/          # ORM models
 │       ├── schemas/         # Pydantic validation
-│       ├── api/             # REST (start = enqueue-only)
+│       ├── api/             # REST por domínio (analysis/*, sei_exports, reviewer, etc. — ≤250 linhas cada)
 │       ├── services/
-│       │   ├── parser/      # PDF, DOCX, OCR, estruturador
-│       │   ├── llm/         # Groq, Gemini, Ollama + limiter
-│       │   ├── analyzer/    # Motor + review fail-closed
+│       │   ├── parser/      # PDF, DOCX, OCR, estruturador (detection_* fatiado)
+│       │   ├── llm/         # Groq, Gemini, Ollama + limiter + factory
+│       │   ├── analyzer/    # Motor (engine + item_selection + phases + persistence) + review fail-closed
+│       │   ├── reviewer/    # Revisor-assistente (checks determinísticos + second_opinion opt-in)
 │       │   ├── jobs/        # Fila durável
 │       │   ├── legal/       # Checklist Art. 6 XXIII a–j
-│       │   ├── rules/       # Moldes de regras
+│       │   ├── rules/       # Moldes de regras (extractor + extractor_values)
 │       │   └── comparator/  # TR × Propostas
 │       └── utils/           # Segurança, validação de uploads
 ├── frontend/
 │   ├── Dockerfile
 │   ├── package.json
 │   └── src/
-│       ├── app/             # Pages + api/proxy (BFF)
-│       ├── components/      # Layout + UI
-│       ├── lib/api.ts       # Cliente via BFF
-│       └── types/           # TypeScript types
+│       ├── app/             # Pages + api/proxy (BFF) — analysis usa useAnalysisPage + GuidedReview
+│       ├── components/      # Layout + UI (analysis/*, report/*, dashboard/*)
+│       ├── lib/api/         # Cliente por domínio (client, documents, analysis, reviewer, etc.)
+│       └── types/           # Types por domínio (documents, analysis, reviewer, etc.)
 └── e2e/                     # E2E + golden/ (FakeLLM)
     ├── .env.test            # Config para testes
     ├── run_e2e.ps1          # Script automatizado
@@ -325,7 +330,7 @@ cd /caminho/licitai
 PYTHONPATH=backend backend/.venv/bin/python -m pytest backend/tests -q
 ```
 
-- Cobertura: parser, extractor, retriever, rules/comparador/matriz, multi-agente, schema, chat/Copiloto, revisão humana SEI (`test_correction_review_api.py`), demais módulos.
+- Cobertura: parser, extractor, retriever, rules/comparador/matriz, multi-agente, schema, chat/Copiloto, revisão humana SEI (`test_correction_review_api.py`), **revisor-assistente** (`test_reviewer_checks.py` + `test_reviewer_api.py`), demais módulos. 272 testes no total; 0 arquivos >300 em `backend/app` e `frontend/src`.
 - `backend/tests/conftest.py` força `DATABASE_URL=sqlite+aiosqlite:///:memory:` **antes** do import de `app.*`, para o pytest não herdar `postgresql://` síncrono do `.env`.
 - Testes do Copiloto usam **provider fake** (determinístico) — nunca chamam Gemini/Groq/Ollama reais.
 ### Validação do schema PostgreSQL (`db/init.sql`)
@@ -461,6 +466,7 @@ Regras de comportamento:
 - [x] **RF04**: Feedback/e-mail por fornecedor (endpoint + UI; requer `SMTP_HOST`/`SMTP_FROM` no `.env`)
 - [x] **Correções de alto impacto (PRD v2.0)**: parsing determinístico, extração por âncoras robusta, FTS com diacríticos, schema Postgres sincronizado, paginação backward-compatible
 - [x] **Copiloto LicitAI (chat consultivo)**: API + painel na tela de análise com grounding e citações (26 testes novos + 4 de schema)
+- [x] **Higiene + revisão guiada + revisor-assistente (15/09)**: 0 arquivos >300, guiado 1-por-vez, banner "Sugestão X% + motivo" com **Aceitar** (1 clique, sem auto-aprovar), métrica `review_suggestion_*` no relatório/dashboard, `GET /review-suggestions` + `POST /track`
 - [ ] **v2.0**: Múltiplos agentes com LangGraph, checklist de conformidade, multi-usuário
 - [ ] **Validação Postgres runtime**: `docker compose up -d db` quando houver Docker daemon (schema já validado por parser `pglast`)
 
