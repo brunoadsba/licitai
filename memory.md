@@ -306,7 +306,7 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (15/09/2026)**: `fix/backend-auditoria-15-09` (base `main` `87fdd33`; 12 arquivos modificados + 2 testes novos, sem commit). CI permanece desabilitado.
+- **Branch ativa (15/09/2026)**: `main` (`eceb2e9`; auditoria + incrementos mergeados e no remoto). CI permanece desabilitado.
 - **Auditoria backend 15/09 (P0+P1+P2 — `.omo/plans/fix-backend-auditoria-2026-09-15.md`)**: failover com lista filtrada (`is_last_provider`), fila atômica (`UPDATE...WHERE pending` + rowcount + `expire_all`), upload `max+1` bytes → 413 sem OOM + ZIP/`octet-stream` com assinatura `PK` p/ DOCX/ODT, parser semáforo `PARSE_MAX_CONCURRENT=2` + `PARSE_TIMEOUT_SECONDS` + log `orphan_thread`, orphans só em `running` stale (>2x lease), rate-limit evicção 5k IPs + `TRUST_PROXY`/XFF, `mkdir` no lifespan, `/metrics` com token fora de dev, métricas sem `threading.Lock`, `document.error_message` em `completed_with_errors`, snapshot `total/work_items`, `get_upload_path` com `is_relative_to`, PDF preserva causa raiz + OCR com motivo, ODT anti-zipbomb (5k entries, 200MB). Testes novos `test_llm_failover_last.py` + `test_jobs_race.py`. **Backend 261 passed (baseline 258) · E2E 26/26 (7 fast 0.75s + 19 live/full-flow 4m44s, Postgres real + LLM) · LSP 0 errors em `backend/app`**. E2E Docker não atualizado em `memory` antes; DeskcommCRM + free-for.dev avaliados (só periferia com dado fake; dado CODEBA fica local).
 - **Histórico consolidado (08–10/09/2026)**: runtime Docker confiável, modelos LLM atuais, E2E 17/17, UX Sprints 1–3, CSP Next.js, restore drill documentado, unificação `Badge` + Exportar PDF + `backend/tests/conftest.py`.
 - **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
@@ -444,7 +444,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Backlog histórico: [docs/archive/PLANO.md](docs/archive/PLANO.md). Branch ativa: **`fix/backend-auditoria-15-09`** (base `main`). CI **não** reabilitar sem pedido.
+> Backlog histórico: [docs/archive/PLANO.md](docs/archive/PLANO.md). Branch ativa: **`main`** (`eceb2e9`). CI **não** reabilitar sem pedido.
 
 ### Valor elaborador (Fases 0–4 — implementado, em `main`)
 - Fila Prioridade (alto/crítico + estrutural), pacote SEI, TR HTML corrigido, fluxo Atualizar TR (`?diffFrom=`), ops piloto (`docs/ops/piloto.md`, `scripts/backup_daily.sh`, `scripts/ops_alerts.sh`).
@@ -587,5 +587,6 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Fix análise sumário/títulos + UX (14/09/2026)**: TOC ignorado no parser; só cláusulas substantivas na LLM; priorização Art.6; UI sem falso “Item adequado”; banner PT-BR. Re-upload do TR ouro antes de reanalisar.  
 > **Hardening backend (14/09/2026)**: TOC body-start; `failed_item_ids`; lease 900s+heartbeat; pagemap; scores pós-review; dedup por severidade; pending total=correções; ODT defusedxml. 258 testes.
 > **Contraste claro + UX análise/copiloto (14/09/2026)**: tokens/Badge/AlertBanner; CorrectionCard aviso placeholders; chips/saudação no chat.
-> **Auditoria backend P0+P1+P2 (15/09/2026, branch `fix/backend-auditoria-15-09`)**: plano `.omo/plans/fix-backend-auditoria-2026-09-15.md`; 12 arquivos (`documents.py`, `main.py`, `engine.py`, `queue.py`, `provider.py`, `parser/__init__.py`, `odt_parser.py`, `pdf_parser.py`, `file_validation.py`, `metrics.py`, `security.py`, `worker.py`) + `test_jobs_race.py` + `test_llm_failover_last.py`; backend 261 passed; E2E 26/26 Docker (fast 7/7 + live 19/19); sem commit; `memory.md` atualizado neste passo.
-> **Pendências (15/09)**: commit/PR da branch; Solange enviar TRs, colar SEI real, secrets, anonimizar Emergência; ML bloqueado até dataset.
+> **Auditoria backend P0+P1+P2 (15/09/2026, branch `fix/backend-auditoria-15-09`, merge `d50841f`)**: plano `.omo/plans/fix-backend-auditoria-2026-09-15.md`; 12 arquivos + `test_jobs_race.py` + `test_llm_failover_last.py`; backend 261 passed; E2E 26/26 Docker (fast 7/7 + live 19/19); commit/merge/push feitos.
+> **Incrementos seguros (15/09/2026, branch `feat/incrementos-seguros-15-09`, merge `eceb2e9`)**: plano `.omo/plans/incrementos-seguros-2026-09-15.md`; Idempotency-Key em `start_analysis`/`start_comparacao` (`utils/idempotency.py`), scrub PII no log JSON (`utils/pii_scrub.py`, Sentry OFF), `X-Request-ID`/CORS, `llm_model_juridico/estrutural/redacao` via env, `scripts/update.sh` com backup+smoke, `docs/ops/mcp-dev.md` + `vibecoding.md`, `forbidden.tsx` 403 PT-BR. **Backend 265 passed (261+4) · tsc exit 0 · LSP 0 errors · E2E 26/26 Docker rebuildado (fast 7/7 0.58s + live 19/19 5m35s)**; commit/merge/push feitos.
+> **Pendências (15/09)**: Solange enviar TRs, colar SEI real, secrets, anonimizar Emergência; ML bloqueado até dataset.
