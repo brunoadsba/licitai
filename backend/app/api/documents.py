@@ -102,7 +102,16 @@ async def upload_document(
             ),
         )
 
-    file_bytes = await file.read()
+    file_bytes = await file.read(settings.max_upload_size_bytes + 1)
+    if len(file_bytes) > settings.max_upload_size_bytes:
+        raise HTTPException(
+            status_code=413,
+            detail=(
+                f"Arquivo muito grande: "
+                f"{round(len(file_bytes) / (1024 * 1024), 2)}MB. "
+                f"Limite máximo: {settings.max_upload_size_mb}MB."
+            ),
+        )
 
     try:
         file_ext = validar_upload(file.filename, file_bytes)

@@ -20,9 +20,10 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Diretório de uploads — configurável via env, padrão ./uploads
+# Diretório de uploads — configurável via env, padrão ./uploads.
+# Criação física ocorre no lifespan do FastAPI e em salvar_arquivo_upload,
+# nunca no import (evita side-effect em testes/read-only).
 UPLOAD_DIR = Path(os.getenv("UPLOAD_DIR", "uploads")).resolve()
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def validate_file_extension(filename: str) -> str:
@@ -63,6 +64,21 @@ def validate_file_content(file_bytes: bytes, expected_extension: str) -> str:
         ValueError: Se o conteúdo não corresponde ao tipo esperado.
     """
     detected_mime = magic.from_buffer(file_bytes[:8192], mime=True)
+
+    # libmagic varia por host: DOCX/ODT (ZIP) podem vir como application/zip
+    # ou octet-stream. Nesses casos, exige assinatura ZIP (PK..) e deixa o
+    # parser validar a estrutura interna (falha segura se inválido).
+    if expected_extension in ("docx", "odt") and detected_mime in (
+        "application/zip",
+        "application/x-zip-compressed",
+        "application/octet-stream",
+    ):
+        if len(file_bytes) >= 4 and file_bytes[:4] == b"PK\x03\x04":
+            return detected_mime
+        raise ValueError(
+            f"Conteúdo do arquivo não corresponde ao tipo esperado. "
+            f"MIME detectado: {detected_mime}"
+        )
 
     if detected_mime not in settings.ALLOWED_MIME_TYPES:
         raise ValueError(
@@ -119,15 +135,17 @@ def get_upload_path(filename_stored: str) -> Path:
     Retorna o caminho completo para o arquivo no diretório de uploads.
     Inclui verificação de path traversal.
     """
-    # Sanitizar: usar apenas o basename
     safe_name = Path(filename_stored).name
     full_path = UPLOAD_DIR / safe_name
 
-    # Verificar que o caminho resolvido está dentro do diretório de uploads
     resolved = full_path.resolve()
     upload_resolved = UPLOAD_DIR.resolve()
 
-    if not str(resolved).startswith(str(upload_resolved) + os.sep):
+    try:
+        is_inside = resolved.is_relative_to(upload_resolved)
+    except AttributeError:
+        is_inside = str(resolved).startswith(str(upload_resolved) + os.sep)
+    if not is_inside or resolved == upload_resolved:
         logger.warning(
             "Tentativa de path traversal detectada: %s", filename_stored
         )
