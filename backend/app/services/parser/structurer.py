@@ -15,14 +15,14 @@ em DocumentItems vazios (causa raiz de falsos positivos Art. 6º).
 
 import logging
 
-from app.services.parser.detection import (
-    PATTERNS,
-    _detect_item_type,
+from app.services.parser.detection_items import _detect_item_type
+from app.services.parser.detection_patterns import PATTERNS
+from app.services.parser.detection_substantive import is_substantive_content
+from app.services.parser.detection_toc import (
     _is_footer_like,
     _is_toc_end,
     _is_toc_start,
     _looks_like_body_start,
-    is_substantive_content,
 )
 from app.services.parser.pagemap import _build_page_map, _get_page_for_position
 

@@ -13,6 +13,7 @@ interface ItemDetailProps {
   getUpdatedItemText: (item: DocumentItemResponse, corrections: CorrectionResponse[]) => string;
   showCorrections?: boolean;
   onReviewUpdated?: (correction: CorrectionResponse) => void;
+  analysisId?: string;
   /** IDs dos itens efetivamente analisados pela LLM nesta rodada */
   analyzedItemIds?: string[] | null;
   analysisDone?: boolean;
@@ -57,6 +58,7 @@ export default function ItemDetail({
   getUpdatedItemText,
   showCorrections = true,
   onReviewUpdated,
+  analysisId,
   analyzedItemIds,
   analysisDone = false,
   className,
@@ -137,6 +139,7 @@ export default function ItemDetail({
                 key={correction.id}
                 correction={correction}
                 index={idx}
+                analysisId={analysisId}
                 onReviewUpdated={onReviewUpdated}
               />
             ))}

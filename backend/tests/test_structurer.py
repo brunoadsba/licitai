@@ -5,7 +5,7 @@ Cobrem bugs em documentos padrão SEI, exclusão de SUMÁRIO/ÍNDICE
 e classificação de conteúdo substantivo vs título puro.
 """
 
-from app.services.parser.detection import is_substantive_content
+from app.services.parser.detection_substantive import is_substantive_content
 from app.services.parser.structurer import structure_items
 
 

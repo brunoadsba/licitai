@@ -7,7 +7,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.api.analysis import SEI_APPLICABLE_STATUSES, _filter_corrections
+from app.api.analysis_filters import SEI_APPLICABLE_STATUSES, _filter_corrections
 from app.database import Base, get_db
 from app.main import app
 from app.models.analysis import Analysis, Correction

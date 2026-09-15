@@ -17,21 +17,17 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.api.analysis import estimate_tokens
+from app.api.analysis_scoring import estimate_tokens
 from app.config import settings
 from app.database import get_db
 from app.models.analysis import Analysis
 from app.models.document import Document
 from app.schemas.document import (
-    DiffItemResponse,
-    DiffRequest,
-    DiffResponse,
     DocumentDetailResponse,
     DocumentItemResponse,
     DocumentListResponse,
     DocumentResponse,
 )
-from app.services.comparator.diff import diff_terms, resumir_diffs
 from app.services.privacy import (
     CloudPrivacyError,
     assert_cloud_allowed_for_document,
@@ -227,63 +223,6 @@ async def _attach_token_estimates(
 
     for resp in responses:
         resp.tokens_estimated = estimates.get(resp.id)
-
-
-@router.post(
-    "/diff",
-    response_model=DiffResponse,
-    summary="Comparar versões do TR",
-    description=(
-        "Compara dois documentos TR (antigo e novo) item a item, retornando "
-        "itens inalterados, alterados, adicionados e removidos."
-    ),
-)
-async def diff_documents(
-    data: DiffRequest,
-    db: AsyncSession = Depends(get_db),
-):
-    """Gera o diff entre duas versões de um Termo de Referência."""
-    antigo = await _carregar_tr_items(db, data.documento_antigo_id)
-    novo = await _carregar_tr_items(db, data.documento_novo_id)
-
-    diffs = diff_terms(antigo, novo)
-
-    return DiffResponse(
-        documento_antigo_id=data.documento_antigo_id,
-        documento_novo_id=data.documento_novo_id,
-        total=len(diffs),
-        resumo=resumir_diffs(diffs),
-        itens=[
-            DiffItemResponse.model_validate(d, from_attributes=True)
-            for d in diffs
-        ],
-    )
-
-
-async def _carregar_tr_items(
-    db: AsyncSession, document_id: uuid.UUID
-) -> list[dict]:
-    """Carrega os itens de um documento TR, validando tipo e status."""
-    result = await db.execute(
-        select(Document)
-        .options(selectinload(Document.items))
-        .where(Document.id == document_id)
-    )
-    document = result.scalar_one_or_none()
-    if not document:
-        raise HTTPException(status_code=404, detail="Documento não encontrado.")
-    if document.document_type != "tr":
-        raise HTTPException(
-            status_code=400, detail="O documento informado não é um TR."
-        )
-    return [
-        {
-            "item_number": item.item_number,
-            "title": item.title or "",
-            "content": item.content or "",
-        }
-        for item in document.items
-    ]
 
 
 @router.get(

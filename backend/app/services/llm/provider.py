@@ -206,34 +206,36 @@ class FailoverProvider(LLMProvider):
         return self._providers[0].model_name
 
 
-def _build_providers() -> list[LLMProvider]:
-    """Constrói lista de provedores reais disponíveis na ordem de prioridade."""
-    providers: list[LLMProvider] = []
+def get_llm_provider():
+    from app.services.llm.factory import get_llm_provider as _get
+    return _get()
+
+
+def reset_llm_provider():
+    from app.services.llm.factory import reset_llm_provider as _reset
+    return _reset()
+
+
+def _build_providers():
+    from app.config import settings
+
+    providers = []
     primary = settings.llm_provider
 
     def _add_gemini():
         if settings.gemini_api_key and not any(p.provider_name == "gemini" for p in providers):
             from app.services.llm.gemini_provider import GeminiProvider
-            providers.append(GeminiProvider(
-                api_key=settings.gemini_api_key,
-                model=settings.gemini_model,
-            ))
+            providers.append(GeminiProvider(api_key=settings.gemini_api_key, model=settings.gemini_model))
 
     def _add_groq():
         if settings.groq_api_key and not any(p.provider_name == "groq" for p in providers):
             from app.services.llm.groq_provider import GroqProvider
-            providers.append(GroqProvider(
-                api_key=settings.groq_api_key,
-                model=settings.groq_model,
-            ))
+            providers.append(GroqProvider(api_key=settings.groq_api_key, model=settings.groq_model))
 
     def _add_ollama():
         if not any(p.provider_name == "ollama" for p in providers):
             from app.services.llm.ollama_provider import OllamaProvider
-            providers.append(OllamaProvider(
-                base_url=settings.ollama_base_url,
-                model=settings.ollama_model,
-            ))
+            providers.append(OllamaProvider(base_url=settings.ollama_base_url, model=settings.ollama_model))
 
     if primary == "gemini":
         _add_gemini()
@@ -245,60 +247,4 @@ def _build_providers() -> list[LLMProvider]:
         _add_ollama()
         _add_groq()
         _add_gemini()
-
     return providers
-
-
-# Singleton: mantém estado de failover/circuit breaker entre chamadas.
-_llm_provider_instance: LLMProvider | None = None
-
-
-def reset_llm_provider() -> None:
-    """Descarta a instância singleton (uso em testes / reload de config)."""
-    global _llm_provider_instance
-    _llm_provider_instance = None
-
-
-def get_llm_provider() -> LLMProvider:
-    """
-    Factory — retorna o melhor provedor LLM disponível com failover.
-
-    A instância é criada uma única vez por processo (singleton): o estado
-    de failover (`_last_successful`) e os circuit breakers de rate limit
-    persistem entre chamadas, evitando re-tentar o primário morto a cada
-    item analisado.
-
-    A ordem de prioridade é definida pelo LLM_PROVIDER no .env:
-    - gemini → Gemini → Groq
-    - groq → Groq → Gemini (se chave presente)
-    - ollama → Ollama → Groq → Gemini (se chaves presentes)
-
-    Levanta RuntimeError se nenhum provedor real estiver configurado
-    (chave de API ausente para o provedor primário e seus fallbacks).
-    """
-    global _llm_provider_instance
-    if _llm_provider_instance is not None:
-        return _llm_provider_instance
-
-    providers = _build_providers()
-
-    if not providers:
-        raise RuntimeError(
-            "Nenhum provedor LLM configurado. Verifique LLM_PROVIDER e "
-            "as chaves de API (GEMINI_API_KEY/GROQ_API_KEY) no .env."
-        )
-
-    if len(providers) == 1:
-        inner = providers[0]
-    else:
-        logger.info(
-            "Failover ativo: %s → %s",
-            providers[0].provider_name,
-            " → ".join(p.provider_name for p in providers[1:]),
-        )
-        inner = FailoverProvider(providers)
-
-    from app.services.llm.limiter import wrap_with_limiter
-
-    _llm_provider_instance = wrap_with_limiter(inner)
-    return _llm_provider_instance
