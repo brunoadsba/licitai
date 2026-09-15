@@ -12,7 +12,7 @@ Configura:
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Response
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
@@ -29,6 +29,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.utils.file_validation import UPLOAD_DIR
+
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     # Schema via Alembic em staging/production. create_all só em SQLite de desenvolvimento/teste.
     if settings.is_development and "sqlite" in settings.database_url:
         from app.database import Base
@@ -174,9 +177,17 @@ async def readyz(response: Response):
 
 
 @app.get("/metrics", tags=["Sistema"], summary="Métricas in-memory")
-async def metrics_endpoint():
+async def metrics_endpoint(request: Request):
+    from fastapi import HTTPException as _HTTPExc
+
     from app.utils.metrics import metrics
 
+    if not settings.is_development and settings.api_token:
+        token = request.headers.get("X-API-Token", "")
+        import secrets as _secrets
+
+        if not _secrets.compare_digest(token.encode(), settings.api_token.encode()):
+            raise _HTTPExc(status_code=401, detail="Token de API ausente ou inválido.")
     return metrics.snapshot()
 
 
