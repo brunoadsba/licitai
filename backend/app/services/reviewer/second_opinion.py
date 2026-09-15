@@ -39,17 +39,17 @@ async def refine_with_llm(suggestion, *, correction, item_content: str | None) -
             "problem": getattr(correction, "problem", "")[:400],
             "suggested_text": (getattr(correction, "suggested_text", "") or "")[:400],
         }
-        # Chamada curta, sem RAG; ignora estritamente falhas.
-        resp = await llm.agenerate(
-            prompt=_REVIEW_PROMPT,
-            context=f"Achado: {payload}\nTrecho do item: {(item_content or '')[:500]}",
-            max_tokens=120,
-        )
-        # llm.agenerate não existe em todos os providers — fallback simples
+        prompt = f"{_REVIEW_PROMPT}\nAchado: {payload}\nTrecho do item: {(item_content or '')[:500]}"
+        if hasattr(llm, "generate"):
+            text = await llm.generate(system_prompt=_REVIEW_PROMPT, user_prompt=f"Achado: {payload}\nTrecho: {(item_content or '')[:500]}")
+        else:
+            text = str(await llm.agenerate(prompt=prompt, context=f"Achado: {payload}", max_tokens=120))  # type: ignore[attr-defined]
         import json as _json
 
-        text = getattr(resp, "text", None) or getattr(resp, "content", None) or str(resp)
-        data = _json.loads(text) if isinstance(text, str) and text.strip().startswith("{") else {}
+        raw = text.strip() if isinstance(text, str) else str(text)
+        start = raw.find("{")
+        end = raw.rfind("}")
+        data = _json.loads(raw[start : end + 1]) if start != -1 and end != -1 else {}
         delta = float(data.get("delta", 0)) if isinstance(data.get("delta"), (int, float)) else 0
         delta = max(-0.06, min(0.06, delta))
         note = str(data.get("note", "")).strip()[:120] if data.get("note") else ""

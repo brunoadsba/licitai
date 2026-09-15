@@ -17,6 +17,7 @@ import ReportSummaryCards from '@/components/report/ReportSummaryCards';
 import ReportDistributions from '@/components/report/ReportDistributions';
 import ReportOpinion from '@/components/report/ReportOpinion';
 import ReportArt6 from '@/components/report/ReportArt6';
+import ReportSuggestionStats from '@/components/report/ReportSuggestionStats';
 import type { ReportResponse } from '@/types';
 import { filterPriorityCorrections } from '@/lib/priorityQueue';
 import { PRIORITY_SECTION_TITLE } from '@/lib/copy/elaborador';
@@ -96,6 +97,8 @@ export default function ReportPage() {
       {report.final_opinion && <ReportOpinion opinion={report.final_opinion} />}
 
       <ReportArt6 report={report} />
+
+      <ReportSuggestionStats />
 
       {filterPriorityCorrections(report.corrections, 'priority').length > 0 && (
         <div className="space-y-2">
