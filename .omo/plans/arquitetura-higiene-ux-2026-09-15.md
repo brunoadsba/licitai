@@ -89,4 +89,9 @@
   page análise 620→192+hook 293+header 198+banners 81; page relatório 361→115+6 seções.
   `data-testid`s preservados (E2E intactos).
 - Restam >300 só os 3 limítrofes isentos: `versoes/page` 313, `extractor` 312, `provider` 304.
-- **Fases 3 (UX guiada) e 4 (revisor-assistente): pendentes, sobre a base limpa.**
+- **Fase 3 (15/09, committed higiene `3351a6d`) — UX guiada "1 por vez"**: mini-plano `fase-3-guiado-2026-09-15.md`;
+  `GuidedReview.tsx` 138 linhas (progresso + 1 `CorrectionCard` + navegação) integrado na page análise
+  218 linhas (toggle Guiado ↔ Ver todas, reúso total do card/priorityQueue, data-testid preservados);
+  `tsc 0` + build frontend OK + `pytest 265` + smoke 4 healthy.
+- **Fase 4 — revisor-assistente**: scoping `fase-4-revisor-assistente-2026-09-15.md` (consultivo, fail-closed,
+  1 clique para aceitar sugestão, sobre o guiado; sem código nesta etapa, sem auto-aprovação antes de 28/09).

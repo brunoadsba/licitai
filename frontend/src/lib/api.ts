@@ -8,3 +8,4 @@ export * from './api/analysis';
 export * from './api/comparison';
 export * from './api/generator';
 export * from './api/chat';
+export * from './api/reviewer';

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { FileText } from 'lucide-react';
 import { getErrorMessage } from '@/lib/errors';
@@ -16,6 +17,7 @@ import AnalysisHeader from '@/components/analysis/AnalysisHeader';
 import AnalysisBanners from '@/components/analysis/AnalysisBanners';
 import Art6ChecklistPanel from '@/components/analysis/Art6ChecklistPanel';
 import DiffUpdatePanel from '@/components/analysis/DiffUpdatePanel';
+import GuidedReview from '@/components/analysis/GuidedReview';
 import ItemList from '@/components/analysis/ItemList';
 import ItemDetail from '@/components/analysis/ItemDetail';
 import { isSeiCopyAllowed } from '@/components/analysis/CorrectionCard';
@@ -23,6 +25,7 @@ import { useAnalysisPage } from './useAnalysisPage';
 
 export default function AnalysisPage() {
   const s = useAnalysisPage();
+  const [guided, setGuided] = useState(false);
 
   if (s.loading) {
     return (
@@ -107,27 +110,49 @@ export default function AnalysisPage() {
           <span className="text-xs font-medium text-content-secondary">Próximo passo:</span>
           <Button
             size="sm"
-            variant={s.priorityMode === 'priority' ? 'primary' : 'secondary'}
+            variant={guided ? 'primary' : s.priorityMode === 'priority' ? 'primary' : 'secondary'}
             data-testid="queue-priority"
-            onClick={() => s.setPriorityMode('priority')}
+            onClick={() => {
+              s.setPriorityMode('priority');
+              setGuided(true);
+            }}
           >
             Revisar agora
           </Button>
           <Button
             size="sm"
-            variant={s.priorityMode === 'all' ? 'primary' : 'secondary'}
+            variant={!guided && s.priorityMode === 'all' ? 'primary' : 'secondary'}
             data-testid="queue-all"
-            onClick={() => s.setPriorityMode('all')}
+            onClick={() => {
+              s.setPriorityMode('all');
+              setGuided(false);
+            }}
           >
             Ver todas
           </Button>
-          <span className="text-xs text-content-muted">
-            Comece pelas sugestões graves e partes faltantes do TR
-          </span>
+          {guided ? (
+            <span className="text-xs text-content-muted">Modo guiado: 1 por vez, grave primeiro</span>
+          ) : (
+            <span className="text-xs text-content-muted">
+              Comece pelas sugestões graves e partes faltantes do TR
+            </span>
+          )}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
+      {guided && s.analysis ? (
+        <GuidedReview
+          analysisId={s.analysis.id}
+          corrections={s.analysis.corrections}
+          onReviewUpdated={s.handleReviewUpdated}
+          onExit={() => setGuided(false)}
+          onAfterComplete={() => {
+            const el = window.document.querySelector('[data-testid="sei-pack-btn"]') as HTMLElement | null;
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:gap-6">
         {s.diffFrom && (
           <DiffUpdatePanel
             oldDocumentId={s.diffFrom}
@@ -171,6 +196,7 @@ export default function AnalysisPage() {
           </div>
         )}
       </div>
+      )}
 
       <ChatCopilot
         documentId={s.documentId}
