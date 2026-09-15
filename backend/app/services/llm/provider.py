@@ -118,8 +118,9 @@ class FailoverProvider(LLMProvider):
     async def generate(self, system_prompt: str, user_prompt: str) -> str:
         last_error: Exception | None = None
 
-        for position, (index, provider) in enumerate(self._ordered_providers()):
-            is_last_provider = position == len(self._providers) - 1
+        ordered = self._ordered_providers()
+        for position, (index, provider) in enumerate(ordered):
+            is_last_provider = position == len(ordered) - 1
             attempts = 2  # 1 tentativa + 1 retry para erros transitórios
 
             for attempt in range(attempts):
