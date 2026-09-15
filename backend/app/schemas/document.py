@@ -8,7 +8,7 @@ from typing import Annotated
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, computed_field
 
-from app.services.parser.detection import is_substantive_content
+from app.services.parser.detection_substantive import is_substantive_content
 
 
 def _ensure_tz(v: datetime) -> datetime:

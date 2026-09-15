@@ -1,6 +1,6 @@
 """Testes de confiabilidade — Art.6, SEI filter, RetrievedChunk.id."""
 
-from app.api.analysis import SEI_APPLICABLE_STATUSES, _filter_corrections
+from app.api.analysis_filters import SEI_APPLICABLE_STATUSES, _filter_corrections
 from app.services.generator.validator import validate_tr_completeness
 from app.services.legal.art6_xxiii import ART6_XXIII_ELEMENTS, art6_keys
 from app.services.rag.retriever import RetrievedChunk

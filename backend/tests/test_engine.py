@@ -250,7 +250,7 @@ def test_run_analysis_erro_quando_documento_inexistente():
 
 def test_select_items_ignora_titulos_e_prioriza_clausulas():
     """Orçamento deve cair só em cláusulas substantivas, não em títulos."""
-    from app.services.analyzer.engine import select_items_for_analysis
+    from app.services.analyzer.item_selection import select_items_for_analysis
 
     heading = DocumentItem(
         id=uuid.uuid4(),
@@ -298,7 +298,7 @@ def test_select_items_ignora_titulos_e_prioriza_clausulas():
 
 
 def test_select_items_sem_limite_mantem_todos_substantivos():
-    from app.services.analyzer.engine import select_items_for_analysis
+    from app.services.analyzer.item_selection import select_items_for_analysis
 
     items = [
         DocumentItem(

@@ -9,7 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
-from app.api.analysis import _filter_corrections
+from app.api.analysis_filters import _filter_corrections
 from app.database import Base, get_db
 from app.main import app
 from app.models.analysis import Analysis, Correction

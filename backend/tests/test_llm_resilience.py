@@ -169,7 +169,7 @@ def test_score_details_preserva_zero_legitimo():
     """Regressão M1: nota 0.0 é válida e não pode virar null."""
     from types import SimpleNamespace
 
-    from app.api.analysis import _score_details
+    from app.api.analysis_scoring import _score_details
 
     analysis = SimpleNamespace(
         score_overall=0.0,
