@@ -64,6 +64,11 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 120.0
     # Orçamento máximo aproximado de tokens por análise (soft limit).
     llm_max_tokens_per_analysis: int = 250_000
+    # Modelo por parte do sistema (vazio = usa default do provedor).
+    # Ex: Jurídico/Estrutural no forte, Redação no leve.
+    llm_model_juridico: str = ""
+    llm_model_estrutural: str = ""
+    llm_model_redacao: str = ""
 
     # --- Concorrência da análise ---
     analysis_concurrency: int = 3
