@@ -306,7 +306,7 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (15/09/2026)**: `feat/revisor-inteligente-15-09` (`7d97f47`, base `9bb3ed8`). CI permanece desabilitado.
+- **Branch ativa (15/09/2026)**: `main` (`9a6eecd`; revisor-inteligente mergeado). CI permanece desabilitado.
 - **Auditoria backend 15/09 (P0+P1+P2 — `.omo/plans/fix-backend-auditoria-2026-09-15.md`)**: failover com lista filtrada (`is_last_provider`), fila atômica (`UPDATE...WHERE pending` + rowcount + `expire_all`), upload `max+1` bytes → 413 sem OOM + ZIP/`octet-stream` com assinatura `PK` p/ DOCX/ODT, parser semáforo `PARSE_MAX_CONCURRENT=2` + `PARSE_TIMEOUT_SECONDS` + log `orphan_thread`, orphans só em `running` stale (>2x lease), rate-limit evicção 5k IPs + `TRUST_PROXY`/XFF, `mkdir` no lifespan, `/metrics` com token fora de dev, métricas sem `threading.Lock`, `document.error_message` em `completed_with_errors`, snapshot `total/work_items`, `get_upload_path` com `is_relative_to`, PDF preserva causa raiz + OCR com motivo, ODT anti-zipbomb (5k entries, 200MB). Testes novos `test_llm_failover_last.py` + `test_jobs_race.py`. **Backend 261 passed (baseline 258) · E2E 26/26 (7 fast 0.75s + 19 live/full-flow 4m44s, Postgres real + LLM) · LSP 0 errors em `backend/app`**. E2E Docker não atualizado em `memory` antes; DeskcommCRM + free-for.dev avaliados (só periferia com dado fake; dado CODEBA fica local).
 - **Histórico consolidado (08–10/09/2026)**: runtime Docker confiável, modelos LLM atuais, E2E 17/17, UX Sprints 1–3, CSP Next.js, restore drill documentado, unificação `Badge` + Exportar PDF + `backend/tests/conftest.py`.
 - **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
@@ -444,7 +444,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Backlog histórico: [docs/archive/PLANO.md](docs/archive/PLANO.md). Branch ativa: **`feat/revisor-inteligente-15-09`** (base `main` `9bb3ed8`). CI **não** reabilitar sem pedido.
+> Backlog histórico: [docs/archive/PLANO.md](docs/archive/PLANO.md). Branch ativa: **`main`** (`9a6eecd`). CI **não** reabilitar sem pedido.
 
 ### Valor elaborador (Fases 0–4 — implementado, em `main`)
 - Fila Prioridade (alto/crítico + estrutural), pacote SEI, TR HTML corrigido, fluxo Atualizar TR (`?diffFrom=`), ops piloto (`docs/ops/piloto.md`, `scripts/backup_daily.sh`, `scripts/ops_alerts.sh`).
