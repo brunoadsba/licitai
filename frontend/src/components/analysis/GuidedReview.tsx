@@ -5,7 +5,7 @@ import { CheckCircle2, ChevronLeft, ChevronRight, ListTree } from 'lucide-react'
 import { Button } from '@/components/ui/Button';
 import CorrectionCard from '@/components/analysis/CorrectionCard';
 import ReviewSuggestionBanner from '@/components/analysis/ReviewSuggestionBanner';
-import { getReviewSuggestion, updateCorrectionReview } from '@/lib/api';
+import { getReviewSuggestion, trackSuggestion, updateCorrectionReview } from '@/lib/api';
 import type { CorrectionResponse } from '@/types';
 import type { ReviewSuggestion } from '@/types/reviewer';
 import { filterPriorityCorrections } from '@/lib/priorityQueue';
@@ -93,6 +93,7 @@ export default function GuidedReview({
       setAccepting(true);
       const status = kind === 'aprovar' ? 'aprovada' : kind === 'rejeitar' ? 'rejeitada' : 'ajustada';
       const updated = await updateCorrectionReview(current.id, { review_status: status as never });
+      trackSuggestion(analysisId, current.id, kind, status, suggestion.confidence).catch(() => {});
       onReviewUpdated(updated);
     } finally {
       setAccepting(false);

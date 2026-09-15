@@ -179,6 +179,7 @@ export default function AnalysisPage() {
             getUpdatedItemText={s.getUpdatedItemText}
             showCorrections={!!s.analysis}
             onReviewUpdated={s.handleReviewUpdated}
+            analysisId={s.analysis?.id}
             analyzedItemIds={s.analysis?.analyzed_item_ids}
             analysisDone={analysisDone}
             className={s.diffFrom ? 'lg:col-span-6' : undefined}

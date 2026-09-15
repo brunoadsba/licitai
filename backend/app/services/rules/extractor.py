@@ -1,49 +1,26 @@
 """
 Extração determinística de valores a partir de itens estruturados do documento.
-
-Aplica as âncoras definidas no molde sobre o texto dos itens (document_items),
-extraindo valores por tipo de regra:
-- numero_inteiro: próximo número após a âncora.
-- numero_extenso: próximo número por extenso após a âncora.
-- booleano: presença/ausência das palavras-chave.
-- legal: presença do regex (artigo/lei).
-- data: próxima data (dd/mm/aaaa) após a âncora.
-- percentual: próximo percentual (ex.: "5%") após a âncora.
-- monetario: próximo valor em reais (ex.: "R$ 1.500,00") após a âncora.
-
-A estratégia: por padrão busca sobre TODO o texto do documento; opcionalmente
-a âncora pode restringir a busca a um item específico no formato "n" (ex.: "4.3").
+Delega primitivas por tipo a `extractor_values` p/ manter ≤300.
 """
 
 import logging
-import re
-from datetime import date
 from typing import Any
 
+from app.services.rules.extractor_values import (
+    LEGAL_RE,
+    _extrair_booleano,
+    _extrair_cep,
+    _extrair_cnpj,
+    _extrair_data,
+    _extrair_legal,
+    _extrair_monetario,
+    _extrair_numero,
+    _extrair_numero_extenso,
+    _extrair_percentual,
+    _extrair_prazo_relativo,
+)
+
 logger = logging.getLogger(__name__)
-
-NUMEROS_EXTENSO = {
-    "um": 1, "uma": 1, "dois": 2, "duas": 2, "três": 3, "tres": 3,
-    "quatro": 4, "cinco": 5, "seis": 6, "sete": 7, "oito": 8, "nove": 9,
-    "dez": 10, "onze": 11, "doze": 12, "treze": 13, "catorze": 14,
-    "quatorze": 14, "quinze": 15, "dezesseis": 16, "dezessete": 17,
-    "dezoito": 18, "dezenove": 19, "vinte": 20, "trinta": 30, "quarenta": 40,
-    "cinquenta": 50, "sessenta": 60, "setenta": 70, "oitenta": 80,
-    "noventa": 90, "cem": 100, "cento": 100, "duzentos": 200,
-    "trezentos": 300, "quatrocentos": 400, "quinhentos": 500,
-    "seiscentos": 600, "setecentos": 700, "oitocentos": 800,
-    "novecentos": 900,
-}
-
-NUMERO_INTEIRO_RE = re.compile(
-    r"(?<![\d.,])(\d{1,3}(?:\.\d{3})+|\d{1,9})(?!\d)(?![.,]\d)"
-)
-LEGAL_RE = re.compile(r"^\d{1,3}(?:\.\d{1,3})*$")
-DATA_RE = re.compile(r"\b(\d{1,2})/(\d{1,2})/(\d{4})\b")
-PERCENTUAL_RE = re.compile(r"\b(\d+(?:[.,]\d+)?)\s*%")
-MONETARIO_RE = re.compile(
-    r"\bR\$\s*(\d{1,3}(?:\.\d{3})+,\d{2}|\d{1,3}(?:\.\d{3})+|\d+,\d{2}|\d+)(?!\d)(?![.,]\d)"
-)
 
 
 def extrair_valor(regra: dict, itens: list[dict]) -> Any | None:
@@ -125,162 +102,6 @@ def _conteudo_item(item: dict) -> str:
     titulo = item.get("title") or ""
     conteudo = item.get("content") or ""
     return f"{titulo}\n{conteudo}"
-
-
-def _extrair_numero(texto: str) -> int | None:
-    """Extrai o primeiro número inteiro do texto."""
-    for match in NUMERO_INTEIRO_RE.finditer(texto):
-        raw = match.group(1).replace(".", "")
-        try:
-            return int(raw)
-        except ValueError:
-            continue
-    return None
-
-
-def _extrair_numero_extenso(texto: str) -> int | None:
-    """Extrai o primeiro número por extenso, incluindo dezenas compostas."""
-    trecho = re.sub(r"\s+e\s+", " ", texto.lower())
-    palavras = re.findall(r"[a-záàâãéêíóôõúçü]+", trecho)
-
-    for i, palavra in enumerate(palavras):
-        if palavra not in NUMEROS_EXTENSO:
-            continue
-        valor = NUMEROS_EXTENSO[palavra]
-        if (
-            20 <= valor <= 90
-            and i + 1 < len(palavras)
-            and palavras[i + 1] in NUMEROS_EXTENSO
-            and NUMEROS_EXTENSO[palavras[i + 1]] < 10
-        ):
-            return valor + NUMEROS_EXTENSO[palavras[i + 1]]
-        return valor
-    return None
-
-
-def _extrair_booleano(palavras_chave: list[str] | None, texto: str) -> bool | None:
-    """Retorna True se todas as palavras-chave estiverem presentes."""
-    if not palavras_chave:
-        return None
-    texto_lower = texto.lower()
-    todas = all(p.lower() in texto_lower for p in palavras_chave)
-    return todas
-
-
-def _extrair_legal(regex: str | None, texto: str) -> bool | None:
-    """Retorna True se o regex (lei/artigo) aparecer no texto."""
-    if not regex:
-        return None
-    try:
-        return re.search(regex, texto, re.IGNORECASE) is not None
-    except re.error:
-        logger.warning("Regex inválida na regra legal: %s", regex)
-        return None
-
-
-def _extrair_data(texto: str) -> str | None:
-    """Extrai a primeira data válida dd/mm/aaaa e retorna ISO aaaa-mm-dd."""
-    for match in DATA_RE.finditer(texto):
-        dia, mes, ano = (int(g) for g in match.groups())
-        try:
-            date(ano, mes, dia)  # lança ValueError para datas inexistentes
-        except ValueError:
-            continue
-        return f"{ano:04d}-{mes:02d}-{dia:02d}"
-    return None
-
-
-def _para_decimal(raw: str) -> float:
-    """Converte string numérica BR (vírgula decimal, ponto milhar) em float."""
-    raw = raw.strip()
-    if "," in raw and "." in raw:
-        if raw.rfind(",") > raw.rfind("."):
-            raw = raw.replace(".", "").replace(",", ".")
-        else:
-            raw = raw.replace(",", "")
-    elif "," in raw:
-        raw = raw.replace(",", ".")
-    return float(raw)
-
-
-def _extrair_percentual(texto: str) -> float | None:
-    """Extrai o primeiro percentual do texto."""
-    for match in PERCENTUAL_RE.finditer(texto):
-        try:
-            return _para_decimal(match.group(1))
-        except ValueError:
-            continue
-    return None
-
-
-def _extrair_monetario(texto: str) -> float | None:
-    """Extrai o primeiro valor em reais (R$ 1.500,00) do texto."""
-    for match in MONETARIO_RE.finditer(texto):
-        raw = match.group(1)
-        if "," in raw:
-            raw = raw.replace(".", "").replace(",", ".")
-        else:
-            raw = raw.replace(".", "")
-        try:
-            return float(raw)
-        except ValueError:
-            continue
-    return None
-
-
-CNPJ_RE = re.compile(r"\b(\d{2}\.\d{3}\.\d{3}/\d{4}-\d{2}|\d{14})\b")
-PRAZO_RELATIVO_RE = re.compile(
-    r"\b(\d+|\b(?:um|dois|três|quatro|cinco|seis|sete|oito|nove|dez|quinze|vinte|trinta|sessenta|noventa|cento\s+e\s+oitenta)\b)\s*(?:\([^)]*\))?\s*(dias|meses|anos)\b",
-    re.IGNORECASE,
-)
-CEP_RE = re.compile(r"\b(\d{5}-\d{3}|\d{8})\b")
-
-
-def _cnpj_valido(cnpj: str) -> bool:
-    """Valida dígitos verificadores de CNPJ (apenas dígitos, módulo 11)."""
-    if len(cnpj) != 14 or not cnpj.isdigit() or cnpj == cnpj[0] * 14:
-        return False
-
-    def _dv(seq: str, pesos: list[int]) -> int:
-        soma = sum(int(d) * p for d, p in zip(seq, pesos, strict=False))
-        resto = soma % 11
-        return 0 if resto < 2 else 11 - resto
-
-    p1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-    primeiro_dv = _dv(cnpj[:12], p1)
-    if primeiro_dv != int(cnpj[12]):
-        return False
-
-    p2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]
-    return _dv(cnpj[:12] + str(primeiro_dv), p2) == int(cnpj[13])
-
-
-def _extrair_cnpj(texto: str) -> str | None:
-    """Extrai o primeiro CNPJ válido do texto."""
-    for match in CNPJ_RE.finditer(texto):
-        raw = match.group(1).replace(".", "").replace("/", "").replace("-", "")
-        if _cnpj_valido(raw):
-            return f"{raw[:2]}.{raw[2:5]}.{raw[5:8]}/{raw[8:12]}-{raw[12:]}"
-    return None
-
-
-def _extrair_prazo_relativo(texto: str) -> str | None:
-    """Extrai o primeiro prazo relativo (ex: '30 dias', '12 meses') do texto."""
-    match = PRAZO_RELATIVO_RE.search(texto)
-    if match:
-        valor, unidade = match.group(1).strip(), match.group(2).strip().lower()
-        return f"{valor} {unidade}"
-    return None
-
-
-def _extrair_cep(texto: str) -> str | None:
-    """Extrai o primeiro CEP do texto."""
-    match = CEP_RE.search(texto)
-    if match:
-        raw = match.group(1).replace("-", "")
-        if len(raw) == 8:
-            return f"{raw[:5]}-{raw[5:]}"
-    return None
 
 
 def extrair_com_evidencia(regra: dict, itens: list[dict]) -> dict:

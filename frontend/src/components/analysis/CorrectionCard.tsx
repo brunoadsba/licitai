@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { CorrectionResponse, ReviewStatus } from '@/types';
 import { SEVERITY_LABELS } from '@/types';
 import { getSeverityTone } from '@/lib/badges';
@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 interface CorrectionCardProps {
   correction: CorrectionResponse;
   index: number;
+  analysisId?: string;
   onReviewUpdated?: (correction: CorrectionResponse) => void;
 }
 
@@ -44,18 +45,38 @@ export function isSeiCopyAllowed(status: CorrectionResponse['review_status']): b
 export default function CorrectionCard({
   correction,
   index,
+  analysisId,
   onReviewUpdated,
 }: CorrectionCardProps) {
   const { copy, isCopied } = useCopy();
   const reviewStatus = correction.review_status ?? 'pendente';
   const canCopyPara = isSeiCopyAllowed(reviewStatus);
   const [fundOpen, setFundOpen] = useState(false);
+  const [suggestion, setSuggestion] = useState<null | { suggestion: string; confidence: number; reason: string }>(null);
   const originalDisplay = formatOriginalForDisplay(
     correction.original_text,
     correction.suggested_text,
   );
   const needsAdjust =
     reviewStatus === 'pendente' && hasPlaceholderText(correction.suggested_text);
+
+  useEffect(() => {
+    if (!analysisId || reviewStatus !== 'pendente') return;
+    import('@/lib/api/reviewer').then(({ getReviewSuggestion }) =>
+      getReviewSuggestion(analysisId, correction.id)
+        .then((s) => setSuggestion({ suggestion: s.suggestion, confidence: s.confidence, reason: s.reason }))
+        .catch(() => {})
+    );
+  }, [analysisId, correction.id, reviewStatus]);
+
+  function handleTrackedUpdate(updated: Parameters<NonNullable<typeof onReviewUpdated>>[0]) {
+    if (suggestion && analysisId) {
+      import('@/lib/api/reviewer').then(({ trackSuggestion }) =>
+        trackSuggestion(analysisId, correction.id, suggestion.suggestion, updated.review_status ?? '', suggestion.confidence).catch(() => {})
+      );
+    }
+    onReviewUpdated?.(updated);
+  }
 
   return (
     <div
@@ -100,10 +121,16 @@ export default function CorrectionCard({
         </p>
       )}
 
+      {suggestion && reviewStatus === 'pendente' && (
+        <p className="mb-3 rounded-lg border border-line-subtle bg-canvas/40 px-3 py-2 text-xs text-content-muted" data-testid="card-suggestion">
+          <span className="font-medium text-content-secondary">Sugestão: {suggestion.suggestion}</span> · {Math.round(suggestion.confidence * 100)}% · {suggestion.reason}
+        </p>
+      )}
+
       {onReviewUpdated && (
         <CorrectionReviewActions
           correction={correction}
-          onReviewUpdated={onReviewUpdated}
+          onReviewUpdated={handleTrackedUpdate}
           preferAdjust={needsAdjust}
         />
       )}

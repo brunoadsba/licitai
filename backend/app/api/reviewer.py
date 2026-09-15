@@ -21,8 +21,16 @@ from app.services.analyzer.grounding import get_valid_legal_refs
 from app.services.reviewer.checks import suggest_for_correction
 from app.services.reviewer.schemas import ReviewSuggestion, ReviewSuggestionsResponse
 from app.services.reviewer.second_opinion import refine_with_llm
+from app.utils.metrics import metrics
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/analysis", tags=["Análise"])
+
+
+class ReviewTrackIn(BaseModel):
+    suggestion: str
+    decision: str
+    confidence: float | None = None
 
 
 async def _load_analysis(
@@ -107,3 +115,25 @@ async def get_review_suggestion(
     s = suggest_for_correction(target, item_content=item_content, valid_refs=valid_refs)
     s = await refine_with_llm(s, correction=target, item_content=item_content)  # type: ignore[assignment]
     return s
+
+
+@router.post(
+    "/{analysis_id}/review-suggestions/{correction_id}/track",
+    summary="Rastrear aceitação da sugestão (métrica)",
+)
+async def track_suggestion(
+    analysis_id: uuid.UUID,
+    correction_id: uuid.UUID,
+    payload: ReviewTrackIn,
+):
+    accepted = payload.suggestion == payload.decision or (
+        payload.suggestion == "aprovar" and payload.decision == "aprovada"
+    ) or (
+        payload.suggestion == "rejeitar" and payload.decision == "rejeitada"
+    )
+    if accepted:
+        metrics.inc("review_suggestion_accepted")
+    else:
+        metrics.inc("review_suggestion_overridden")
+    metrics.inc("review_suggestion_tracked")
+    return {"accepted": accepted}

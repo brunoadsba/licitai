@@ -28,3 +28,20 @@ export async function getReviewSuggestion(
     `/analysis/${encodeURIComponent(analysisId)}/review-suggestions/${encodeURIComponent(correctionId)}`,
   );
 }
+
+export async function trackSuggestion(
+  analysisId: string,
+  correctionId: string,
+  suggestion: string,
+  decision: string,
+  confidence?: number,
+): Promise<{ accepted: boolean }> {
+  return fetchAPI<{ accepted: boolean }>(
+    `/analysis/${encodeURIComponent(analysisId)}/review-suggestions/${encodeURIComponent(correctionId)}/track`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ suggestion, decision, confidence }),
+    },
+  );
+}
