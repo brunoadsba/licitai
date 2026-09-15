@@ -12,7 +12,7 @@ import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -57,7 +57,9 @@ async def claim(
     Claim atômico do próximo job pending (FIFO).
 
     Usa SELECT … FOR UPDATE SKIP LOCKED quando o dialeto permite;
-    no SQLite faz SELECT + UPDATE com checagem de status.
+    o UPDATE final é condicional (WHERE status='pending') com rowcount —
+    se 0, outro worker venceu a corrida e retornamos None.
+    Só 1 worker é suportado no piloto; multi-worker exige lock distribuído.
     """
     lease = lease_seconds if lease_seconds is not None else settings.job_lease_seconds
     now = datetime.now(timezone.utc)
@@ -78,16 +80,35 @@ async def claim(
         stmt = stmt.with_for_update(skip_locked=True)
 
     result = await db.execute(stmt)
-    job = result.scalar_one_or_none()
-    if not job:
+    candidate = result.scalar_one_or_none()
+    if not candidate:
+        return None
+    candidate_id = candidate.id
+
+    upd = (
+        update(Job)
+        .where(Job.id == candidate_id, Job.status == STATUS_PENDING)
+        .values(
+            status=STATUS_RUNNING,
+            attempts=(Job.attempts + 1),
+            lease_until=lease_until,
+            error=None,
+            updated_at=now,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    upd_result = await db.execute(upd)
+    await db.flush()
+    if (upd_result.rowcount or 0) == 0:
+        # Perdeu a corrida: expira o candidato stale para não contaminar a sessão.
+        db.expire_all()
+        logger.info("job.claim.race_lost id=%s", candidate_id)
         return None
 
-    job.status = STATUS_RUNNING
-    job.attempts = (job.attempts or 0) + 1
-    job.lease_until = lease_until
-    job.error = None
-    job.updated_at = now
-    await db.flush()
+    db.expire_all()
+    job = await db.get(Job, candidate_id)
+    if not job:
+        return None
     logger.info(
         "job.claimed id=%s type=%s attempt=%s/%s",
         job.id, job.type, job.attempts, job.max_attempts,
@@ -101,21 +122,26 @@ async def claim_by_id(
     *,
     lease_seconds: int | None = None,
 ) -> Job | None:
-    """Claim de um job específico se ainda estiver pending."""
+    """Claim atômico de um job específico se ainda estiver pending (rowcount)."""
     lease = lease_seconds if lease_seconds is not None else settings.job_lease_seconds
     now = datetime.now(timezone.utc)
-    result = await db.execute(
-        select(Job).where(Job.id == job_id, Job.status == STATUS_PENDING)
+    upd = (
+        update(Job)
+        .where(Job.id == job_id, Job.status == STATUS_PENDING)
+        .values(
+            status=STATUS_RUNNING,
+            attempts=(Job.attempts + 1),
+            lease_until=now + timedelta(seconds=lease),
+            updated_at=now,
+        )
+        .execution_options(synchronize_session=False)
     )
-    job = result.scalar_one_or_none()
-    if not job:
-        return None
-    job.status = STATUS_RUNNING
-    job.attempts = (job.attempts or 0) + 1
-    job.lease_until = now + timedelta(seconds=lease)
-    job.updated_at = now
+    upd_result = await db.execute(upd)
     await db.flush()
-    return job
+    if (upd_result.rowcount or 0) == 0:
+        return None
+    db.expire_all()
+    return await db.get(Job, job_id)
 
 
 async def complete(

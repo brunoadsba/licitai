@@ -20,6 +20,8 @@ TABLE_NS = "urn:oasis:names:tc:opendocument:xmlns:table:1.0"
 
 # Limite de content.xml descompactado (zip bomb / DoS)
 MAX_CONTENT_XML_BYTES = 50 * 1024 * 1024
+MAX_ODT_ENTRIES = 5000
+MAX_ODT_TOTAL_BYTES = 200 * 1024 * 1024
 
 
 def _clean_ns(tag: str) -> str:
@@ -38,7 +40,15 @@ def parse_odt(file_path: Path) -> tuple[str, list[dict]]:
     """
     try:
         with zipfile.ZipFile(file_path, "r") as zf:
-            if "content.xml" not in zf.namelist():
+            names = zf.namelist()
+            if len(names) > MAX_ODT_ENTRIES:
+                raise ValueError("Arquivo ODT com entries demais (possível zip bomb).")
+            if any(n.startswith("/") or ".." in n for n in names):
+                raise ValueError("Arquivo ODT com caminhos inválidos.")
+            total = sum(zf.getinfo(n).file_size for n in names)
+            if total > MAX_ODT_TOTAL_BYTES:
+                raise ValueError("Arquivo ODT descompactado excede o limite total.")
+            if "content.xml" not in names:
                 raise ValueError("Arquivo ODT inválido: content.xml não encontrado.")
             info = zf.getinfo("content.xml")
             if info.file_size > MAX_CONTENT_XML_BYTES:

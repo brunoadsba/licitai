@@ -66,7 +66,16 @@ async def _heartbeat(job_id: uuid.UUID) -> None:
 
 
 async def _handle_orphans() -> None:
-    """Análises/comparações pending|running sem job ativo → error ou requeue."""
+    """Análises/comparações pending|running sem job ativo → error ou requeue.
+
+    Single-worker no piloto: sem lock distribuído. Running recente
+    (<2x lease) não é tocado para evitar matar job em commit em voo.
+    """
+    from datetime import timedelta
+
+    stale_after = datetime.now(timezone.utc) - timedelta(
+        seconds=2 * settings.job_lease_seconds
+    )
     async with async_session_factory() as db:
         n = await reclaim_expired(db)
         if n:
@@ -95,6 +104,10 @@ async def _handle_orphans() -> None:
                 )
                 logger.info("orphan.analysis.requeued id=%s", an.id)
             else:
+                started = getattr(an, "started_at", None) or getattr(an, "created_at", None)
+                if started is not None and started.replace(tzinfo=timezone.utc) > stale_after:
+                    logger.info("orphan.analysis.skip_recent id=%s", an.id)
+                    continue
                 an.status = "error"
                 an.error_message = (
                     "Análise interrompida (lease/worker reiniciado sem job ativo)."

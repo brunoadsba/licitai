@@ -82,10 +82,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self._requests: dict[str, list[float]] = defaultdict(list)
+        self._max_keys = 5000
+
+    def _client_key(self, request: Request) -> str:
+        import os
+
+        if os.getenv("TRUST_PROXY", "0") == "1":
+            xff = request.headers.get("x-forwarded-for", "")
+            if xff:
+                return xff.split(",")[0].strip() or "unknown"
+        return request.client.host if request.client else "unknown"
 
     async def dispatch(self, request: Request, call_next):
-        # Identificar cliente pelo IP
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = self._client_key(request)
 
         now = time.time()
         window_start = now - self.window_seconds
@@ -94,6 +103,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self._requests[client_ip] = [
             ts for ts in self._requests[client_ip] if ts > window_start
         ]
+        if not self._requests[client_ip] and client_ip in self._requests:
+            del self._requests[client_ip]
+        elif len(self._requests) > self._max_keys:
+            oldest = next(iter(self._requests))
+            del self._requests[oldest]
 
         # Verificar limite
         if len(self._requests[client_ip]) >= self.max_requests:

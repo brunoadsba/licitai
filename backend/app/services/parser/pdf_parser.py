@@ -41,13 +41,13 @@ def parse_pdf(file_path: Path) -> tuple[str, list[dict]]:
 
     try:
         pages = _extract_with_pymupdf(file_path)
-    except Exception:
-        logger.warning("PyMuPDF falhou, tentando pdfplumber para %s", file_path.name)
+    except Exception as first_err:
+        logger.warning("PyMuPDF falhou, tentando pdfplumber para %s: %s", file_path.name, first_err)
         try:
             pages = _extract_with_pdfplumber(file_path)
         except Exception as fallback_err:
-            logger.exception("Ambos parsers falharam para %s", file_path.name)
-            raise ValueError("Não foi possível extrair texto do PDF.") from fallback_err
+            logger.exception("Ambos parsers falharam para %s (pymupdf: %s)", file_path.name, first_err)
+            raise ValueError(f"Não foi possível extrair texto do PDF ({first_err}; {fallback_err}).") from fallback_err
 
     # Verificar se obteve texto suficiente
     total_chars = sum(len(p["text"]) for p in pages)
@@ -57,8 +57,8 @@ def parse_pdf(file_path: Path) -> tuple[str, list[dict]]:
         logger.info("Pouco texto encontrado (%d chars), tentando OCR...", total_chars)
         try:
             pages = _extract_with_ocr(file_path)
-        except Exception:
-            logger.warning("OCR falhou para %s", file_path.name)
+        except Exception as ocr_err:
+            logger.warning("OCR falhou para %s (%s); mantendo texto parcial", file_path.name, ocr_err)
             # Manter o que foi extraído
 
     full_text = "\n\n".join(p["text"] for p in pages if p["text"].strip())

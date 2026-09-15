@@ -13,6 +13,7 @@ fim do OCR da página corrente — aceitável no piloto single-user.
 
 import asyncio
 import logging
+import os
 
 from app.services.parser.docx_parser import parse_docx
 from app.services.parser.odt_parser import parse_odt
@@ -24,7 +25,8 @@ logger = logging.getLogger(__name__)
 __all__ = ["parse_pdf", "parse_docx", "parse_odt", "structure_items", "parse_document"]
 
 # Timeout global de parsing (inclui OCR). Ajuste via env futuro se necessário.
-PARSE_TIMEOUT_SECONDS = 180.0
+PARSE_TIMEOUT_SECONDS = float(os.getenv("PARSE_TIMEOUT_SECONDS", "180"))
+_PARSE_SEMAPHORE = asyncio.Semaphore(max(1, int(os.getenv("PARSE_MAX_CONCURRENT", "2"))))
 
 
 async def parse_document(file_path, file_type: str) -> list[dict]:
@@ -43,10 +45,11 @@ async def parse_document(file_path, file_type: str) -> list[dict]:
         raise ValueError(f"Tipo não suportado: {file_type}")
 
     try:
-        raw_text, pages = await asyncio.wait_for(coro, timeout=PARSE_TIMEOUT_SECONDS)
+        async with _PARSE_SEMAPHORE:
+            raw_text, pages = await asyncio.wait_for(coro, timeout=PARSE_TIMEOUT_SECONDS)
     except asyncio.TimeoutError as exc:
         logger.error(
-            "parse.timeout file=%s type=%s limit=%.0fs",
+            "parse.timeout file=%s type=%s limit=%.0fs orphan_thread=possible",
             file_path.name, file_type, PARSE_TIMEOUT_SECONDS,
         )
         raise TimeoutError(

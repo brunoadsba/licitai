@@ -217,8 +217,9 @@ async def run_analysis(
     snapshot["analyzed_item_ids"] = [str(i.id) for i in work_items]
     snapshot["failed_item_ids"] = []
     snapshot["budget_truncated"] = budget_truncated
+    snapshot["total_document_items"] = len(document.items)
+    snapshot["total_work_items"] = len(work_items)
     analysis.run_snapshot = snapshot
-    analysis.total_items = len(work_items)
     await db.commit()
 
     # --- Fase 1: contexto jurídico por item (sequencial — usa a sessão DB) ---
@@ -426,6 +427,8 @@ async def run_analysis(
 
     # Atualizar status do documento
     document.status = "completed"
+    if coverage_incomplete and analysis.error_message:
+        document.error_message = analysis.error_message
 
     await db.flush()
 
