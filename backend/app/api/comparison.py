@@ -11,7 +11,7 @@ import hashlib
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -38,6 +38,8 @@ from app.services.comparator.serializers import (
 from app.services.email.sender import smtp_configurado
 from app.services.jobs import enqueue
 from app.services.rules.loader import parse_molde
+from app.utils import idempotency as idempotency_cache
+from app.utils.request_context import request_id_var
 
 logger = logging.getLogger(__name__)
 
@@ -92,8 +94,19 @@ async def list_comparacoes(
 )
 async def start_comparacao(
     data: ComparacaoStartRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     db: AsyncSession = Depends(get_db),
 ):
+    if idempotency_key:
+        cached = idempotency_cache.lookup(
+            f"comparacao:{data.tr_document_id}:{data.molde_id}:{idempotency_key}"
+        )
+        if cached:
+            logger.info(
+                "comparison.start.idempotent_hit tr=%s request_id=%s",
+                data.tr_document_id, request_id_var.get(),
+            )
+            return ComparacaoStartResponse(**cached)
     # Lock serializa starts concorrentes do mesmo TR (TOCTOU); no-op no SQLite.
     tr = await db.get(Document, data.tr_document_id, with_for_update=True)
     if not tr:
@@ -200,7 +213,11 @@ async def start_comparacao(
     )
     await db.commit()
 
-    return ComparacaoStartResponse(
+    logger.info(
+        "comparison.start.enqueued id=%s request_id=%s",
+        comparacao_id, request_id_var.get(),
+    )
+    resp = ComparacaoStartResponse(
         comparacao_id=comparacao_id,
         job_id=job.id,
         message=(
@@ -208,6 +225,12 @@ async def start_comparacao(
             "(worker: `python -m app.worker`)."
         ),
     )
+    if idempotency_key:
+        idempotency_cache.store(
+            f"comparacao:{data.tr_document_id}:{data.molde_id}:{idempotency_key}",
+            {"comparacao_id": comparacao_id, "job_id": job.id, "message": resp.message},
+        )
+    return resp
 
 
 @router.get(

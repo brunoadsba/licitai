@@ -14,6 +14,7 @@ import logging
 from datetime import datetime, timezone
 
 from app.utils.request_context import RequestIdFilter
+from app.utils.pii_scrub import scrub
 
 
 class JsonFormatter(logging.Formatter):
@@ -24,11 +25,11 @@ class JsonFormatter(logging.Formatter):
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": scrub(record.getMessage()),
             "request_id": getattr(record, "request_id", "-"),
         }
         if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
+            payload["exception"] = scrub(self.formatException(record.exc_info))
         return json.dumps(payload, ensure_ascii=False)
 
 

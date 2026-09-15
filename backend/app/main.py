@@ -110,8 +110,8 @@ app.add_middleware(
     allow_origins=settings.allowed_origins_list,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Content-Type", "Accept", "X-API-Token"],
-    expose_headers=["Content-Disposition"],
+    allow_headers=["Content-Type", "Accept", "X-API-Token", "X-Request-ID", "Idempotency-Key"],
+    expose_headers=["Content-Disposition", "X-Request-ID"],
 )
 
 app.include_router(router)

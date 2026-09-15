@@ -48,6 +48,8 @@ from app.services.privacy import (
     resolve_classification,
 )
 from app.utils.metrics import metrics
+from app.utils import idempotency as idempotency_cache
+from app.utils.request_context import request_id_var
 
 logger = logging.getLogger(__name__)
 
@@ -142,10 +144,19 @@ async def start_analysis(
     x_document_classification: str | None = Header(
         default=None, alias="X-Document-Classification"
     ),
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
     db: AsyncSession = Depends(get_db),
 ):
     """Enfileira análise na fila durável (processada por `python -m app.worker`)."""
     mode = payload.mode if payload and payload.mode else "economic"
+    if idempotency_key:
+        cached = idempotency_cache.lookup(f"analysis:{document_id}:{idempotency_key}")
+        if cached:
+            logger.info(
+                "analysis.start.idempotent_hit doc=%s request_id=%s",
+                document_id, request_id_var.get(),
+            )
+            return AnalysisStartResponse(**cached)
     if mode not in ("multi_agent", "single", "economic"):
         raise HTTPException(
             status_code=422,
@@ -247,10 +258,11 @@ async def start_analysis(
     await db.commit()
 
     logger.info(
-        "Análise %s enfileirada job=%s (doc %s)", analysis_id, job.id, document_id
+        "Análise %s enfileirada job=%s (doc %s) request_id=%s",
+        analysis_id, job.id, document_id, request_id_var.get(),
     )
 
-    return AnalysisStartResponse(
+    resp = AnalysisStartResponse(
         analysis_id=analysis_id,
         job_id=job.id,
         message=(
@@ -258,6 +270,12 @@ async def start_analysis(
             "(worker: `python -m app.worker`)."
         ),
     )
+    if idempotency_key:
+        idempotency_cache.store(
+            f"analysis:{document_id}:{idempotency_key}",
+            {"analysis_id": analysis_id, "job_id": job.id, "message": resp.message},
+        )
+    return resp
 
 
 SEI_APPLICABLE_STATUSES = frozenset({"aprovada", "ajustada"})
