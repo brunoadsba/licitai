@@ -140,6 +140,14 @@ export default function Header() {
           )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
+            src="/logo.svg"
+            alt="LicitAI"
+            width={90}
+            height={28}
+            className="h-6 w-auto object-contain"
+          />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="/logo-codeba.png"
             alt="CODEBA"
             width={90}
