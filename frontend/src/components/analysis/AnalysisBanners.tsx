@@ -54,7 +54,7 @@ export default function AnalysisBanners({
             analysis.budget_truncated ||
             (analysis.error_message?.includes('itens prioritários') ?? false) ||
             (analysis.error_message?.includes('ANALYSIS_MAX_LLM_CALLS') ?? false)
-              ? 'Análise preliminar concluída'
+              ? 'Análise inicial pronta'
               : 'Análise concluída, mas alguns trechos falharam'
           }
           action={
@@ -66,7 +66,7 @@ export default function AnalysisBanners({
           {analysis.budget_truncated ||
           analysis.error_message?.includes('itens prioritários') ||
           analysis.error_message?.includes('ANALYSIS_MAX_LLM_CALLS')
-            ? 'Análise preliminar de itens prioritários concluída. Para auditar os demais trechos substantivos, utilize "Reanalisar faltantes".'
+            ? 'Verificamos os pontos mais importantes do documento. Para verificar o restante, clique em "Reanalisar faltantes".'
             : analysis.error_message ||
               'Parte da análise falhou. Não trate todos os itens como adequados.'}
         </AlertBanner>
