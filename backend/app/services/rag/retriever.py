@@ -135,7 +135,12 @@ def _rrf(
     top_k: int,
     k: int = 60,
 ) -> list[dict]:
-    """Combina rankings usando Reciprocal Rank Fusion (0.6 semântico / 0.4 textual)."""
+    """Combina rankings via Reciprocal Rank Fusion clássico (pesos iguais).
+
+    Pesos iguais por backend: evidência de um lado só (ex.: textual rank 0)
+    supera ruído duplo de chunks irrelevantes — com 600 chunks, peso
+    assimétrico enterrava o acerto fora dos candidatos.
+    """
 
     def _key(row: dict) -> tuple:
         return (
@@ -149,11 +154,11 @@ def _rrf(
 
     for rank, row in enumerate(sem_rows):
         key = _key(row)
-        scores[key] = scores.get(key, 0.0) + 0.6 / (k + rank + 1)
+        scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank + 1)
         merged.setdefault(key, row)
     for rank, row in enumerate(text_rows):
         key = _key(row)
-        scores[key] = scores.get(key, 0.0) + 0.4 / (k + rank + 1)
+        scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank + 1)
         merged.setdefault(key, row)
 
     ordered = sorted(

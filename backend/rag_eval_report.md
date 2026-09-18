@@ -1,15 +1,20 @@
 # Relatório RAG moderno — antes/depois (18/09/2026, branch `feat/rag-moderno-18-09`)
 
-Harness: `backend/tests/test_rag_recall.py` (12 chunks, 4 fontes, 6 queries com
-colisão proposital + distrator semântico). Sem rede/LLM.
+Harness HARD: `backend/tests/test_rag_recall.py` (44 chunks, 4 fontes,
+16 queries em 6 categorias: regime, léxico, numérica, transversal, paráfrase,
+ambígua) + `test_rag_robustness.py` (determinismo, fallback, cache, hostis).
+Sem rede/LLM.
 
-| Métrica | R0 baseline (RRF puro) | R1 (rerank heurístico) |
-|---|---|---|
-| Recall@5 | 0.833 | **1.0** |
-| MRR | 0.331 | **1.0** |
+| Métrica | R0 (RRF puro, 6 queries) | R1 (rerank, 6 queries) | HARD (16 queries) |
+|---|---|---|---|
+| Recall@5 | 0.833 | 1.0 | **1.0** |
+| MRR | 0.331 | 1.0 | **1.0** |
 
-Todas as 6 queries passam a ranquear o chunk esperado em 1º (ex.: query RILC →
-RILC Art. 6º acima de 14.133 Art. 6º; “garantia estatal” → 13.303 Art. 40).
+O teste hard começou **falhando** (0.56/0.56) e expôs 3 fraquezas reais,
+corrigidas no pipeline de produção: RRF com peso assimétrico → clássico
+(pesos iguais); 20 candidatos → 50; FTS sem stopwords/stemming → stopwords PT
++ prefixo `*` + overlap por prefixo no rerank. Todas as 16 queries ranqueiam
+o esperado em 1º, por categoria ≥0.8 (trava no teste).
 
 ## O que entrou
 

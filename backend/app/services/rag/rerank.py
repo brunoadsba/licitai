@@ -76,7 +76,14 @@ def heuristic_rerank(query: str, rows: list[dict]) -> list[dict]:
             f"{row.get('chunk_text', '')} {row.get('article', '')} "
             f"{row.get('law_number', '')} {row.get('section', '')}"
         )
-        overlap = sum(1 for t in terms if re.search(rf"(?<!\w){re.escape(t)}(?!\w)", haystack))
+        overlap = 0
+        for t in terms:
+            if len(t) >= 6:
+                pattern = rf"(?<!\w){re.escape(t)}"
+            else:
+                pattern = rf"(?<!\w){re.escape(t)}(?!\w)"
+            if re.search(pattern, haystack):
+                overlap += 1
         overlap_score = min(1.0, 0.25 * overlap)
         regime_bonus = 0.0
         if q_regime:

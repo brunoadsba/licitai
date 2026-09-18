@@ -55,7 +55,8 @@ class Settings(BaseSettings):
 
     # --- RAG moderno (R1): recuperar muito, entregar pouco ---
     # Candidatos por backend antes do rerank; 0 desliga (top_k direto).
-    rag_candidates: int = 20
+    # 50 cobre bem o corpus piloto (~600 chunks) com custo trivial de lista.
+    rag_candidates: int = 50
     # off = RRF puro (comportamento antigo); heuristic = rerank determinístico;
     # llm = heurístico + 2ª passada no LLM (opt-in, nunca cloud se sigiloso).
     rag_rerank_mode: Literal["off", "heuristic", "llm"] = "heuristic"

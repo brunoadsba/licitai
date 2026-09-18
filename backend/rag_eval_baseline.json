@@ -1,13 +1,24 @@
 {
-  "n_queries": 6,
+  "n_queries": 16,
   "recall@5": 1.0,
   "mrr": 1.0,
+  "mrr_por_categoria": {
+    "regime": 1.0,
+    "lexico": 1.0,
+    "numerica": 1.0,
+    "transversal": 1.0,
+    "parafrase": 1.0,
+    "ambigua": 1.0
+  },
   "queries": [
     {
       "query": "termo de referência art. 6 RILC companhia",
+      "categoria": "regime",
       "expected": [
-        "RILC CODEBA",
-        "Art. 6º"
+        [
+          "RILC CODEBA",
+          "Art. 6º"
+        ]
       ],
       "ranked": [
         [
@@ -19,6 +30,26 @@
           "Art. 29"
         ],
         [
+          "RILC CODEBA",
+          "Art. 8º"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 25"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 45"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 22"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 35"
+        ],
+        [
           "Lei 14.133/2021",
           "Art. 6º"
         ],
@@ -27,28 +58,8 @@
           "Art. 12"
         ],
         [
-          "Lei 13.303/2016",
-          "Art. 32"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 40"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 31"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 67"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 28"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 11"
+          "RILC CODEBA",
+          "Art. 15"
         ]
       ],
       "recall@5": 1.0,
@@ -56,77 +67,17 @@
     },
     {
       "query": "garantia de execução estatal",
+      "categoria": "regime",
       "expected": [
-        "Lei 13.303/2016",
-        "Art. 40"
-      ],
-      "ranked": [
         [
           "Lei 13.303/2016",
           "Art. 40"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 67"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 32"
-        ],
-        [
-          "RILC CODEBA",
-          "Art. 6º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 29"
-        ],
-        [
-          "RILC CODEBA",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 31"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 6º"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 28"
-        ],
-        [
-          "TCU",
-          "Acórdão 1214/2013"
         ]
       ],
-      "recall@5": 1.0,
-      "rr": 1.0
-    },
-    {
-      "query": "parcelamento do objeto competitividade",
-      "expected": [
-        "TCU",
-        "Súmula 247"
-      ],
       "ranked": [
         [
-          "TCU",
-          "Súmula 247"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 28"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 11"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 6º"
+          "Lei 13.303/2016",
+          "Art. 40"
         ],
         [
           "Lei 14.133/2021",
@@ -134,11 +85,7 @@
         ],
         [
           "Lei 13.303/2016",
-          "Art. 32"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 40"
+          "Art. 28"
         ],
         [
           "Lei 13.303/2016",
@@ -146,42 +93,7 @@
         ],
         [
           "Lei 13.303/2016",
-          "Art. 31"
-        ],
-        [
-          "RILC CODEBA",
-          "Art. 6º"
-        ]
-      ],
-      "recall@5": 1.0,
-      "rr": 1.0
-    },
-    {
-      "query": "prazo de vigência vinte e quatro meses prorrogação",
-      "expected": [
-        "RILC CODEBA",
-        "Art. 12"
-      ],
-      "ranked": [
-        [
-          "RILC CODEBA",
-          "Art. 12"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 6º"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 67"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 11"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 28"
+          "Art. 30"
         ],
         [
           "Lei 13.303/2016",
@@ -192,16 +104,16 @@
           "Art. 32"
         ],
         [
-          "TCU",
-          "Acórdão 1214/2013"
-        ],
-        [
-          "RILC CODEBA",
-          "Art. 6º"
+          "Lei 13.303/2016",
+          "Art. 41"
         ],
         [
           "Lei 13.303/2016",
-          "Art. 40"
+          "Art. 71"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 81"
         ]
       ],
       "recall@5": 1.0,
@@ -209,11 +121,146 @@
     },
     {
       "query": "regulamento interno de licitações estatais",
+      "categoria": "regime",
       "expected": [
-        "Lei 13.303/2016",
-        "Art. 32"
+        [
+          "Lei 13.303/2016",
+          "Art. 32"
+        ]
       ],
       "ranked": [
+        [
+          "Lei 13.303/2016",
+          "Art. 32"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 28"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 31"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 84"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 81"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 40"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 41"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 71"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 37"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "vigência e prorrogação contrato estatal",
+      "categoria": "regime",
+      "expected": [
+        [
+          "Lei 13.303/2016",
+          "Art. 71"
+        ]
+      ],
+      "ranked": [
+        [
+          "Lei 13.303/2016",
+          "Art. 71"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 12"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 81"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 40"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 35"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 40"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 28"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 30"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "fiscalização estatal por preposto",
+      "categoria": "regime",
+      "expected": [
+        [
+          "Lei 13.303/2016",
+          "Art. 81"
+        ]
+      ],
+      "ranked": [
+        [
+          "Lei 13.303/2016",
+          "Art. 81"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 35"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 28"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 30"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 31"
+        ],
         [
           "Lei 13.303/2016",
           "Art. 32"
@@ -224,19 +271,61 @@
         ],
         [
           "Lei 13.303/2016",
-          "Art. 29"
+          "Art. 41"
         ],
         [
           "Lei 13.303/2016",
-          "Art. 31"
+          "Art. 71"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "TERMO DE REFERENCIA SEM ACENTO NEM CAIXA",
+      "categoria": "lexico",
+      "expected": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
         ],
         [
           "RILC CODEBA",
           "Art. 6º"
         ],
         [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ]
+      ],
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ],
+        [
           "RILC CODEBA",
-          "Art. 12"
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 11"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 18"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 23"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 28"
         ],
         [
           "Lei 14.133/2021",
@@ -244,11 +333,169 @@
         ],
         [
           "Lei 14.133/2021",
+          "Art. 92"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "projeto básico e executivo",
+      "categoria": "lexico",
+      "expected": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ]
+      ],
+      "ranked": [
+        [
+          "Lei 14.133/2021",
           "Art. 6º"
         ],
         [
-          "TCU",
-          "Súmula 247"
+          "RILC CODEBA",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 11"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 18"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 23"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 28"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 67"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 92"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 111"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "instruções segurança trabalho editais",
+      "categoria": "lexico",
+      "expected": [
+        [
+          "Lei 14.133/2021",
+          "Art. 28"
+        ]
+      ],
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 28"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 83"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 11"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 18"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 23"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 67"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 92"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 111"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "prazo vinte e quatro meses prorrogação",
+      "categoria": "numerica",
+      "expected": [
+        [
+          "RILC CODEBA",
+          "Art. 12"
+        ]
+      ],
+      "ranked": [
+        [
+          "RILC CODEBA",
+          "Art. 12"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 111"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 165"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 71"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 11"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 18"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 23"
         ],
         [
           "Lei 14.133/2021",
@@ -259,31 +506,38 @@
       "rr": 1.0
     },
     {
-      "query": "projeto básico termo de referência",
+      "query": "sanção cinco por cento atraso estatal",
+      "categoria": "numerica",
       "expected": [
-        "Lei 14.133/2021",
-        "Art. 6º"
+        [
+          "Lei 13.303/2016",
+          "Art. 83"
+        ]
       ],
       "ranked": [
         [
+          "Lei 13.303/2016",
+          "Art. 83"
+        ],
+        [
           "Lei 14.133/2021",
-          "Art. 6º"
+          "Art. 137"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 28"
         ],
         [
           "Lei 13.303/2016",
           "Art. 29"
         ],
         [
-          "RILC CODEBA",
-          "Art. 6º"
+          "Lei 13.303/2016",
+          "Art. 30"
         ],
         [
-          "Lei 14.133/2021",
-          "Art. 67"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 28"
+          "Lei 13.303/2016",
+          "Art. 31"
         ],
         [
           "Lei 13.303/2016",
@@ -294,16 +548,340 @@
           "Art. 40"
         ],
         [
-          "RILC CODEBA",
-          "Art. 12"
+          "Lei 13.303/2016",
+          "Art. 41"
         ],
         [
-          "TCU",
-          "Acórdão 1214/2013"
+          "Lei 13.303/2016",
+          "Art. 71"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "sanção dez por cento inexecução",
+      "categoria": "numerica",
+      "expected": [
+        [
+          "Lei 14.133/2021",
+          "Art. 137"
+        ]
+      ],
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 137"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 83"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
         ],
         [
           "Lei 14.133/2021",
           "Art. 11"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 18"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 23"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 28"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 67"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 92"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "pagamento em trinta dias medição",
+      "categoria": "numerica",
+      "expected": [
+        [
+          "RILC CODEBA",
+          "Art. 20"
+        ]
+      ],
+      "ranked": [
+        [
+          "RILC CODEBA",
+          "Art. 20"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 165"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 25"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 11"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 18"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 23"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 28"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 67"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 92"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "parcelamento objeto competitividade",
+      "categoria": "transversal",
+      "expected": [
+        [
+          "TCU",
+          "Súmula 247"
+        ]
+      ],
+      "ranked": [
+        [
+          "TCU",
+          "Súmula 247"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 11"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 18"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 23"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 28"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 67"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 92"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 111"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "capital social mínimo habilitação",
+      "categoria": "transversal",
+      "expected": [
+        [
+          "TCU",
+          "Súmula 272"
+        ]
+      ],
+      "ranked": [
+        [
+          "TCU",
+          "Súmula 272"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 22"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 67"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 11"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 18"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 23"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 28"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 92"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "elaboração do termo de referência e projeto",
+      "categoria": "parafrase",
+      "expected": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ]
+      ],
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 6º"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 11"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 18"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 23"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 28"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 67"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 92"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ]
+      ],
+      "recall@5": 1.0,
+      "rr": 1.0
+    },
+    {
+      "query": "art. 6 termo de referência",
+      "categoria": "ambigua",
+      "expected": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 6º"
+        ]
+      ],
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "RILC CODEBA",
+          "Art. 6º"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 11"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 18"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 23"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 28"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 67"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 92"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
         ]
       ],
       "recall@5": 1.0,
