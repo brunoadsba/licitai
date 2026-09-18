@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     embeddings_model: str = "gemini-embedding-001"
     embeddings_dim: int = 3072
 
+    # --- RAG moderno (R1): recuperar muito, entregar pouco ---
+    # Candidatos por backend antes do rerank; 0 desliga (top_k direto).
+    rag_candidates: int = 20
+    # off = RRF puro (comportamento antigo); heuristic = rerank determinístico;
+    # llm = heurístico + 2ª passada no LLM (opt-in, nunca cloud se sigiloso).
+    rag_rerank_mode: Literal["off", "heuristic", "llm"] = "heuristic"
+
     # --- Aplicação ---
     allowed_origins: str = "http://localhost:3000"
     max_upload_size_mb: int = 50
