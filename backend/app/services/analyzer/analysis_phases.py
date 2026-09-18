@@ -56,13 +56,20 @@ async def _analyze_items_concurrent(
     )
 
 
-async def _retrieve_legal_context(db: AsyncSession, item: DocumentItem) -> str:
-    """Busca artigos relevantes no corpus jurídico e formata para o prompt."""
+async def _retrieve_legal_context(
+    db: AsyncSession, item: DocumentItem, llm=None
+) -> str:
+    """Busca artigos relevantes no corpus jurídico e formata para o prompt.
+
+    `llm` opcional: só usado quando `rag_rerank_mode="llm"`; o chamador
+    garante a trava de privacidade (sigiloso nunca vai a cloud).
+    """
     try:
         chunks = await retrieve(
             db,
             query=f"{item.title or ''} {item.content}",
             top_k=4,
+            llm=llm,
         )
     except Exception:
         logger.exception("Falha ao recuperar contexto jurídico")

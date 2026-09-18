@@ -12,7 +12,11 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.analysis import Correction
-from app.services.analyzer.evidence_gate import detect_regime, evaluate_finding
+from app.services.analyzer.evidence_gate import (
+    claim_support_rate,
+    detect_regime,
+    evaluate_finding,
+)
 from app.services.analyzer.grounding import (
     is_legal_basis_valid,
     is_original_text_grounded,
@@ -111,6 +115,9 @@ async def persist_item_outcomes(
                 "legal_valid": legal_valid,
                 "fail_closed_legal": fail_closed,
                 "item_number": item.item_number,
+                "claim_support": claim_support_rate(
+                    correction_data, item.content or "", doc_text, regime
+                ),
             }
             if correction_data.get("_coverage_errors"):
                 evidence["coverage_errors"] = correction_data["_coverage_errors"]

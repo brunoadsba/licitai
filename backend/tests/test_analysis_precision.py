@@ -139,3 +139,24 @@ def test_detect_regime_rilc():
     assert detect_regime(DOC_RILC) == "13.303"
     assert detect_regime("pregao eletronico Lei 14.133/2021 entes federativos") == "14.133"
     assert detect_regime("texto neutro sem sinais") is None
+
+
+def test_claim_support_rate():
+    from app.services.analyzer.evidence_gate import claim_support_rate
+
+    bom = _corr(
+        original_text="prazo de vigência",
+        suggested_text="prazo de vigência de 24 meses",
+        problem="prazo vago",
+        legal_basis="Acordao TCU 1214/2013",
+    )
+    r = claim_support_rate(bom, "prazo de vigência contratual", "vigência 24 meses")
+    assert r["supported"] == r["total"]
+
+    ruim = _corr(
+        original_text="multa",
+        suggested_text="multa de 30%",
+        problem="indefinido",
+    )
+    r2 = claim_support_rate(ruim, "multa contratual", "doc sem numeros")
+    assert r2["supported"] < r2["total"]
