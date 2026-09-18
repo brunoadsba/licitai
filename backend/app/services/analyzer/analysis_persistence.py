@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.analysis import Correction
+from app.services.analyzer.evidence_gate import detect_regime, evaluate_finding
 from app.services.analyzer.grounding import (
     is_legal_basis_valid,
     is_original_text_grounded,
@@ -45,6 +46,12 @@ async def persist_item_outcomes(
     coverage_incomplete = False
     successfully_analyzed_ids: list[str] = []
     failed_item_ids: list[str] = []
+    try:
+        _items_all = list(getattr(document, "items", None) or [it for it, _ in items_context])
+    except Exception:
+        _items_all = [it for it, _ in items_context]
+    doc_text = " ".join(getattr(it, "content", "") or "" for it in _items_all)
+    regime = detect_regime(doc_text)
 
     for (item, legal_context), outcome in zip(items_context, results, strict=False):
         if isinstance(outcome, Exception):
@@ -60,6 +67,18 @@ async def persist_item_outcomes(
         for correction_data in outcome:
             if correction_data.get("_coverage_errors"):
                 coverage_incomplete = True
+            gate = evaluate_finding(
+                correction_data, item.content or "", doc_text, regime, valid_refs
+            )
+            if not gate.passed:
+                metrics.inc(f"evidence_gate_rejected_{gate.gate.lower()}")
+                logger.warning(
+                    "evidence_gate %s rejeitou item %s: %s",
+                    gate.gate,
+                    item.item_number,
+                    gate.reason,
+                )
+                continue
             grounded = is_original_text_grounded(
                 correction_data.get("original_text", ""), item.content or ""
             )
@@ -158,6 +177,7 @@ async def persist_item_outcomes(
     snapshot = dict(analysis.run_snapshot or {})
     snapshot["analyzed_item_ids"] = successfully_analyzed_ids
     snapshot["failed_item_ids"] = failed_item_ids
+    snapshot["regime"] = regime
     analysis.run_snapshot = snapshot
     await db.commit()
 
