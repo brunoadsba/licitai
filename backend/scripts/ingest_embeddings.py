@@ -21,8 +21,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from sqlalchemy import select
 from app.config import settings
 from app.database import async_session_factory
-from app.models.legal import LegalChunk
+from app.models.legal import LegalChunk, LegalDocument
 from app.services.embeddings.base import get_embeddings_provider
+from app.services.rag.loader import contextual_embedding_text
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger("ingest_embeddings")
@@ -44,7 +45,6 @@ async def run_embeddings_ingestion():
             select(LegalChunk).where(LegalChunk.embedding.isnot(None) == False)  # noqa: E712
         )
         chunks = result.scalars().all()
-
         total = len(chunks)
         if total == 0:
             logger.info("Todos os chunks já possuem embeddings. Nenhuma ação necessária.")
@@ -57,14 +57,22 @@ async def run_embeddings_ingestion():
 
         for idx, chunk in enumerate(chunks, start=1):
             try:
-                # Gerar vetor de embedding
-                vector = await provider.embed(chunk.chunk_text)
+                doc = await db.get(LegalDocument, chunk.legal_document_id)
+                embed_input = contextual_embedding_text(
+                    doc.law_number if doc else "",
+                    doc.law_title if doc else "",
+                    chunk.article or "",
+                    chunk.section or "",
+                    chunk.chunk_text,
+                )
+                vector = await provider.embed(embed_input)
                 if len(vector) != settings.embeddings_dim:
                     logger.warning(
                         "Dimensão inesperada de embedding: esperado %d, obtido %d (chunk %s). Salvo mesmo assim.",
                         settings.embeddings_dim, len(vector), chunk.id,
                     )
                 chunk.embedding = json.dumps(vector)
+                chunk.embedding_dim = len(vector)
                 processed += 1
 
                 if idx % 10 == 0 or idx == total:

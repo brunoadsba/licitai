@@ -163,6 +163,20 @@ def parse_extra_text(content: str, chunk_chars: int = 1500) -> list[LawChunk]:
     return chunks
 
 
+def contextual_embedding_text(
+    law_number: str, law_title: str, article: str, section: str, chunk_text: str
+) -> str:
+    """Texto de entrada do embedding (R2): cabeçalho + corpo.
+
+    O `chunk_text` exibido e o FTS não mudam; só o vetor passa a distinguir
+    "Art. 6º" entre leis (ex.: 14.133 vs RILC).
+    """
+    header = f"{law_number or ''} — {law_title or ''} — {article or ''}"
+    if section:
+        header += f" — {section}"
+    return f"{header}\n{chunk_text}"
+
+
 async def _persist_document(
     db: AsyncSession,
     chunks: list[LawChunk],
