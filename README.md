@@ -13,7 +13,8 @@ Ops e pendências do piloto (gate 14 dias, cron, DOCX, Art. 6, fixtures): ver [d
 ### Entregas recentes (piloto)
 
 - **Revisão guiada + revisor-assistente (15/09):** modo **1 por vez** (grave primeiro, barra 3/9) com banner de **sugestão + confiança** (aprovar 84% / ajustar 88% / rejeitar 95% fail-closed), 1 clique para aceitar; também em "Ver todas" como selo discreto. Métrica de aceitação no relatório/dashboard (`review_suggestion_*`). Opt-in `REVIEWER_SECOND_OPINION=1` para 2ª opinião Ollama local.
-- Higiene 0 arquivos >300: `analysis.py` 953→8 módulos, `types`/`api` em domínios, `engine`/`detection`/`worker`/`versoes` fatiados — zero comportamento, `272 passed`, `tsc 0`
+- Higiene 0 arquivos >300: `analysis.py` 953→8 módulos, `types`/`api` em domínios, `engine`/`detection`/`worker`/`versoes` fatiados — zero comportamento, `283 passed`, `tsc 0`
+- **Confiabilidade (18/09):** filtro determinístico `evidence_gate.py` (trecho existe, sem número/placeholder inventado, lei do regime, omissão verificada no documento inteiro, sem falha técnica como achado) + régua de 11 erros reais + `regime` no snapshot — **283 passed**
 - Pacote SEI, TR HTML/DOCX corrigido, fila Prioridade, checklist Art. 6º com **`art6_coverage` ≥90%**
 - Modo `economic`, reanálise parcial, painel de pendências + widget do revisor no dashboard
 - Base local de TRs: [`fixtures/trs-codeba/`](fixtures/trs-codeba/) (12 objetos; PDFs fora do Git)
@@ -330,7 +331,7 @@ cd /caminho/licitai
 PYTHONPATH=backend backend/.venv/bin/python -m pytest backend/tests -q
 ```
 
-- Cobertura: parser, extractor, retriever, rules/comparador/matriz, multi-agente, schema, chat/Copiloto, revisão humana SEI (`test_correction_review_api.py`), **revisor-assistente** (`test_reviewer_checks.py` + `test_reviewer_api.py`), demais módulos. 272 testes no total; 0 arquivos >300 em `backend/app` e `frontend/src`.
+- Cobertura: parser, extractor, retriever, rules/comparador/matriz, multi-agente, schema, chat/Copiloto, revisão humana SEI (`test_correction_review_api.py`), **revisor-assistente** (`test_reviewer_checks.py` + `test_reviewer_api.py`), **confiabilidade** (`test_analysis_precision.py` + `test_recalculate_precision.py`), demais módulos. 283 testes no total; 0 arquivos >300 em `backend/app` e `frontend/src`.
 - `backend/tests/conftest.py` força `DATABASE_URL=sqlite+aiosqlite:///:memory:` **antes** do import de `app.*`, para o pytest não herdar `postgresql://` síncrono do `.env`.
 - Testes do Copiloto usam **provider fake** (determinístico) — nunca chamam Gemini/Groq/Ollama reais.
 ### Validação do schema PostgreSQL (`db/init.sql`)
@@ -467,6 +468,8 @@ Regras de comportamento:
 - [x] **Correções de alto impacto (PRD v2.0)**: parsing determinístico, extração por âncoras robusta, FTS com diacríticos, schema Postgres sincronizado, paginação backward-compatible
 - [x] **Copiloto LicitAI (chat consultivo)**: API + painel na tela de análise com grounding e citações (26 testes novos + 4 de schema)
 - [x] **Higiene + revisão guiada + revisor-assistente (15/09)**: 0 arquivos >300, guiado 1-por-vez, banner "Sugestão X% + motivo" com **Aceitar** (1 clique, sem auto-aprovar), métrica `review_suggestion_*` no relatório/dashboard, `GET /review-suggestions` + `POST /track`
+- [x] **Confiabilidade Fase 0–4 (18/09)**: gate `evidence_gate.py` (G1 trecho, G2 honesto, G3 regime, G4 omissão doc-wide, OPS operacional) + régua 11 casos reais + `regime` no snapshot + trava textual + teste de recalibragem; 283 passed
+- [ ] **Branding MVP (parcial 18/09)**: `logo.svg` + header LicitAI ao lado de CODEBA; falta `icon.png` 512 + SEI/DOCX/guia
 - [ ] **v2.0**: Múltiplos agentes com LangGraph, checklist de conformidade, multi-usuário
 - [ ] **Validação Postgres runtime**: `docker compose up -d db` quando houver Docker daemon (schema já validado por parser `pglast`)
 
