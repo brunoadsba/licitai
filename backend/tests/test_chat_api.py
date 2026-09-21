@@ -9,12 +9,13 @@ feedback com os guards 404/400/422 e a resposta assistente com fontes.
 import asyncio
 import json
 import uuid
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
-from unittest.mock import AsyncMock, patch
 
 from app.database import Base, get_db
 from app.main import app
@@ -23,6 +24,7 @@ from app.schemas.chat import ChatCitation
 from app.services.chat.llm_adapter import get_chat_llm
 
 _SOURCES_PATCHER = None
+_ENGINES: list = []
 
 
 class FakeLLM:
@@ -75,6 +77,7 @@ def _montar_session() -> async_sessionmaker:
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    _ENGINES.append(engine)
 
     async def _create():
         async with engine.begin() as conn:
@@ -114,6 +117,19 @@ def _limpar_overrides():
     if _SOURCES_PATCHER is not None:
         _SOURCES_PATCHER.stop()
         _SOURCES_PATCHER = None
+
+
+@pytest.fixture(autouse=True)
+def _dispose_engines():
+    """Fecha os engines aiosqlite ao fim de cada teste.
+
+    Sem isso as worker threads sobrevivem ao loop fechado pelo
+    asyncio.run e o pytest emite PytestUnhandledThreadExceptionWarning.
+    """
+    yield
+    for _engine in _ENGINES:
+        asyncio.run(_engine.dispose())
+    _ENGINES.clear()
 
 
 async def _criar_conversa(ac: AsyncClient, context=None, title="Conversa Teste"):
