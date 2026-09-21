@@ -64,11 +64,21 @@ async def _retrieve_legal_context(
     `llm` opcional: só usado quando `rag_rerank_mode="llm"`; o chamador
     garante a trava de privacidade (sigiloso nunca vai a cloud).
     """
+    law_numbers = None
+    if getattr(settings, "rag_regime_filter", 0):
+        from app.services.analyzer.evidence_gate import detect_regime
+
+        regime = detect_regime(f"{item.title or ''} {item.content}")
+        law_numbers = {
+            "13.303": ["Lei 13.303/2016"],
+            "14.133": ["Lei 14.133/2021"],
+        }.get(regime or "")
     try:
         chunks = await retrieve(
             db,
             query=f"{item.title or ''} {item.content}",
             top_k=4,
+            law_numbers=law_numbers,
             llm=llm,
         )
     except Exception:

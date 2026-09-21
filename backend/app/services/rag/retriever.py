@@ -60,7 +60,7 @@ class RetrievedChunk:
 async def retrieve(
     db: AsyncSession,
     query: str,
-    top_k: int = DEFAULT_TOP_K,
+    top_k: int | None = None,
     law_numbers: list[str] | None = None,
     use_semantic: bool | None = None,
     llm=None,
@@ -84,12 +84,13 @@ async def retrieve(
     if not cleaned:
         return []
 
+    eff_top_k = top_k or getattr(settings, "rag_top_k", 0) or DEFAULT_TOP_K
     rerank_mode = getattr(settings, "rag_rerank_mode", "heuristic")
     candidates = getattr(settings, "rag_candidates", 20) or 0
-    fetch_k = max(top_k, candidates) if rerank_mode != "off" and candidates else top_k
+    fetch_k = max(eff_top_k, candidates) if rerank_mode != "off" and candidates else eff_top_k
 
     cache_key = hashlib.sha256(
-        f"{cleaned}|{top_k}|{law_numbers}|{use_semantic}|{rerank_mode}|{fetch_k}|{llm is not None}".encode()
+        f"{cleaned}|{eff_top_k}|{law_numbers}|{use_semantic}|{rerank_mode}|{fetch_k}|{llm is not None}".encode()
     ).hexdigest()
     cached = _legal_context_cache.get(cache_key)
     if cached and time.time() - cached[0] < _CACHE_TTL_SECONDS:
@@ -118,12 +119,12 @@ async def retrieve(
                 rows = heuristic_rerank(cleaned, rows)
             if rerank_mode == "llm" and llm is not None:
                 rows = await llm_rerank(llm, cleaned, rows, top_k)
-            result = _para_chunks(rows[:top_k])
+            result = _para_chunks(rows[:eff_top_k])
             _legal_context_cache[cache_key] = (time.time(), result)
             return result
 
     result = _para_chunks(
-        await _search_textual(db, cleaned, top_k, law_numbers)
+        await _search_textual(db, cleaned, eff_top_k, law_numbers)
     )
     _legal_context_cache[cache_key] = (time.time(), result)
     return result
