@@ -33,6 +33,7 @@ export interface CorrectionResponse {
   review_status?: ReviewStatus;
   review_note?: string | null;
   reviewed_at?: string | null;
+  claim_support?: { supported: number; total: number } | null;
 }
 
 export interface AnalysisStartResponse {

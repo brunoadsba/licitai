@@ -172,6 +172,26 @@ class Correction(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
 
+    @property
+    def claim_support(self) -> dict | None:
+        """{"supported": s, "total": t} do evidence JSON (R3) ou None.
+
+        Validado defensivamente: evidence ausente ou malformado não
+        quebra a serialização do CorrectionResponse.
+        """
+        evidence = self.evidence or {}
+        raw = evidence.get("claim_support")
+        if not isinstance(raw, dict):
+            return None
+        try:
+            supported = int(raw.get("supported"))
+            total = int(raw.get("total"))
+        except (TypeError, ValueError):
+            return None
+        if total <= 0 or supported < 0 or supported > total:
+            return None
+        return {"supported": supported, "total": total}
+
     # Relacionamentos
     analysis: Mapped["Analysis"] = relationship(back_populates="corrections")
     document_item: Mapped["DocumentItem"] = relationship(back_populates="corrections")
