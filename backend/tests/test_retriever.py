@@ -7,13 +7,16 @@ fake implementando a interface EmbeddingsProvider — permitido em testes).
 
 import asyncio
 import json
+from types import SimpleNamespace
 
 import pytest
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
 
+from app.config import settings
 from app.database import Base
 from app.models.legal import LegalChunk, LegalDocument
+from app.services.analyzer.analysis_phases import _retrieve_legal_context
 from app.services.rag.loader import build_fts_index
 from app.services.rag.retriever import (
     _clear_legal_context_cache,
@@ -233,3 +236,56 @@ def test_retrieve_usa_cache_de_embedding(monkeypatch):
 
     _run(_cenario())
     assert calls["n"] == 1
+
+
+def test_retrieve_top_k_padrao_vem_do_settings(monkeypatch):
+    _clear_legal_context_cache()
+    monkeypatch.setattr(
+        "app.services.rag.retriever.get_embeddings_provider",
+        lambda: FakeEmbeddingsProvider(),
+    )
+    monkeypatch.setattr(settings, "rag_top_k", 1)
+
+    async def _cenario():
+        Session = await _seed_com_embeddings()
+        async with Session() as db:
+            return await retrieve(db, "garantia")
+
+    assert len(_run(_cenario())) == 1
+
+    _clear_legal_context_cache()
+    monkeypatch.setattr(settings, "rag_top_k", 5)
+
+    async def _cenario2():
+        Session = await _seed_com_embeddings()
+        async with Session() as db:
+            return await retrieve(db, "garantia")
+
+    assert len(_run(_cenario2())) == 3
+
+
+def test_regime_filter_desligado_por_padrao_e_filtra_quando_ligado(monkeypatch):
+    assert settings.rag_regime_filter == 0
+    _clear_legal_context_cache()
+    item = SimpleNamespace(
+        title="Garantia",
+        content="Exigência de garantia em estatal sob RILC 13.303.",
+    )
+
+    async def _cenario():
+        Session = await _seed_com_embeddings()
+        async with Session() as db:
+            return await _retrieve_legal_context(db, item)
+
+    assert _run(_cenario()) != ""
+
+    _clear_legal_context_cache()
+    monkeypatch.setattr(settings, "rag_regime_filter", 1)
+
+    async def _cenario_filtrado():
+        Session = await _seed_com_embeddings()
+        async with Session() as db:
+            return await _retrieve_legal_context(db, item)
+
+    # Seed só tem Lei 14.133/2021; regime 13.303 filtra tudo
+    assert _run(_cenario_filtrado()) == ""

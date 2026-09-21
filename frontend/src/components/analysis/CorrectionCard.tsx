@@ -59,6 +59,8 @@ export default function CorrectionCard({
   );
   const needsAdjust =
     reviewStatus === 'pendente' && hasPlaceholderText(correction.suggested_text);
+  const claim = correction.claim_support;
+  const claimFull = claim != null && claim.total > 0 && claim.supported >= claim.total;
 
   useEffect(() => {
     if (!analysisId || reviewStatus !== 'pendente') return;
@@ -90,6 +92,11 @@ export default function CorrectionCard({
         <Badge tone={REVIEW_STATUS_TONE[reviewStatus]}>
           {REVIEW_STATUS_LABELS[reviewStatus]}
         </Badge>
+        {claim != null && claim.total > 0 && (
+          <Badge tone={claimFull ? 'low' : 'medium'}>
+            {claim.supported}/{claim.total} afirmações ancoradas
+          </Badge>
+        )}
       </div>
 
       <p className="mb-4 text-sm text-content-secondary">{correction.problem}</p>

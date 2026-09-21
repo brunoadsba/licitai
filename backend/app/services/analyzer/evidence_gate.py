@@ -247,6 +247,37 @@ def _ops_ruido_operacional(problem: str, legal_basis: str | None, suggested: str
     return None
 
 
+def claim_support_rate(
+    correction: dict,
+    item_content: str,
+    doc_text: str = "",
+    regime: str | None = None,
+) -> dict:
+    """Taxa de suporte por afirmação (R3): cada claim verificada isoladamente.
+
+    Claims: trecho existe no item; cada número da sugestão existe no
+    item/documento; fundamento não é de regime oposto. Retorna
+    {"supported": s, "total": t} para persistir no evidence JSON.
+    """
+    original = correction.get("original_text", "") or ""
+    suggested = correction.get("suggested_text", "") or ""
+    legal_basis = correction.get("legal_basis")
+    eff_regime = regime or detect_regime(f"{item_content} {doc_text}")
+    claims: list[bool] = [
+        _g1_trecho_existe(original, item_content or "") is None
+        if (original or "").strip() else True,
+        _g3_lei_do_regime(legal_basis, eff_regime) is None,
+    ]
+    haystack = _normalize(f"{original} {item_content} {doc_text}")
+    for n in numbers_in(suggested):
+        digits = re.sub(r"[^\d.,]", "", n).replace(",", ".").strip(" .")
+        if not digits:
+            continue
+        claims.append(bool(re.search(rf"(?<!\d){re.escape(digits)}(?!\d)", haystack)))
+    supported = sum(1 for c in claims if c)
+    return {"supported": supported, "total": len(claims)}
+
+
 def evaluate_finding(
     correction: dict,
     item_content: str,

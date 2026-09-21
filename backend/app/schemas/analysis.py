@@ -20,6 +20,14 @@ AwareDatetime = Annotated[datetime, BeforeValidator(_ensure_tz)]
 ReviewStatusLiteral = Literal["pendente", "aprovada", "rejeitada", "ajustada"]
 
 
+class ClaimSupport(BaseModel):
+    """Afirmações da correção ancoradas em evidência (R3)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    supported: int
+    total: int
+
+
 class CorrectionResponse(BaseModel):
     """Resposta para uma correção individual."""
     model_config = ConfigDict(from_attributes=True)
@@ -40,6 +48,7 @@ class CorrectionResponse(BaseModel):
     review_status: str = "pendente"
     review_note: str | None = None
     reviewed_at: AwareDatetime | None = None
+    claim_support: ClaimSupport | None = None
 
 
 class CorrectionReviewUpdate(BaseModel):

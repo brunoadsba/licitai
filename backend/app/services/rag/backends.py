@@ -20,10 +20,34 @@ async def _search_textual(
     return await _search_postgres(db, query, top_k, law_numbers)
 
 
+_STOPWORDS_PT = frozenset({
+    "de", "da", "do", "das", "dos", "e", "em", "no", "na", "nos", "nas",
+    "por", "para", "com", "sem", "sob", "sobre", "que", "os", "as", "o", "a",
+    "um", "uma", "uns", "umas", "ao", "aos", "se", "como", "ou", "é", "são",
+})
+
+
 def _quote_term(term: str) -> str:
     """Escapa um termo para a query FTS5."""
     safe = term.replace('"', "")
     return f'"{safe}"'
+
+
+def _fts_terms(query: str) -> list[str]:
+    """Termos FTS5: sem stopwords PT; prefixo `*` em termos longos (stemming pobre).
+
+    "estatal"* casa "estatais"; "por"/"de" saem (poluíam o BM25 casando tudo).
+    """
+    terms = []
+    for t in query.split():
+        low = t.lower()
+        if low in _STOPWORDS_PT:
+            continue
+        if len(low) >= 5:
+            terms.append(f'{_quote_term(t)}*')
+        else:
+            terms.append(_quote_term(t))
+    return terms or [_quote_term(query)]
 
 
 async def _search_sqlite(
@@ -33,7 +57,7 @@ async def _search_sqlite(
     law_numbers: list[str] | None,
 ) -> list[dict]:
     """Busca por FTS5 com ranking BM25."""
-    match_expr = " OR ".join(_quote_term(t) for t in query.split())
+    match_expr = " OR ".join(_fts_terms(query))
 
     base_sql = """
         SELECT CAST(lc.id AS TEXT) AS id, ld.law_number, ld.law_title, lc.article, lc.section,

@@ -53,6 +53,21 @@ class Settings(BaseSettings):
     embeddings_model: str = "gemini-embedding-001"
     embeddings_dim: int = 3072
 
+    # --- RAG moderno (R1): recuperar muito, entregar pouco ---
+    # Candidatos por backend antes do rerank; 0 desliga (top_k direto).
+    # 50 cobre bem o corpus piloto (~600 chunks) com custo trivial de lista.
+    rag_candidates: int = 50
+    # off = RRF puro (comportamento antigo); heuristic = rerank determinístico;
+    # llm = heurístico + 2ª passada no LLM (opt-in, nunca cloud se sigiloso).
+    rag_rerank_mode: Literal["off", "heuristic", "llm"] = "heuristic"
+    # Teto padrão entregue pelo retrieve() quando o chamador omite top_k
+    # (5 = comportamento histórico de DEFAULT_TOP_K).
+    rag_top_k: int = 5
+    # 1 = filtra por regime detectado (13.303/14.133) quando não-ambíguo.
+    # 0 (padrão) = sem filtro. Ligar exclui transversal (TCU/AGU/CGU) —
+    # experimento de piloto: validar recall antes de ligar.
+    rag_regime_filter: int = 0
+
     # --- Aplicação ---
     allowed_origins: str = "http://localhost:3000"
     max_upload_size_mb: int = 50

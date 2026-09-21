@@ -58,6 +58,26 @@ def assert_cloud_allowed_for_document(
     raise CloudPrivacyError()
 
 
+def llm_rerank_allowed_for_document(
+    classification: str | None,
+    *,
+    rerank_mode: str | None = None,
+    provider: str | None = None,
+) -> bool:
+    """Trava do rerank LLM do RAG (R3): só com modo `llm` E sem levar
+    documento sigiloso a provedor cloud (Ollama local sempre passa).
+
+    Espelha a política de `assert_cloud_allowed_for_document`, mas como
+    predicado: o engine usa para decidir se injeta o LLM no `retrieve()`
+    (fail-closed vira `llm=None`, nunca exceção).
+    """
+    if (rerank_mode or settings.rag_rerank_mode) != "llm":
+        return False
+    if is_sigiloso(classification) and is_cloud_provider(provider):
+        return False
+    return True
+
+
 def resolve_classification(
     *,
     form_value: str | None = None,

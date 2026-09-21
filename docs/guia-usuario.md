@@ -6,6 +6,8 @@ Na aplicação: **Mais ferramentas → Guia do usuário** ou `/guia`.
 
 **Regra:** só vai para o SEI o que você **aprovou** ou **ajustou**.
 
+> **Filtro automático (18/09):** antes de mostrar, o sistema descarta sugestões com trecho fora do item, número inventado, lei do regime errado ou "falta X" que existe em outro item. Mesmo assim, **confira tudo** — a IA ainda erra e a decisão final é sempre sua.
+
 ---
 
 ## Fluxo (4 passos)

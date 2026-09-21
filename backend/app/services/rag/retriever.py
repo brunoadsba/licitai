@@ -60,9 +60,10 @@ class RetrievedChunk:
 async def retrieve(
     db: AsyncSession,
     query: str,
-    top_k: int = DEFAULT_TOP_K,
+    top_k: int | None = None,
     law_numbers: list[str] | None = None,
     use_semantic: bool | None = None,
+    llm=None,
 ) -> list[RetrievedChunk]:
     """
     Recupera os artigos mais relevantes para a consulta.
@@ -72,12 +73,25 @@ async def retrieve(
     `use_semantic`: quando None (padrão), decide automaticamente — usa
     busca semântica se houver embeddings ingeridos, senão cai para o
     fallback textual (FTS5/ILIKE), que permanece intacto.
+
+    R1: busca `rag_candidates` por backend, funde via RRF e aplica o rerank
+    heurístico (`rag_rerank_mode`), devolvendo `top_k`.
     """
+    from app.config import settings
+    from app.services.rag.rerank import heuristic_rerank, llm_rerank
+
     cleaned = _clean_query(query)
     if not cleaned:
         return []
 
-    cache_key = hashlib.sha256(f"{cleaned}|{top_k}|{law_numbers}|{use_semantic}".encode()).hexdigest()
+    eff_top_k = top_k or getattr(settings, "rag_top_k", 0) or DEFAULT_TOP_K
+    rerank_mode = getattr(settings, "rag_rerank_mode", "heuristic")
+    candidates = getattr(settings, "rag_candidates", 20) or 0
+    fetch_k = max(eff_top_k, candidates) if rerank_mode != "off" and candidates else eff_top_k
+
+    cache_key = hashlib.sha256(
+        f"{cleaned}|{eff_top_k}|{law_numbers}|{use_semantic}|{rerank_mode}|{fetch_k}|{llm is not None}".encode()
+    ).hexdigest()
     cached = _legal_context_cache.get(cache_key)
     if cached and time.time() - cached[0] < _CACHE_TTL_SECONDS:
         logger.debug("rag_cache_hit query_hash=%s", cache_key[:12])
@@ -88,25 +102,29 @@ async def retrieve(
 
     if use_semantic:
         try:
-            sem_rows = await _search_semantic(db, cleaned, top_k, law_numbers)
+            sem_rows = await _search_semantic(db, cleaned, fetch_k, law_numbers)
         except Exception:
             logger.exception("Falha na busca semântica; usando fallback textual")
             sem_rows = []
 
         try:
-            text_rows = await _search_textual(db, cleaned, top_k, law_numbers)
+            text_rows = await _search_textual(db, cleaned, fetch_k, law_numbers)
         except Exception:
             logger.exception("Falha na busca textual; seguindo apenas com semântica")
             text_rows = []
 
-        rows = _rrf(sem_rows, text_rows, top_k)
+        rows = _rrf(sem_rows, text_rows, fetch_k)
         if rows:
-            result = _para_chunks(rows)
+            if rerank_mode in ("heuristic", "llm"):
+                rows = heuristic_rerank(cleaned, rows)
+            if rerank_mode == "llm" and llm is not None:
+                rows = await llm_rerank(llm, cleaned, rows, top_k)
+            result = _para_chunks(rows[:eff_top_k])
             _legal_context_cache[cache_key] = (time.time(), result)
             return result
 
     result = _para_chunks(
-        await _search_textual(db, cleaned, top_k, law_numbers)
+        await _search_textual(db, cleaned, eff_top_k, law_numbers)
     )
     _legal_context_cache[cache_key] = (time.time(), result)
     return result
@@ -118,7 +136,12 @@ def _rrf(
     top_k: int,
     k: int = 60,
 ) -> list[dict]:
-    """Combina rankings usando Reciprocal Rank Fusion (0.6 semântico / 0.4 textual)."""
+    """Combina rankings via Reciprocal Rank Fusion clássico (pesos iguais).
+
+    Pesos iguais por backend: evidência de um lado só (ex.: textual rank 0)
+    supera ruído duplo de chunks irrelevantes — com 600 chunks, peso
+    assimétrico enterrava o acerto fora dos candidatos.
+    """
 
     def _key(row: dict) -> tuple:
         return (
@@ -132,11 +155,11 @@ def _rrf(
 
     for rank, row in enumerate(sem_rows):
         key = _key(row)
-        scores[key] = scores.get(key, 0.0) + 0.6 / (k + rank + 1)
+        scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank + 1)
         merged.setdefault(key, row)
     for rank, row in enumerate(text_rows):
         key = _key(row)
-        scores[key] = scores.get(key, 0.0) + 0.4 / (k + rank + 1)
+        scores[key] = scores.get(key, 0.0) + 1.0 / (k + rank + 1)
         merged.setdefault(key, row)
 
     ordered = sorted(

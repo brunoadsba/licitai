@@ -3,6 +3,7 @@
 import asyncio
 import uuid
 
+import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import StaticPool
@@ -14,12 +15,29 @@ from app.models.analysis import Analysis, Correction
 from app.models.document import Document, DocumentItem
 
 
+_ENGINES: list = []
+
+
+@pytest.fixture(autouse=True)
+def _dispose_engines():
+    """Fecha os engines aiosqlite ao fim de cada teste.
+
+    Sem isso as worker threads sobrevivem ao loop fechado pelo
+    asyncio.run e o pytest emite PytestUnhandledThreadExceptionWarning.
+    """
+    yield
+    for _engine in _ENGINES:
+        asyncio.run(_engine.dispose())
+    _ENGINES.clear()
+
+
 async def _montar_cenario() -> tuple[async_sessionmaker, dict]:
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    _ENGINES.append(engine)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

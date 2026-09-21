@@ -3,7 +3,7 @@ Modelo de dados para Histórico e Versionamento de Edições de Documentos (Sing
 """
 
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Optional
 
 from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, UniqueConstraint
@@ -33,7 +33,9 @@ class DocumentRevision(Base):
     descricao: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     items_snapshot: Mapped[Any] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, nullable=False
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
     )
 
     # Relacionamento com Document

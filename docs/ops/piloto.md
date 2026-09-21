@@ -15,6 +15,8 @@ Checklist operacional do elaborador de TR em ambiente single-user.
 | Cron backup diário + alertas | **Feito neste host** via `./scripts/install_ops_cron.sh --apply` — ver [cron.md](cron.md) |
 | Backup dry-run | **Feito** (`scripts/backup_daily.sh` → `backups/licitai_*`) |
 | Gate 14 dias de uso real CODEBA | **Aberto 2026-09-14 → 2026-09-28** (sessão 0 = TR ouro) — [gate-piloto-14d.md](gate-piloto-14d.md) |
+| Confiabilidade Fase 0–4 (gate G1-G4/OPS + régua 11 casos + regime no snapshot) | **Feito 18/09 em `main`** (283 passed, LSP 0, tsc limpo; re-run ouro p/ medir precisão ainda pendente) |
+| Branding MVP LicitAI | **Parcial 18/09** (`logo.svg` + header + `docs/branding/`; falta `icon.png` 512 + SEI/DOCX/guia) |
 | Rotação de secrets | **Pendente** (manual) |
 | Benchmark quinzenal com 5 TRs CODEBA | **Baseline Art.6** + **sessão ouro LLM** em [quinzena-2026-09-14.md](quinzena-2026-09-14.md) — [piloto-qualidade.md](piloto-qualidade.md) · fixtures em `fixtures/trs-codeba/` |
 | CI GitHub / K8s / fine-tune / multi-tenant | **Fora de escopo** (não fazer) |

@@ -177,7 +177,7 @@ async def start_comparacao(
         "item_ids": [str(i) for i in tr_item_ids],
         "molde_config_hash": molde_hash,
         "prompt_version": "comparison-v1",
-        "corpus_version": "legal-v1",
+        "corpus_version": "legal-v2",
         "provider": settings.llm_provider,
         "model": model_map.get(settings.llm_provider, "unknown"),
         "propostas_ids": [str(p) for p in propostas_ids_unicas],

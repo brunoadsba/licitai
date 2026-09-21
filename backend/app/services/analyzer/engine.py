@@ -151,9 +151,18 @@ async def run_analysis(
     await db.commit()
 
     # --- Fase 1: contexto jurídico por item (sequencial — usa a sessão DB) ---
+    # Rerank LLM opt-in (R3): só com llm_rerank habilitado E nuvem permitida
+    # para a classificação do documento (sigiloso nunca vai a cloud).
+    from app.services.privacy import llm_rerank_allowed_for_document
+
+    llm_rerank_ok = llm_rerank_allowed_for_document(
+        getattr(document, "classification", None)
+    )
     items_context: list = []
     for item in work_items:
-        legal_context = await _retrieve_legal_context(db, item)
+        legal_context = await _retrieve_legal_context(
+            db, item, llm if llm_rerank_ok else None
+        )
         items_context.append((item, legal_context))
 
     # --- Fase 2: análise LLM concorrente (sem acesso ao DB) ---
