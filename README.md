@@ -39,6 +39,11 @@ Ops e pendências do piloto (gate 14 dias, cron, DOCX, Art. 6, fixtures): ver [d
   - **Busca sem acento** (FTS5 `remove_diacritics 2`): consultas com/sem acentuação retornam os mesmos resultados
   - **Retrieval híbrido RRF**: combina busca semântica + textual com fusão por rank recíproco
   - **Comparador Visual de Versões de TR** (`/comparacao/versoes`): Alinhamento por item com identificação de `alterado`, `adicionado` e `removido`
+- **RAG v2 (moderno, branch `feat/rag-moderno-18-09`)**:
+  - Recupera 50 candidatos e entrega top-k com **rerank heurístico** determinístico (regime + artigo + overlap); `RAG_CANDIDATES`/`RAG_RERANK_MODE`/`RAG_TOP_K` no `.env`
+  - Chunks contextuais (cabeçalho lei—artigo no embedding) + `embedding_dim` versionado; corpus piloto v2 (`corpus_version: legal-v2`)
+  - Rerank LLM opt-in (`RAG_RERANK_MODE=llm`, trava sigiloso/cloud) — piloto 21/09 recomendou **NO-GO** (latência +1,9–12,3s/query, 1 regressão)
+  - Taxa de suporte por afirmação (`claim_support` n/m) persistida e exibida como selo no `CorrectionCard`; filtro de regime opt-in (`RAG_REGIME_FILTER=0`)
 - **Correções no formato DE → PARA** com fundamentação legal
 - **Fluxo SEI (cópia filtrada + revisão humana)**:
   - **Revisão guiada:** botão **Revisar agora** mostra 1 sugestão prioritária por vez (crítico/alto + estrutural), barra de progresso e navegação Anterior/Próxima; **Ver todas** mantém o grid por item.
