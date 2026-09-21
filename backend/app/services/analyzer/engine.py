@@ -153,14 +153,10 @@ async def run_analysis(
     # --- Fase 1: contexto jurídico por item (sequencial — usa a sessão DB) ---
     # Rerank LLM opt-in (R3): só com llm_rerank habilitado E nuvem permitida
     # para a classificação do documento (sigiloso nunca vai a cloud).
-    from app.services.privacy import is_cloud_provider, is_sigiloso
+    from app.services.privacy import llm_rerank_allowed_for_document
 
-    llm_rerank_ok = (
-        getattr(settings, "rag_rerank_mode", "heuristic") == "llm"
-        and not (
-            is_sigiloso(getattr(document, "classification", None))
-            and is_cloud_provider()
-        )
+    llm_rerank_ok = llm_rerank_allowed_for_document(
+        getattr(document, "classification", None)
     )
     items_context: list = []
     for item in work_items:
