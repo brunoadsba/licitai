@@ -50,7 +50,7 @@ async def _build_analysis_snapshot(
     return {
         "item_ids": [str(i) for i in items],
         "prompt_version": PROMPT_VERSION,
-        "corpus_version": "legal-v1",
+        "corpus_version": "legal-v2",
         "provider": settings.llm_provider,
         "model": _get_current_model(),
         "analysis_mode": None,  # preenchido pelo caller
