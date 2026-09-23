@@ -64,19 +64,10 @@ async def retrieve(
     law_numbers: list[str] | None = None,
     use_semantic: bool | None = None,
     llm=None,
+    allow_semantic: bool | None = None,
+    allow_llm_rerank: bool | None = None,
 ) -> list[RetrievedChunk]:
-    """
-    Recupera os artigos mais relevantes para a consulta.
-
-    `law_numbers` filtra por lei (ex: ["Lei 14.133/2021"]).
-
-    `use_semantic`: quando None (padrão), decide automaticamente — usa
-    busca semântica se houver embeddings ingeridos, senão cai para o
-    fallback textual (FTS5/ILIKE), que permanece intacto.
-
-    R1: busca `rag_candidates` por backend, funde via RRF e aplica o rerank
-    heurístico (`rag_rerank_mode`), devolvendo `top_k`.
-    """
+    """Recupera artigos por RRF. `allow_semantic=False` não gera embedding da query."""
     from app.config import settings
     from app.services.rag.rerank import heuristic_rerank, llm_rerank
 
@@ -88,19 +79,25 @@ async def retrieve(
     rerank_mode = getattr(settings, "rag_rerank_mode", "heuristic")
     candidates = getattr(settings, "rag_candidates", 20) or 0
     fetch_k = max(eff_top_k, candidates) if rerank_mode != "off" and candidates else eff_top_k
+    rerank_llm = None if allow_llm_rerank is False else llm
+    semantic_on = False if allow_semantic is False else use_semantic
 
     cache_key = hashlib.sha256(
-        f"{cleaned}|{eff_top_k}|{law_numbers}|{use_semantic}|{rerank_mode}|{fetch_k}|{llm is not None}".encode()
+        (
+            f"{cleaned}|{eff_top_k}|{law_numbers}|{use_semantic}|"
+            f"{allow_semantic}|{allow_llm_rerank}|{rerank_mode}|{fetch_k}|"
+            f"{rerank_llm is not None}"
+        ).encode()
     ).hexdigest()
     cached = _legal_context_cache.get(cache_key)
     if cached and time.time() - cached[0] < _CACHE_TTL_SECONDS:
         logger.debug("rag_cache_hit query_hash=%s", cache_key[:12])
         return cached[1]
 
-    if use_semantic is None:
-        use_semantic = await _tem_embeddings(db)
+    if semantic_on is None:
+        semantic_on = await _tem_embeddings(db)
 
-    if use_semantic:
+    if semantic_on:
         try:
             sem_rows = await _search_semantic(db, cleaned, fetch_k, law_numbers)
         except Exception:
@@ -117,8 +114,8 @@ async def retrieve(
         if rows:
             if rerank_mode in ("heuristic", "llm"):
                 rows = heuristic_rerank(cleaned, rows)
-            if rerank_mode == "llm" and llm is not None:
-                rows = await llm_rerank(llm, cleaned, rows, top_k)
+            if rerank_mode == "llm" and rerank_llm is not None:
+                rows = await llm_rerank(rerank_llm, cleaned, rows, top_k)
             result = _para_chunks(rows[:eff_top_k])
             _legal_context_cache[cache_key] = (time.time(), result)
             return result

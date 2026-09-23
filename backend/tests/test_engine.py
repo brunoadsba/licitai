@@ -107,8 +107,10 @@ async def _montar_e_analisar(
         return []
 
     import app.services.analyzer.engine as engine_mod
+    import app.services.llm.factory as factory_mod
 
-    engine_mod.get_llm_provider = lambda: llm  # chamada síncrona no engine
+    original_provider = factory_mod.get_llm_provider
+    factory_mod.get_llm_provider = lambda: llm  # type: ignore[assignment]
     engine_mod.retrieve = fake_retrieve
 
     async with Session() as session:
@@ -119,6 +121,7 @@ async def _montar_e_analisar(
             file_size_bytes=1000,
             document_type="tr",
             status="analyzing",
+            classification="publico",
         )
         session.add(doc)
         await session.flush()
@@ -148,7 +151,10 @@ async def _montar_e_analisar(
         await session.commit()
 
         doc_id = uuid.uuid4() if documento_inexistente else doc.id
-        await run_analysis(session, analysis.id, doc_id)
+        try:
+            await run_analysis(session, analysis.id, doc_id)
+        finally:
+            factory_mod.get_llm_provider = original_provider
 
         status_analysis = await session.get(Analysis, analysis.id)
         status_doc = await session.get(Document, doc.id)

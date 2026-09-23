@@ -57,12 +57,17 @@ async def _analyze_items_concurrent(
 
 
 async def _retrieve_legal_context(
-    db: AsyncSession, item: DocumentItem, llm=None
+    db: AsyncSession,
+    item: DocumentItem,
+    llm=None,
+    *,
+    allow_semantic: bool | None = None,
+    allow_llm_rerank: bool | None = None,
 ) -> str:
     """Busca artigos relevantes no corpus jurídico e formata para o prompt.
 
-    `llm` opcional: só usado quando `rag_rerank_mode="llm"`; o chamador
-    garante a trava de privacidade (sigiloso nunca vai a cloud).
+    `allow_semantic=False` não gera embedding da query (texto do item).
+    `allow_llm_rerank=False` não manda o contexto ao LLM de rerank.
     """
     law_numbers = None
     if getattr(settings, "rag_regime_filter", 0):
@@ -80,6 +85,8 @@ async def _retrieve_legal_context(
             top_k=4,
             law_numbers=law_numbers,
             llm=llm,
+            allow_semantic=allow_semantic,
+            allow_llm_rerank=allow_llm_rerank,
         )
     except Exception:
         logger.exception("Falha ao recuperar contexto jurídico")

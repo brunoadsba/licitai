@@ -29,6 +29,7 @@ from app.services.jobs.handlers import (
     _run_comparacao_job,
     _run_parse_job,
 )
+from app.services.privacy import PrivacyPolicyError
 from app.services.jobs.queue import claim_by_id, renew_lease
 from app.utils.logging_config import setup_logging
 from app.utils.metrics import metrics
@@ -191,6 +192,12 @@ async def process_job(job: _JobRef | Job) -> None:
         metrics.set_gauge("job_last_success_seconds", duration)
         logger.info("job.ok id=%s type=%s duration=%.1fs", job_id, job_type, duration)
 
+    except PrivacyPolicyError as exc:
+        logger.warning("job.privacy_blocked id=%s type=%s", job_id, job_type)
+        metrics.inc("job_errors")
+        async with async_session_factory() as db:
+            await fail(db, job_id, str(exc), requeue=False)
+            await db.commit()
     except Exception as exc:
         logger.exception("job.error id=%s type=%s", job_id, job_type)
         metrics.inc("llm_errors" if "llm" in str(exc).lower() else "job_errors")

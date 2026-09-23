@@ -30,6 +30,7 @@ from app.services.chat.service import (
     ChatDisabledError,
     send_message,
 )
+from app.services.privacy import PrivacyPolicyError, normalize_classification
 
 logger = logging.getLogger(__name__)
 
@@ -66,10 +67,13 @@ async def create_conversation(
     db: AsyncSession = Depends(get_db),
 ):
     """Cria uma nova conversa do Copiloto."""
+    context = dict(payload.context or {})
+    if payload.classification:
+        context["classification"] = normalize_classification(payload.classification)
     conversa = ChatConversation(
         document_id=payload.document_id,
         analysis_id=payload.analysis_id,
-        context_json=payload.context or {},
+        context_json=context,
         title=payload.title,
     )
     db.add(conversa)
@@ -152,6 +156,8 @@ async def send_message_endpoint(
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ChatConversationNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PrivacyPolicyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.post(

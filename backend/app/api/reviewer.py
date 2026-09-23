@@ -79,7 +79,12 @@ async def list_review_suggestions(
     for c in corrections:
         item_content = items_by_id.get(str(getattr(c, "document_item_id", "")), "")
         s = suggest_for_correction(c, item_content=item_content, valid_refs=valid_refs)
-        s = await refine_with_llm(s, correction=c, item_content=item_content)  # type: ignore[assignment]
+        s = await refine_with_llm(
+            s,
+            correction=c,
+            item_content=item_content,
+            classification=getattr(analysis.document, "classification", None),
+        )  # type: ignore[assignment]
         suggestions.append(s)
 
     # Ordenar como o guiado: rejeitar/ajustar críticos primeiro, depois aprovar
@@ -113,7 +118,12 @@ async def get_review_suggestion(
 
     item_content = items_by_id.get(str(getattr(target, "document_item_id", "")), "")
     s = suggest_for_correction(target, item_content=item_content, valid_refs=valid_refs)
-    s = await refine_with_llm(s, correction=target, item_content=item_content)  # type: ignore[assignment]
+    s = await refine_with_llm(
+        s,
+        correction=target,
+        item_content=item_content,
+        classification=getattr(analysis.document, "classification", None),
+    )  # type: ignore[assignment]
     return s
 
 

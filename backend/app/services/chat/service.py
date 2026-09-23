@@ -20,10 +20,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.chat import ChatConversation, ChatMessage
-from app.services.chat.llm_adapter import ChatLLMProvider, get_chat_llm
+from app.services.chat.llm_adapter import ChatLLMProvider
 from app.services.chat.prompts import build_messages
 from app.services.chat.sources import build_sources, source_ids_from
 from app.services.chat.validator import ValidatedAnswer, validate_llm_answer
+from app.services.llm.factory import select_chat_llm
+from app.services.privacy import classification_for_chat, resolve_policy
 from app.services.chat.warnings_pt import (
     FALHA_LLM_MESSAGE,
     GREETING_MESSAGE,
@@ -94,6 +96,16 @@ async def send_message(
     if not conversation:
         raise ChatConversationNotFoundError("Conversa não encontrada.")
 
+    classification = await classification_for_chat(db, conversation)
+    policy = resolve_policy(classification)
+    document_ref = conversation.document_id or conversation.analysis_id
+    provider_llm = select_chat_llm(
+        policy,
+        llm,
+        document_id=document_ref,
+        force_fake=settings.chat_force_fake_provider,
+    )
+
     await _persistir_mensagem(db, conversation, "user", content)
     logger.info(
         "chat.message.received conversation_id=%s length=%d",
@@ -115,7 +127,11 @@ async def send_message(
 
     try:
         fontes = await build_sources(
-            db, content, conversation.context_json or {}
+            db,
+            content,
+            conversation.context_json or {},
+            allow_semantic=policy.cloud_embeddings,
+            allow_llm_rerank=policy.llm_rerank,
         )
     except Exception:
         logger.exception("Falha ao montar fontes do copiloto")
@@ -128,7 +144,7 @@ async def send_message(
     provider = None
     inicio = time.monotonic()
     try:
-        provider = llm or get_chat_llm()
+        provider = provider_llm
         system_prompt, user_prompt = build_messages(
             content, conversation.context_json or {}, fontes
         )

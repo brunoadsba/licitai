@@ -47,3 +47,11 @@ def test_assert_cloud_permite_ollama(monkeypatch):
     monkeypatch.setattr(settings, "llm_allow_cloud", False)
     monkeypatch.setattr(settings, "llm_provider", "ollama")
     assert_cloud_allowed_for_document("sigiloso")
+
+
+def test_assert_cloud_bloqueia_sem_classificacao(monkeypatch):
+    monkeypatch.setattr(settings, "llm_allow_cloud", False)
+    monkeypatch.setattr(settings, "llm_provider", "groq")
+    monkeypatch.setattr(settings, "app_env", "development")
+    with pytest.raises(CloudPrivacyError):
+        assert_cloud_allowed_for_document(None)

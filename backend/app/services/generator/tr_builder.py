@@ -1,6 +1,4 @@
-"""
-Engine de Construção Assistida de Termos de Referência (TR Builder).
-"""
+"""Engine de construção assistida de Termos de Referência."""
 
 import logging
 import uuid
@@ -16,7 +14,8 @@ from app.services.generator.validator import (
     validate_tr_completeness,
 )
 from app.services.legal.art6_xxiii import art6_checklist_prompt_block
-from app.services.llm.provider import get_llm_provider
+from app.services.llm.factory import get_llm_provider_for
+from app.services.privacy import resolve_policy
 from app.services.rag.retriever import retrieve
 
 logger = logging.getLogger(__name__)
@@ -34,20 +33,21 @@ CRITERIO_ROTULOS = {
     "tecnica_preco": "Técnica e Preço",
 }
 
-
 async def generate_tr_document(
     request: TRGeneratorRequest,
     db: AsyncSession,
 ) -> TRGeneratorResponse:
-    """
-    Gera um Termo de Referência completo estruturado sob o Art. 6º, XXIII da Lei 14.133/21,
-    consultando a base de jurisprudência do TCU e RILC CODEBA.
-    """
-    provider = get_llm_provider()
+    """Gera o TR sob o Art. 6º, XXIII, com a política de classificação do pedido."""
+    policy = resolve_policy(getattr(request, "classification", None))
+    provider = get_llm_provider_for(policy)
 
     # 1. Recuperar contexto jurídico no RAG para o objeto
     query_rag = f"Termo de Referência {request.tipo_contratacao} {request.objeto}"
-    chunks = await retrieve(db, query_rag, top_k=3)
+    chunks = await retrieve(
+        db, query_rag, top_k=3,
+        allow_semantic=policy.cloud_embeddings,
+        allow_llm_rerank=policy.llm_rerank,
+    )
     rag_context = "\n\n".join([f"[{c.law_number} - {c.article}]\n{c.text}" for c in chunks])
 
     system_prompt = f"""Você é um especialista em Contratações Públicas e Redação de Termos de Referência (Lei 14.133/2021, Lei 13.303/2016 e TCU).

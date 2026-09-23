@@ -9,6 +9,7 @@ from app.database import async_session_factory
 from app.models.document import Document
 from app.services.analyzer.engine import run_analysis
 from app.services.comparator.runner import executar_comparacao
+from app.services.privacy import PrivacyPolicyError
 from app.services.upload_service import parse_e_inserir_itens
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,11 @@ async def _run_analysis_job(payload: dict) -> None:
     analysis_id = uuid.UUID(payload["analysis_id"])
     document_id = uuid.UUID(payload["document_id"])
     async with async_session_factory() as db:
-        await run_analysis(db, analysis_id, document_id)
+        try:
+            await run_analysis(db, analysis_id, document_id)
+        except PrivacyPolicyError:
+            await db.commit()
+            raise
         await db.commit()
 
 

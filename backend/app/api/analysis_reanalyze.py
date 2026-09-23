@@ -109,6 +109,17 @@ async def reanalyze_partial(
             detail="Já existe uma análise em andamento para este documento.",
         )
 
+    from app.services.llm.factory import get_llm_provider_for
+    from app.services.privacy import PrivacyPolicyError, resolve_policy
+
+    try:
+        get_llm_provider_for(
+            resolve_policy(getattr(document, "classification", None)),
+            document_id=str(document.id),
+        )
+    except PrivacyPolicyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
     mode = analysis.analysis_mode or "economic"
     snapshot = await _build_analysis_snapshot(db, document)
     snapshot["analysis_mode"] = mode

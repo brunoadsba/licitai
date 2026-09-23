@@ -85,7 +85,7 @@ async def upload_document(
     try:
         assert_cloud_allowed_for_document(resolved_classification)
     except CloudPrivacyError as exc:
-        raise HTTPException(status_code=403, detail=exc.message) from exc
+        raise HTTPException(status_code=422, detail=exc.message) from exc
 
     # Pré-checagem além do validar_upload: rejeita antes de alocar o corpo em memória.
     if file.size is not None and file.size > settings.max_upload_size_bytes:
