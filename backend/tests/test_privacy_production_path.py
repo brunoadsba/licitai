@@ -379,21 +379,12 @@ async def test_chat_sigiloso_bloqueia_e_publico_passa(
             "/api/v1/chat/conversations",
             json={"document_id": sig_id, "classification": "publico"},
         )
-        assert bloqueada.status_code == 201
-        resp = await client.post(
-            f"/api/v1/chat/conversations/{bloqueada.json()['id']}/messages",
-            json={"content": pergunta},
-        )
-        assert resp.status_code == 422
+        assert bloqueada.status_code == 422
         assert spy.calls == 0
 
         livre = await client.post("/api/v1/chat/conversations", json={})
-        assert livre.status_code == 201
-        livre_resp = await client.post(
-            f"/api/v1/chat/conversations/{livre.json()['id']}/messages",
-            json={"content": pergunta},
-        )
-        assert livre_resp.status_code == 422
+        assert livre.status_code == 422
+        resp = livre
 
         ok = await client.post(
             "/api/v1/chat/conversations",

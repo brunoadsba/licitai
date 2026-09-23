@@ -1,17 +1,4 @@
-"""
-Serviço de orquestração do Copiloto.
-
-Fluxo de uma mensagem:
-1. Valida conversa existente e feature habilitada.
-2. Recupera fontes citáveis (RAG + contexto do documento/análise).
-3. Monta prompt e chama o LLM.
-4. Valida a resposta (grounding obrigatório) e normaliza.
-5. Persiste mensagens (user + assistant) com metadados.
-
-O Copiloto é consultivo: nenhuma ação de escrita é aplicada em entidades de
-negócio. Falhas do LLM resultam em resposta segura com warning, nunca em
-quebra da conversa.
-"""
+"""Orquestração do Copiloto: política, fontes, LLM e persistência."""
 
 import logging
 import time
@@ -82,6 +69,33 @@ def _agora():
     return datetime.now(timezone.utc)
 
 
+async def assert_chat_create_allowed(db: AsyncSession, conversation) -> None:
+    """Bloqueia criação de conversa restrita sem montar cliente de nuvem."""
+    from app.services.llm.factory import get_llm_provider_for
+    from app.services.privacy import log_policy_decision
+
+    policy = resolve_policy(await classification_for_chat(db, conversation))
+    document_id = conversation.document_id or conversation.analysis_id
+    if policy.cloud_llm or settings.chat_force_fake_provider:
+        log_policy_decision(
+            document_id=document_id, policy=policy, decision="allowed"
+        )
+        return
+    get_llm_provider_for(policy, document_id=document_id)
+
+
+async def resolve_chat_access(db: AsyncSession, conversation, injected=None):
+    """Resolve política e provedor. Levanta PrivacyPolicyError se bloqueado."""
+    policy = resolve_policy(await classification_for_chat(db, conversation))
+    llm = select_chat_llm(
+        policy,
+        injected,
+        document_id=conversation.document_id or conversation.analysis_id,
+        force_fake=settings.chat_force_fake_provider,
+    )
+    return policy, llm
+
+
 async def send_message(
     db: AsyncSession,
     conversation_id: int,
@@ -96,15 +110,7 @@ async def send_message(
     if not conversation:
         raise ChatConversationNotFoundError("Conversa não encontrada.")
 
-    classification = await classification_for_chat(db, conversation)
-    policy = resolve_policy(classification)
-    document_ref = conversation.document_id or conversation.analysis_id
-    provider_llm = select_chat_llm(
-        policy,
-        llm,
-        document_id=document_ref,
-        force_fake=settings.chat_force_fake_provider,
-    )
+    policy, provider_llm = await resolve_chat_access(db, conversation, llm)
 
     await _persistir_mensagem(db, conversation, "user", content)
     logger.info(

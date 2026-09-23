@@ -1,12 +1,7 @@
-"""
-Endpoints do Copiloto (chat consultivo) — API v1.
-
-O chat é somente-leitura em relação às entidades de negócio: cria conversas
-e mensagens próprias, consulta análises/documentos como contexto e nunca
-aplica ações sugeridas pelo LLM.
-"""
+"""API v1 do Copiloto: conversas consultivas, sem mutar entidades de negócio."""
 
 import logging
+from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
@@ -28,6 +23,7 @@ from app.services.chat.llm_adapter import ChatLLMProvider, get_chat_llm
 from app.services.chat.service import (
     ChatConversationNotFoundError,
     ChatDisabledError,
+    assert_chat_create_allowed,
     send_message,
 )
 from app.services.privacy import PrivacyPolicyError, normalize_classification
@@ -37,14 +33,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/chat", tags=["Copiloto"])
 
 
-@router.get(
-    "/health",
-    response_model=ChatHealthResponse,
-    summary="Status do Copiloto",
-    description="Indica se o chat está habilitado e como está configurado.",
-)
+@router.get("/health", response_model=ChatHealthResponse, summary="Status do Copiloto")
 async def chat_health():
-    """Retorna o estado operacional do Copiloto."""
     return ChatHealthResponse(
         enabled=settings.chat_enabled,
         require_grounding=settings.chat_require_grounding,
@@ -60,16 +50,25 @@ async def chat_health():
     response_model=ChatConversationResponse,
     status_code=201,
     summary="Criar conversa",
-    description="Cria uma conversa consultiva, opcionalmente vinculada a um documento/análise.",
 )
 async def create_conversation(
     payload: ChatConversationCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    """Cria uma nova conversa do Copiloto."""
     context = dict(payload.context or {})
     if payload.classification:
         context["classification"] = normalize_classification(payload.classification)
+    try:
+        await assert_chat_create_allowed(
+            db,
+            SimpleNamespace(
+                document_id=payload.document_id,
+                analysis_id=payload.analysis_id,
+                context_json=context,
+            ),
+        )
+    except PrivacyPolicyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     conversa = ChatConversation(
         document_id=payload.document_id,
         analysis_id=payload.analysis_id,
@@ -89,7 +88,6 @@ async def create_conversation(
     "/conversations",
     response_model=list[ChatConversationResponse],
     summary="Listar conversas",
-    description="Lista conversas ordenadas pela última atualização (decrescente).",
 )
 async def list_conversations(
     limit: int = 50,
@@ -98,7 +96,6 @@ async def list_conversations(
     analysis_id: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista conversas (paginado por updated_at desc), com filtros opcionais."""
     limit = max(1, min(limit, 200))
     offset = max(0, offset)
     stmt = select(ChatConversation).order_by(ChatConversation.updated_at.desc())
@@ -114,13 +111,11 @@ async def list_conversations(
     "/conversations/{conversation_id}/messages",
     response_model=list[ChatMessageResponse],
     summary="Mensagens de uma conversa",
-    description="Retorna todas as mensagens de uma conversa, na ordem cronológica.",
 )
 async def list_messages(
     conversation_id: int,
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista mensagens de uma conversa."""
     conversa = await db.get(ChatConversation, conversation_id)
     if not conversa:
         raise HTTPException(status_code=404, detail="Conversa não encontrada.")
@@ -136,10 +131,6 @@ async def list_messages(
     "/conversations/{conversation_id}/messages",
     response_model=ChatMessageResponse,
     summary="Enviar mensagem",
-    description=(
-        "Processa uma mensagem do usuário e retorna a resposta do assistente, "
-        "com fontes citadas e metadados de confiança."
-    ),
 )
 async def send_message_endpoint(
     conversation_id: int,
@@ -147,11 +138,8 @@ async def send_message_endpoint(
     llm: ChatLLMProvider = Depends(get_chat_llm),
     db: AsyncSession = Depends(get_db),
 ):
-    """Envia uma mensagem e retorna a resposta do Copiloto."""
     try:
-        return await send_message(
-            db, conversation_id, payload.content, llm=llm
-        )
+        return await send_message(db, conversation_id, payload.content, llm=llm)
     except ChatDisabledError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except ChatConversationNotFoundError as exc:
@@ -164,14 +152,12 @@ async def send_message_endpoint(
     "/messages/{message_id}/feedback",
     response_model=ChatFeedbackResponse,
     summary="Feedback de resposta",
-    description="Registra feedback (up/down) sobre uma resposta do assistente.",
 )
 async def send_feedback(
     message_id: int,
     payload: ChatFeedbackCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    """Registra feedback do usuário sobre uma resposta."""
     mensagem = await db.get(ChatMessage, message_id)
     if not mensagem:
         raise HTTPException(status_code=404, detail="Mensagem não encontrada.")

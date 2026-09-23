@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { Check, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { generateTR, extractErrorMessage } from '@/lib/api';
+import { generateTR } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 import PassoDados from '@/components/gerar-tr/PassoDados';
 import PassoRequisitos from '@/components/gerar-tr/PassoRequisitos';
 import ResultadoTR from '@/components/gerar-tr/ResultadoTR';
@@ -76,7 +77,7 @@ export default function GerarTRPage() {
       setResultado(res);
       setStep(3);
     } catch (err) {
-      setError(extractErrorMessage(err, 'Erro ao gerar Termo de Referência.'));
+      setError(getErrorMessage(err, 'generator').message);
     } finally {
       setLoading(false);
     }

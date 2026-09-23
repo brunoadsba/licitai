@@ -3,7 +3,7 @@
  * no formato: problema + causa + correção.
  */
 
-export type ErrorContext = 'upload' | 'analysis' | 'documents' | 'chat';
+export type ErrorContext = 'upload' | 'analysis' | 'documents' | 'chat' | 'generator';
 
 interface FriendlyError {
   title: string;
@@ -98,6 +98,16 @@ export function getErrorMessage(err: unknown, ctx: ErrorContext): FriendlyError 
         title: 'Chat indisponível',
         message:
           'Não foi possível responder no momento. Verifique se o Copiloto está habilitado no backend e tente novamente.',
+      };
+    }
+
+    case 'generator': {
+      const privacy = privacyError(message);
+      if (privacy) return privacy;
+      return {
+        title: 'Falha na geração',
+        message:
+          'Não foi possível gerar o Termo de Referência. Verifique os dados e tente novamente.',
       };
     }
   }
