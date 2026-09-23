@@ -10,8 +10,9 @@ test.describe("P0.4 upload proposta guard", () => {
   test.setTimeout(180_000);
 
   test("proposta não chama start analysis", async ({ page, request }) => {
+    const nome = `E2E UI Fornecedor ${Date.now()}`;
     const forn = await request.post("/api/proxy/fornecedores", {
-      data: { nome: "E2E UI Fornecedor", email: null, cnpj: null },
+      data: { nome, email: null, cnpj: null },
     });
     expect(forn.ok()).toBeTruthy();
     const { id: fornecedorId } = await forn.json();
@@ -25,17 +26,20 @@ test.describe("P0.4 upload proposta guard", () => {
 
     try {
       await page.goto("/upload");
-      await page.getByTestId("options-advanced-toggle").click();
+      await page.getByTestId("doc-classification").click();
+      await page.getByRole("option", { name: /Público/i }).click();
       await page.getByTestId("doc-type").click();
       await page.getByRole("option", { name: "Proposta de fornecedor" }).click();
       await page.getByLabel("Fornecedor da proposta").click();
-      await page.getByRole("option", { name: "E2E UI Fornecedor" }).click();
+      await page.getByRole("option", { name: nome, exact: true }).click();
 
       await page.locator('input[type="file"]').setInputFiles(fixture);
       await page.getByTestId("upload-submit").click();
 
-      await expect(page.getByText(/Proposta enviada/i)).toBeVisible({ timeout: 120_000 });
-      await page.waitForURL(/\/comparacao/, { timeout: 30_000 });
+      await expect(page.getByText("Proposta enviada!", { exact: true })).toBeVisible({
+        timeout: 120_000,
+      });
+      await expect(page).toHaveURL(/\/comparacao/, { timeout: 15_000 });
       expect(startCalls, startCalls.join("\n")).toEqual([]);
     } finally {
       await request.delete(`/api/proxy/fornecedores/${fornecedorId}`);

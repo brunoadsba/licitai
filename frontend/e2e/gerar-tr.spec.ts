@@ -10,5 +10,6 @@ test.describe("P2 gerar-tr", () => {
     await page.goto("/gerar-tr");
     await expect(page.locator("body")).toBeVisible();
     await expect(page.getByText(/Dados|Contratação|Gerar|Requisitos/i).first()).toBeVisible();
+    await expect(page.locator("#tr-classificacao")).toBeVisible();
   });
 });
