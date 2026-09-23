@@ -27,7 +27,7 @@ def upload_and_wait_parsed(
     document_type: str = "tr",
     fornecedor_id: str | None = None,
 ) -> dict:
-    data = {"document_type": document_type}
+    data = {"document_type": document_type, "classification": "publico"}
     if fornecedor_id:
         data["fornecedor_id"] = fornecedor_id
     with open(sample_docx_path, "rb") as f:

@@ -55,7 +55,7 @@ class FakeLLM:
         )
 
 
-async def _fake_build_sources(db, query, context):
+async def _fake_build_sources(db, query, context, **_kwargs):
     return [
         ChatCitation(
             type="legal",

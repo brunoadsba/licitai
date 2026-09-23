@@ -248,3 +248,11 @@ def _build_providers():
         _add_groq()
         _add_gemini()
     return providers
+
+
+def _build_local_providers():
+    """Cadeia só Ollama, sem failover para Groq ou Gemini."""
+    from app.config import settings
+    from app.services.llm.ollama_provider import OllamaProvider
+
+    return [OllamaProvider(base_url=settings.ollama_base_url, model=settings.ollama_model)]

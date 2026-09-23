@@ -23,9 +23,6 @@ from sqlalchemy.orm import selectinload
 from app.config import settings
 from app.models.analysis import Analysis
 from app.models.document import Document
-from app.services.agents.orchestrator import MultiAgentOrchestrator
-from app.services.agents.legal_agent import LegalAgent
-from app.services.agents.structural_agent import StructuralAgent
 from app.services.analyzer.analysis_persistence import (
     finalize_analysis,
     persist_item_outcomes,
@@ -37,25 +34,13 @@ from app.services.analyzer.analysis_phases import (
 )
 from app.services.analyzer.grounding import get_valid_legal_refs
 from app.services.analyzer.item_selection import select_items_for_analysis
-from app.services.llm import get_llm_provider
+from app.services.analyzer.llm_access import (
+    acquire_analysis_llm,
+    build_orchestrator,
+    calls_per_item,
+)
 
 logger = logging.getLogger(__name__)
-
-
-def _build_orchestrator(mode: str) -> MultiAgentOrchestrator | None:
-    if mode == "economic":
-        return MultiAgentOrchestrator([LegalAgent(), StructuralAgent()])
-    if mode == "multi_agent":
-        return MultiAgentOrchestrator()
-    return None
-
-
-def _calls_per_item(mode: str) -> int:
-    if mode == "economic":
-        return 2
-    if mode == "single":
-        return 1
-    return 4
 
 
 async def run_analysis(
@@ -91,23 +76,12 @@ async def run_analysis(
         await db.flush()
         return
 
-    # Iniciar análise
-    analysis.status = "running"
-    analysis.started_at = datetime.now(timezone.utc)
-    analysis.total_items = len(document.items)
-    await db.commit()
-
-    # Obter provedor LLM
-    try:
-        llm = get_llm_provider()
-    except (ValueError, RuntimeError) as e:
-        analysis.status = "error"
-        analysis.error_message = str(e)
-        await db.flush()
+    llm, policy = await acquire_analysis_llm(db, analysis, document, document_id)
+    if llm is None:
         return
 
     mode = getattr(analysis, "analysis_mode", "multi_agent") or "multi_agent"
-    orchestrator = _build_orchestrator(mode)
+    orchestrator = build_orchestrator(mode)
 
     snapshot = dict(analysis.run_snapshot or {})
     only_ids = snapshot.get("only_item_ids")
@@ -122,7 +96,7 @@ async def run_analysis(
 
     max_calls = int(getattr(settings, "analysis_max_llm_calls", 0) or 0)
     max_items = (
-        max(1, max_calls // _calls_per_item(mode)) if max_calls > 0 else None
+        max(1, max_calls // calls_per_item(mode)) if max_calls > 0 else None
     )
     work_items, skipped_headings, budget_truncated = select_items_for_analysis(
         candidates, max_items=max_items
@@ -151,17 +125,14 @@ async def run_analysis(
     await db.commit()
 
     # --- Fase 1: contexto jurídico por item (sequencial — usa a sessão DB) ---
-    # Rerank LLM opt-in (R3): só com llm_rerank habilitado E nuvem permitida
-    # para a classificação do documento (sigiloso nunca vai a cloud).
-    from app.services.privacy import llm_rerank_allowed_for_document
-
-    llm_rerank_ok = llm_rerank_allowed_for_document(
-        getattr(document, "classification", None)
-    )
     items_context: list = []
     for item in work_items:
         legal_context = await _retrieve_legal_context(
-            db, item, llm if llm_rerank_ok else None
+            db,
+            item,
+            llm,
+            allow_semantic=policy.cloud_embeddings,
+            allow_llm_rerank=policy.llm_rerank,
         )
         items_context.append((item, legal_context))
 

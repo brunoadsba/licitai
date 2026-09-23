@@ -54,12 +54,20 @@ async def _seguro(db: AsyncSession, operacao) -> list:
         return []
 
 
-async def _legal_sources(db: AsyncSession, query: str) -> list[ChatCitation]:
+async def _legal_sources(
+    db: AsyncSession,
+    query: str,
+    *,
+    allow_semantic: bool | None = None,
+    allow_llm_rerank: bool | None = None,
+) -> list[ChatCitation]:
     async def _buscar():
         return await retrieve(
             db,
             query,
             top_k=settings.chat_top_k_sources,
+            allow_semantic=allow_semantic,
+            allow_llm_rerank=allow_llm_rerank,
         )
 
     chunks = await _seguro(db, _buscar)
@@ -183,12 +191,22 @@ async def build_sources(
     db: AsyncSession,
     query: str,
     context: dict | None,
+    *,
+    allow_semantic: bool | None = None,
+    allow_llm_rerank: bool | None = None,
 ) -> list[ChatCitation]:
     """Monta as fontes citáveis da resposta, deduplicadas e limitadas."""
     context = context or {}
     fontes: list[ChatCitation] = []
 
-    fontes.extend(await _legal_sources(db, query))
+    fontes.extend(
+        await _legal_sources(
+            db,
+            query,
+            allow_semantic=allow_semantic,
+            allow_llm_rerank=allow_llm_rerank,
+        )
+    )
 
     analysis_id = context.get("analysis_id") or context.get("analysisId")
     document_id = context.get("document_id") or context.get("documentId")

@@ -110,7 +110,7 @@ async def start_analysis(
     try:
         assert_cloud_allowed_for_document(classification)
     except CloudPrivacyError as exc:
-        raise HTTPException(status_code=403, detail=exc.message) from exc
+        raise HTTPException(status_code=422, detail=exc.message) from exc
 
     if document.status not in ("parsed", "completed"):
         raise HTTPException(

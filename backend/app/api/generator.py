@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.schemas.generator import TRGeneratorRequest, TRGeneratorResponse
 from app.services.generator.tr_builder import generate_tr_document
+from app.services.privacy import PrivacyPolicyError
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,8 @@ async def create_tr(
     """Gera um TR completo e o registra na base de documentos."""
     try:
         return await generate_tr_document(request, db)
+    except PrivacyPolicyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as e:
         logger.exception("Erro ao gerar TR")
         raise HTTPException(

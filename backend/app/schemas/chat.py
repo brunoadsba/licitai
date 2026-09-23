@@ -55,6 +55,11 @@ class ChatConversationCreate(BaseModel):
     analysis_id: str | None = None
     context: dict = Field(default_factory=dict)
     title: str | None = Field(default=None, max_length=200)
+    classification: str | None = Field(
+        default=None,
+        max_length=50,
+        description="Obrigatória na conversa livre. Documento vinculado prevalece.",
+    )
 
 
 class ChatMessageCreate(BaseModel):

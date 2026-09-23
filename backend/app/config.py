@@ -33,8 +33,9 @@ class Settings(BaseSettings):
 
     # --- Provedor de LLM ---
     llm_provider: Literal["groq", "gemini", "ollama"] = "groq"
-    # Se False, recusa documentos classificados como sigilosos em provedores cloud.
-    llm_allow_cloud: bool = True
+    # True só em development: permite nuvem também para sigiloso/NULL.
+    # Fora de development o boot falha. Público/interno usam nuvem mesmo com False.
+    llm_allow_cloud: bool = False
 
     # --- Groq ---
     groq_api_key: str = ""
@@ -133,6 +134,14 @@ class Settings(BaseSettings):
     def _enforce_production_secrets(self) -> "Settings":
         if self.app_env == "development":
             return self
+        if self.llm_allow_cloud:
+            raise ValueError(
+                "LLM_ALLOW_CLOUD=true só é permitido quando APP_ENV=development."
+            )
+        if self.chat_force_fake_provider:
+            raise ValueError(
+                "CHAT_FORCE_FAKE_PROVIDER só é permitido quando APP_ENV=development."
+            )
         if not self.database_url or self.database_url.startswith("sqlite"):
             raise ValueError(
                 "DATABASE_URL PostgreSQL é obrigatória quando APP_ENV != development."

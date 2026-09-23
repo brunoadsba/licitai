@@ -7,10 +7,12 @@ interface PassoDadosProps {
   tipoContratacao: string;
   objeto: string;
   justificativa: string;
+  classification: string;
   error: string | null;
   setTipoContratacao: (v: string) => void;
   setObjeto: (v: string) => void;
   setJustificativa: (v: string) => void;
+  setClassification: (v: string) => void;
   setError: (v: string | null) => void;
   onAvancar: () => void;
 }
@@ -22,13 +24,19 @@ export default function PassoDados({
   tipoContratacao,
   objeto,
   justificativa,
+  classification,
   setTipoContratacao,
   setObjeto,
   setJustificativa,
+  setClassification,
   setError,
   onAvancar,
 }: PassoDadosProps) {
   function handleAvancar() {
+    if (!classification) {
+      setError('Selecione a classificação do termo antes de avançar.');
+      return;
+    }
     if (!objeto.trim() || !justificativa.trim()) {
       setError('Preencha o objeto e a justificativa para avançar.');
       return;
@@ -44,6 +52,23 @@ export default function PassoDados({
       </h2>
 
       <div className="space-y-4">
+        <div>
+          <label htmlFor="tr-classificacao" className="mb-1 block text-xs font-medium text-content-secondary">
+            Classificação
+          </label>
+          <select
+            id="tr-classificacao"
+            value={classification}
+            onChange={(e) => setClassification(e.target.value)}
+            className="input-field w-full text-sm"
+          >
+            <option value="">Selecione a classificação…</option>
+            <option value="publico">Público — pode ir para a nuvem</option>
+            <option value="interno">Interno — pode ir para a nuvem</option>
+            <option value="sigiloso">Sigiloso — só modelo local</option>
+          </select>
+        </div>
+
         <div>
           <label htmlFor="tr-tipo" className="mb-1 block text-xs font-medium text-content-secondary">
             Tipo de Contratação

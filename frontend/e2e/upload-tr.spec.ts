@@ -12,6 +12,8 @@ test.describe("P0.3 upload TR", () => {
   test("envia TR e abre análise", async ({ page }) => {
     await page.goto("/upload");
     await expect(page.getByTestId("dropzone")).toBeVisible();
+    await page.getByTestId("doc-classification").click();
+    await page.getByRole("option", { name: /Público/i }).click();
 
     const fileInput = page.locator('input[type="file"]');
     await fileInput.setInputFiles(fixture);

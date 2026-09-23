@@ -60,13 +60,16 @@ E2E_LIVE=1 E2E_BASE_URL=http://127.0.0.1:3000 \
   npx playwright test
 ```
 
-P0 cobre: rotas, BFF lists, upload TR (longo), proposta sem análise TR, review/SEI/Art.6 (precisa `E2E_DOCUMENT_ID` ou skip).
+P0 cobre: rotas, BFF lists, seletor obrigatório de classificação, upload TR (longo), proposta sem análise TR, review/SEI/Art.6 (precisa `E2E_DOCUMENT_ID` ou skip).
+
+A partir da Fase 0A o upload e o gerador exigem classificação (`publico` | `interno` | `sigiloso`). Specs Playwright devem selecionar o valor antes de enviar; a API sem classificação (ou com `sigiloso`, sem Ollama) responde 422. Isso está em `e2e/tests/test_e2e_privacy.py` (`e2e_fast`) e `frontend/e2e/privacy-classification.spec.ts`.
 
 ## Critério de aceite
 
 - [ ] Camada 0 verde
-- [ ] `e2e_fast` verde
+- [ ] `e2e_fast` verde (inclui 422 de classificação)
 - [ ] Playwright P0 (exceto cenários skip explícitos) verde
+- [ ] Playwright `privacy-classification` verde com `E2E_LIVE=1`
 - [ ] Suite live 17/17 quando houver cota LLM + worker
 
 ## Regressões críticas

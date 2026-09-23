@@ -17,6 +17,7 @@ class TestUpload:
         with open(sample_docx_path, "rb") as f:
             response = api_client.post(
                 "/api/v1/documents/upload",
+                data={"classification": "publico"},
                 files={
                     "file": (
                         "sample-tr.docx",
@@ -35,6 +36,7 @@ class TestUpload:
     def test_upload_invalid_extension(self, api_client):
         response = api_client.post(
             "/api/v1/documents/upload",
+            data={"classification": "publico"},
             files={"file": ("test.txt", b"conteudo invalido", "text/plain")},
         )
         assert response.status_code == 400
@@ -42,6 +44,7 @@ class TestUpload:
     def test_upload_empty_filename(self, api_client):
         response = api_client.post(
             "/api/v1/documents/upload",
+            data={"classification": "publico"},
             files={"file": ("", b"", "application/octet-stream")},
         )
         assert response.status_code in (400, 422)

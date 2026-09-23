@@ -25,6 +25,11 @@ class TRGeneratorRequest(BaseModel):
     criterio_julgamento: Literal["menor_preco", "maior_desconto", "tecnica_preco"] = Field(
         "menor_preco", description="Critério de julgamento da licitação"
     )
+    classification: str | None = Field(
+        default=None,
+        max_length=50,
+        description="publico, interno ou sigiloso. Ausente é tratado como sigiloso.",
+    )
 
 
 class TRGeneratorItemResponse(BaseModel):

@@ -19,18 +19,25 @@ Responda APENAS JSON: {"ok": true|false, "delta": -0.06..0.06, "note": "frase cu
 Sem cadeia de pensamento, sem markdown."""
 
 
-async def refine_with_llm(suggestion, *, correction, item_content: str | None) -> object:
+async def refine_with_llm(
+    suggestion,
+    *,
+    correction,
+    item_content: str | None,
+    classification: str | None = None,
+) -> object:
     """
-    Tenta refinar a sugestão com LLM local. Nunca quebra o fluxo.
-    Retorna a mesma sugestão (mutada levemente) em caso de falha.
+    Tenta refinar a sugestão com o provedor permitido pela classificação.
+    Documento restrito sem Ollama devolve a sugestão intacta (não chama a nuvem).
     """
     if os.getenv("REVIEWER_SECOND_OPINION", "0") not in ("1", "true", "True"):
         return suggestion
 
     try:
-        from app.services.llm import get_llm_provider  # lazy p/ não quebrar import em testes
+        from app.services.llm.factory import get_llm_provider_for
+        from app.services.privacy import resolve_policy
 
-        llm = get_llm_provider()
+        llm = get_llm_provider_for(resolve_policy(classification))
         payload = {
             "correction_id": suggestion.correction_id,
             "suggestion": suggestion.suggestion,
@@ -58,5 +65,14 @@ async def refine_with_llm(suggestion, *, correction, item_content: str | None) -
             suggestion.reason = f"{suggestion.reason} · 2ª opinião: {note}"
         return suggestion
     except Exception as exc:  # noqa: BLE001 — consultivo, nunca quebra
-        logger.debug("reviewer.second_opinion.skip: %s", exc)
+        from app.services.privacy import PrivacyPolicyError
+
+        if isinstance(exc, PrivacyPolicyError):
+            logger.info(
+                "privacy.decision document_id=- classification=%s provider=%s decision=blocked",
+                classification or "unclassified",
+                "policy",
+            )
+        else:
+            logger.debug("reviewer.second_opinion.skip: %s", type(exc).__name__)
         return suggestion

@@ -18,6 +18,7 @@ test.describe("P0.1 smoke routes", () => {
     await page.goto("/upload");
     await expect(page.getByRole("heading", { level: 1, name: "Enviar TR" })).toBeVisible();
     await expect(page.getByTestId("dropzone")).toBeVisible();
+    await expect(page.getByTestId("doc-classification")).toBeVisible();
   });
 
   test("guia carrega", async ({ page }) => {

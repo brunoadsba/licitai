@@ -11,6 +11,7 @@ export interface GenerateTRParams {
   garantia_exigida: boolean;
   vistoria_exigida: boolean;
   criterio_julgamento: string;
+  classification: 'publico' | 'interno' | 'sigiloso';
 }
 
 export interface GenerateTRResult {

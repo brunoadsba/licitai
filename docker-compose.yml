@@ -42,6 +42,7 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
+      LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-false}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
       API_TOKEN: ${API_TOKEN:-}
@@ -86,7 +87,7 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
       API_TOKEN: ${API_TOKEN:-}
       APP_ENV: ${APP_ENV:-development}
-      LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-true}
+      LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-false}
       # Free tier: concorrência 1 reduz 429 TPM no Groq durante E2E/uso local
       ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-1}
       ANALYSIS_MAX_LLM_CALLS: ${ANALYSIS_MAX_LLM_CALLS:-24}

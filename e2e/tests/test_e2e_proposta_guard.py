@@ -13,7 +13,7 @@ def test_proposta_upload_requires_fornecedor(api_client, sample_docx_path):
     with open(sample_docx_path, "rb") as f:
         resp = api_client.post(
             "/api/v1/documents/upload",
-            data={"document_type": "proposta"},
+            data={"document_type": "proposta", "classification": "publico"},
             files={
                 "file": (
                     "sample-tr.docx",

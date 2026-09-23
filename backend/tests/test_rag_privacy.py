@@ -54,12 +54,14 @@ def test_rerank_llm_bloqueia_sigiloso_em_cloud():
     )
 
 
-def test_rerank_llm_permite_sigiloso_local_e_publico_cloud():
+def test_rerank_llm_permite_publico_e_bloqueia_restrito():
+    # Restrito (sigiloso ou NULL) não usa rerank LLM, mesmo no Ollama:
+    # o caminho local é só textual. NULL deixou de ser tratado como público.
     assert (
         llm_rerank_allowed_for_document(
             "sigiloso", rerank_mode="llm", provider="ollama"
         )
-        is True
+        is False
     )
     assert (
         llm_rerank_allowed_for_document(
@@ -69,13 +71,15 @@ def test_rerank_llm_permite_sigiloso_local_e_publico_cloud():
     )
     assert (
         llm_rerank_allowed_for_document(None, rerank_mode="llm", provider="groq")
-        is True
+        is False
     )
 
 
 def test_rerank_llm_usa_modo_do_settings_por_padrao(monkeypatch):
     monkeypatch.setattr(settings, "rag_rerank_mode", "llm")
     monkeypatch.setattr(settings, "llm_provider", "groq")
+    monkeypatch.setattr(settings, "llm_allow_cloud", False)
+    monkeypatch.setattr(settings, "app_env", "development")
     assert llm_rerank_allowed_for_document("publico") is True
     assert llm_rerank_allowed_for_document("sigiloso") is False
     monkeypatch.setattr(settings, "rag_rerank_mode", "heuristic")

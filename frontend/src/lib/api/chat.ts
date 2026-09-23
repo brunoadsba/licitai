@@ -17,6 +17,7 @@ export async function createChatConversation(data: {
   analysis_id?: string;
   context?: Record<string, unknown>;
   title?: string;
+  classification?: 'publico' | 'interno' | 'sigiloso';
 }): Promise<ChatConversation> {
   return fetchAPI<ChatConversation>('/chat/conversations', {
     method: 'POST',

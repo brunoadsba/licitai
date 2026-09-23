@@ -1,17 +1,4 @@
-"""
-Serviço de orquestração do Copiloto.
-
-Fluxo de uma mensagem:
-1. Valida conversa existente e feature habilitada.
-2. Recupera fontes citáveis (RAG + contexto do documento/análise).
-3. Monta prompt e chama o LLM.
-4. Valida a resposta (grounding obrigatório) e normaliza.
-5. Persiste mensagens (user + assistant) com metadados.
-
-O Copiloto é consultivo: nenhuma ação de escrita é aplicada em entidades de
-negócio. Falhas do LLM resultam em resposta segura com warning, nunca em
-quebra da conversa.
-"""
+"""Orquestração do Copiloto: política, fontes, LLM e persistência."""
 
 import logging
 import time
@@ -20,10 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.chat import ChatConversation, ChatMessage
-from app.services.chat.llm_adapter import ChatLLMProvider, get_chat_llm
+from app.services.chat.llm_adapter import ChatLLMProvider
 from app.services.chat.prompts import build_messages
 from app.services.chat.sources import build_sources, source_ids_from
 from app.services.chat.validator import ValidatedAnswer, validate_llm_answer
+from app.services.llm.factory import select_chat_llm
+from app.services.privacy import classification_for_chat, resolve_policy
 from app.services.chat.warnings_pt import (
     FALHA_LLM_MESSAGE,
     GREETING_MESSAGE,
@@ -80,6 +69,33 @@ def _agora():
     return datetime.now(timezone.utc)
 
 
+async def assert_chat_create_allowed(db: AsyncSession, conversation) -> None:
+    """Bloqueia criação de conversa restrita sem montar cliente de nuvem."""
+    from app.services.llm.factory import get_llm_provider_for
+    from app.services.privacy import log_policy_decision
+
+    policy = resolve_policy(await classification_for_chat(db, conversation))
+    document_id = conversation.document_id or conversation.analysis_id
+    if policy.cloud_llm or settings.chat_force_fake_provider:
+        log_policy_decision(
+            document_id=document_id, policy=policy, decision="allowed"
+        )
+        return
+    get_llm_provider_for(policy, document_id=document_id)
+
+
+async def resolve_chat_access(db: AsyncSession, conversation, injected=None):
+    """Resolve política e provedor. Levanta PrivacyPolicyError se bloqueado."""
+    policy = resolve_policy(await classification_for_chat(db, conversation))
+    llm = select_chat_llm(
+        policy,
+        injected,
+        document_id=conversation.document_id or conversation.analysis_id,
+        force_fake=settings.chat_force_fake_provider,
+    )
+    return policy, llm
+
+
 async def send_message(
     db: AsyncSession,
     conversation_id: int,
@@ -93,6 +109,8 @@ async def send_message(
     conversation = await db.get(ChatConversation, conversation_id)
     if not conversation:
         raise ChatConversationNotFoundError("Conversa não encontrada.")
+
+    policy, provider_llm = await resolve_chat_access(db, conversation, llm)
 
     await _persistir_mensagem(db, conversation, "user", content)
     logger.info(
@@ -115,7 +133,11 @@ async def send_message(
 
     try:
         fontes = await build_sources(
-            db, content, conversation.context_json or {}
+            db,
+            content,
+            conversation.context_json or {},
+            allow_semantic=policy.cloud_embeddings,
+            allow_llm_rerank=policy.llm_rerank,
         )
     except Exception:
         logger.exception("Falha ao montar fontes do copiloto")
@@ -128,7 +150,7 @@ async def send_message(
     provider = None
     inicio = time.monotonic()
     try:
-        provider = llm or get_chat_llm()
+        provider = provider_llm
         system_prompt, user_prompt = build_messages(
             content, conversation.context_json or {}, fontes
         )
