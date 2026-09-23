@@ -78,8 +78,8 @@ export function useUploadAnalysisPipeline(options: {
         if (cancelled) return;
         setState('success');
         toast.success('Proposta enviada — use em Comparações');
-        setTimeout(() => {
-          if (!cancelled) router.push('/comparacao');
+        window.setTimeout(() => {
+          router.push('/comparacao');
         }, 1200);
         return;
       }
@@ -90,8 +90,8 @@ export function useUploadAnalysisPipeline(options: {
         if (cancelled) return;
         setState('success');
         toast.success('Documento processado — análise iniciada');
-        setTimeout(() => {
-          if (!cancelled) router.push(`/analysis/${documentId}`);
+        window.setTimeout(() => {
+          router.push(`/analysis/${documentId}`);
         }, 1200);
       } catch (err) {
         if (cancelled) return;
