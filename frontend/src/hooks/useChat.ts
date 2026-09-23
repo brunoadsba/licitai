@@ -18,6 +18,7 @@ interface UseChatOptions {
   itemNumber?: string | null;
   title?: string;
   page?: string;
+  classification?: 'publico' | 'interno' | 'sigiloso';
 }
 
 export function useChat(options: UseChatOptions = {}) {
@@ -65,6 +66,7 @@ export function useChat(options: UseChatOptions = {}) {
           analysis_id: options.analysisId,
           context,
           title: options.title,
+          classification: options.classification,
         });
       }
 

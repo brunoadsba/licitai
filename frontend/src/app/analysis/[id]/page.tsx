@@ -206,6 +206,13 @@ export default function AnalysisPage() {
         documentLabel={document.filename_original}
         title={`Copiloto — ${document.filename_original}`}
         page="analysis"
+        classification={
+          document.classification === 'publico' ||
+          document.classification === 'interno' ||
+          document.classification === 'sigiloso'
+            ? document.classification
+            : undefined
+        }
         defaultOpen={false}
       />
 

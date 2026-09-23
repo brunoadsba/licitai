@@ -13,6 +13,7 @@ export interface DocumentResponse {
   fornecedor_id: string | null;
   total_items: number;
   status: DocumentStatus;
+  classification?: 'publico' | 'interno' | 'sigiloso' | string | null;
   created_at: string;
   updated_at: string;
   tokens_estimated?: number | null;

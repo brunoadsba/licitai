@@ -18,6 +18,7 @@ interface ChatPanelProps {
   documentLabel?: string | null;
   title?: string;
   page?: string;
+  classification?: 'publico' | 'interno' | 'sigiloso';
   variant?: 'docked' | 'sheet';
   onClose?: () => void;
 }
@@ -29,6 +30,7 @@ export default function ChatPanel({
   documentLabel,
   title,
   page,
+  classification,
   variant = 'docked',
   onClose,
 }: ChatPanelProps) {
@@ -48,6 +50,7 @@ export default function ChatPanel({
     itemNumber,
     title,
     page,
+    classification,
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);

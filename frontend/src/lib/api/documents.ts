@@ -12,11 +12,18 @@ import { fetchAPI, jsonBody } from './client';
 
 export async function uploadDocument(
   file: File,
-  options?: { documentType?: 'tr' | 'proposta'; fornecedorId?: string }
+  options?: {
+    documentType?: 'tr' | 'proposta';
+    fornecedorId?: string;
+    classification?: 'publico' | 'interno' | 'sigiloso';
+  }
 ): Promise<DocumentResponse> {
   const formData = new FormData();
   formData.append('file', file);
   formData.append('document_type', options?.documentType || 'tr');
+  if (options?.classification) {
+    formData.append('classification', options.classification);
+  }
   if (options?.fornecedorId) {
     formData.append('fornecedor_id', options.fornecedorId);
   }

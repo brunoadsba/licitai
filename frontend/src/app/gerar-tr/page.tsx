@@ -29,6 +29,7 @@ export default function GerarTRPage() {
   const [garantiaExigida, setGarantiaExigida] = useState(false);
   const [vistoriaExigida, setVistoriaExigida] = useState(false);
   const [criterioJulgamento, setCriterioJulgamento] = useState('menor_preco');
+  const [classification, setClassification] = useState('');
 
   // Resultado
   const [resultado, setResultado] = useState<{
@@ -48,6 +49,14 @@ export default function GerarTRPage() {
       setError('Informe a justificativa da contratação com pelo menos 15 caracteres.');
       return;
     }
+    if (
+      classification !== 'publico' &&
+      classification !== 'interno' &&
+      classification !== 'sigiloso'
+    ) {
+      setError('Selecione a classificação do termo antes de gerar.');
+      return;
+    }
 
     try {
       setLoading(true);
@@ -61,6 +70,7 @@ export default function GerarTRPage() {
         garantia_exigida: garantiaExigida,
         vistoria_exigida: vistoriaExigida,
         criterio_julgamento: criterioJulgamento,
+        classification,
       });
 
       setResultado(res);
@@ -135,10 +145,12 @@ export default function GerarTRPage() {
           tipoContratacao={tipoContratacao}
           objeto={objeto}
           justificativa={justificativa}
+          classification={classification}
           error={error}
           setTipoContratacao={setTipoContratacao}
           setObjeto={setObjeto}
           setJustificativa={setJustificativa}
+          setClassification={setClassification}
           setError={setError}
           onAvancar={() => setStep(2)}
         />

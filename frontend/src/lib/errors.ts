@@ -20,11 +20,23 @@ function matches(text: string, patterns: string[]): boolean {
   return patterns.some((p) => lower.includes(p));
 }
 
+function privacyError(message: string): FriendlyError | null {
+  if (matches(message, ['sigiloso', 'classifica', 'provedor cloud', 'llm_allow_cloud'])) {
+    return {
+      title: 'Documento não pode ir para a nuvem',
+      message,
+    };
+  }
+  return null;
+}
+
 export function getErrorMessage(err: unknown, ctx: ErrorContext): FriendlyError {
   const message = extractMessage(err);
 
   switch (ctx) {
     case 'upload': {
+      const privacy = privacyError(message);
+      if (privacy) return privacy;
       if (matches(message, ['não permitido', 'tipo de arquivo', 'extensão'])) {
         return {
           title: 'Arquivo inválido',
@@ -61,6 +73,8 @@ export function getErrorMessage(err: unknown, ctx: ErrorContext): FriendlyError 
       };
 
     case 'analysis': {
+      const privacy = privacyError(message);
+      if (privacy) return privacy;
       if (
         matches(message, ['timeout', 'timed out', '429', 'resource_exhausted', 'cota', 'quota', 'rate limit'])
       ) {
@@ -77,11 +91,14 @@ export function getErrorMessage(err: unknown, ctx: ErrorContext): FriendlyError 
       };
     }
 
-    case 'chat':
+    case 'chat': {
+      const privacy = privacyError(message);
+      if (privacy) return privacy;
       return {
         title: 'Chat indisponível',
         message:
           'Não foi possível responder no momento. Verifique se o Copiloto está habilitado no backend e tente novamente.',
       };
+    }
   }
 }

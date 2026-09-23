@@ -9,7 +9,9 @@ import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import { Button } from '@/components/ui/Button';
 import DropZone from '@/components/upload/DropZone';
-import UploadTypeFields from '@/components/upload/UploadTypeFields';
+import UploadTypeFields, {
+  type DocumentClassification,
+} from '@/components/upload/UploadTypeFields';
 import { useUploadAnalysisPipeline } from '@/components/upload/useUploadAnalysisPipeline';
 import type { DocumentStatus, Fornecedor } from '@/types';
 import { cn } from '@/lib/utils';
@@ -35,6 +37,7 @@ export default function UploadPage() {
   const [documentId, setDocumentId] = useState<string | null>(null);
   const [documentType, setDocumentType] = useState<'tr' | 'proposta'>('tr');
   const [fornecedorId, setFornecedorId] = useState('');
+  const [classification, setClassification] = useState<DocumentClassification | ''>('');
   const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [currentStage, setCurrentStage] = useState<DocumentStatus>('uploaded');
   /** Default piloto: econômico (jurídico + Art. 6). Completo só em opções. */
@@ -76,6 +79,11 @@ export default function UploadPage() {
 
   async function handleUpload() {
     if (!selectedFile) return;
+    if (!classification) {
+      setError('Selecione a classificação do documento antes de enviar.');
+      setOptionsOpen(true);
+      return;
+    }
     if (documentType === 'proposta' && !fornecedorId) {
       setError('Selecione o fornecedor da proposta antes de enviar.');
       setOptionsOpen(true);
@@ -87,6 +95,7 @@ export default function UploadPage() {
       setError(null);
       const result = await uploadDocument(selectedFile, {
         documentType,
+        classification,
         fornecedorId: documentType === 'proposta' ? fornecedorId : undefined,
       });
       setDocumentId(result.id);
@@ -120,6 +129,17 @@ export default function UploadPage() {
           copia só o aprovado para o SEI.
         </p>
       </div>
+
+      <UploadTypeFields
+        documentType={documentType}
+        fornecedorId={fornecedorId}
+        classification={classification}
+        fornecedores={fornecedores}
+        locked={locked}
+        onDocumentTypeChange={setDocumentType}
+        onFornecedorChange={setFornecedorId}
+        onClassificationChange={setClassification}
+      />
 
       <DropZone
         selectedFile={selectedFile}
@@ -184,18 +204,6 @@ export default function UploadPage() {
                 Essencial = estrutura do TR + riscos jurídicos. Completa = também técnico e
                 redação.
               </p>
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-content-secondary">Tipo de documento</p>
-              <UploadTypeFields
-                documentType={documentType}
-                fornecedorId={fornecedorId}
-                fornecedores={fornecedores}
-                locked={locked}
-                onDocumentTypeChange={setDocumentType}
-                onFornecedorChange={setFornecedorId}
-              />
             </div>
 
             <div className="rounded-md border border-line-subtle bg-canvas/40 p-3">

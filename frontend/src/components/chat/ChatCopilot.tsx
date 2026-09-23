@@ -19,6 +19,7 @@ interface ChatCopilotProps {
   documentLabel?: string | null;
   title?: string;
   page?: string;
+  classification?: 'publico' | 'interno' | 'sigiloso';
   /** Na análise, fechado por default para não competir com a revisão. */
   defaultOpen?: boolean;
 }
