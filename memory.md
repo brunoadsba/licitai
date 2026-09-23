@@ -68,7 +68,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - Logging estruturado JSON via `app/utils/logging_config.py` aplicado no `main.py` (sem secrets).
 - **Copiloto LicitAI (chat consultivo, 06/08/2026)**:
   - Módulo isolado `backend/app/services/chat/` (`llm_adapter.py`, `sources.py`, `prompts.py`, `validator.py`, `service.py`) + `backend/app/api/chat.py` + `models/chat.py` + `schemas/chat.py`.
-  - API `/api/v1/chat`: `GET /health`, `POST /conversations` (201), `GET /conversations` (paginado por `updated_at` desc), `GET /conversations/{id}/messages`, `POST /conversations/{id}/messages`, `POST /messages/{id}/feedback` (400 em role=user, 404 inexistente, 422 rating inválido).
+  - API `/api/v1/chat`: `GET /health`, `POST /conversations` (201; **exige classificação**; sem valor ou `sigiloso` sem Ollama → 422, sem montar cliente cloud), `GET /conversations` (paginado por `updated_at` desc), `GET /conversations/{id}/messages`, `POST /conversations/{id}/messages`, `POST /messages/{id}/feedback` (400 em role=user, 404 inexistente, 422 rating inválido).
   - **Grounding obrigatório** (`CHAT_REQUIRE_GROUNDING`): resposta factual exige citação válida ou recusa explícita; `suggested_actions` do LLM são **descartadas** no MVP (zero escrita em entidades de negócio).
   - Fake provider determinístico para testes/demo (`CHAT_FORCE_FAKE_PROVIDER`); testes usam `app.dependency_overrides[get_chat_llm]` — nunca LLM real.
   - Recuperação de fontes com **savepoints** (`begin_nested`): falha de consulta (ex: tabela FTS ausente) não envenena a transação da conversa.
@@ -89,7 +89,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **Jobs**: `POST .../start` só **enfileira** (sem kick `BackgroundTasks`); processar com `python -m app.worker` ou serviço Compose `worker`. Snapshots em `run_snapshot` / `propostas_ids`.
   - **Restore seguro**: arquiva itens (`archived_at`) e cria novo conjunto — correções não somem por cascade.
   - **Gerador/RAG**: `RetrievedChunk.id` persistido em `rag_chunk_ids`; artefato `file_type=html`.
-  - **Privacidade**: `LLM_ALLOW_CLOUD` + classificação `sigiloso` recusam cloud; prompts com `<DOCUMENT_DATA>`; OCR em subprocesso + hard timeout.
+  - **Privacidade (Fase 0A, 23/09/2026)**: fail-closed. `NULL` = `sigiloso`. Cloud (Groq/Gemini) bloqueada para `sigiloso`/sem classificação; sem Ollama → `PrivacyPolicyError` (HTTP 422 na API; job não-retriável no worker). RAG de sigiloso fica textual (dimensão Gemini 3072 ≠ Ollama 1024). Piloto sem Ollama: fluxo sigiloso falha de forma controlada. Prompts com `<DOCUMENT_DATA>`; OCR em subprocesso + hard timeout.
   - **Ops docs**: `docs/ops/{deploy,restore-drill,slos,piloto,e2e-full}.md`, `backend/scripts/backup.sh`, `scripts/smoke_readyz.sh`, `scripts/up.sh` / `scripts/down.sh` (Compose com `unset` + smoke), `backend/scripts/promote_feedback.py` (thumbs-down → stub em `e2e/golden/feedback/`).
   - **Testes**: suíte backend **215+** verdes (golden, jobs, OCR, privacy, grounding, reliability P0). CI GitHub permanece **desabilitado** (`ci.yml.disabled`) a pedido do usuário.
   - **Pendência manual (Bruno)**: rotacionar chaves LLM/`POSTGRES_PASSWORD` **depois** (MVP); smoke Compose com worker; backup drill.
@@ -149,7 +149,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `README.md`: Guia completo de instalação, segurança e arquitetura.
 - `memory.md`: Memória contínua do projeto.
 - `docs/archive/PLANO.md`: Backlog histórico por fases (maioria concluída). Docs vivos: `docs/ops/`, `docs/guia-usuario.md`, este `memory.md`.
-- `docs/ops/`: Deploy imutável, restore drill, SLOs, piloto, gate 14d, cron.
+- `docs/ops/`: Deploy imutável, restore drill, SLOs, piloto, gate 14d, cron. Plano técnico pós-auditoria (ondas 0A–0C e fases 1–9): [plano-tecnico-ajustado.md](docs/ops/plano-tecnico-ajustado.md).
 - `fixtures/trs-codeba/`: Base local de TRs CODEBA para piloto/benchmark (**PDFs gitignored**). Ver README + MANIFEST.
 - `scripts/apply_reliability_schema.sql` + `scripts/smoke_readyz.sh`: migrate/smoke Postgres local.
 - `db/init.sql`: Script de criação das extensões, tabelas (`documents`, `document_items`, `analyses`, `corrections`, `jobs`, `schema_meta`, `fornecedores`, `moldes`, `comparacoes`, `comparacao_resultados`, chat), índices e triggers no PostgreSQL.
@@ -160,6 +160,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `.env.test`: Configuração de ambiente para testes (rate limit alto).
   - `run_e2e.ps1`: Script automatizado para execução dos testes E2E.
   - `tests/test_e2e_full_flow.py`: 17 testes E2E cobrindo health check, upload, CRUD, análise e relatório.
+  - `tests/test_e2e_privacy.py`: `e2e_fast` — upload/gerador/chat sem classificação ou `sigiloso` → 422.
   - `tests/conftest.py`: Fixtures Pytest (client HTTP, fixture DOCX, documento com análise).
   - `golden/`: Régua de confiabilidade (≥10 TRs sintéticos + FakeLLM).
 
@@ -171,6 +172,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `scripts/seed_moldes.py`: Seed idempotente de moldes padrão (TR geral, serviços continuados, obras públicas).
 - `scripts/download_laws.py` e `scripts/ingest_laws.py`: Corpus jurídico (Lei 14.133 + 13.303).
 - `scripts/backup.sh` + `scripts/promote_feedback.py`: Backup Postgres/uploads e promoção de stubs golden.
+- `scripts/backfill_classification.py`: Classifica `documents.classification IS NULL` (default `--dry-run`; apply só com flag explícita). Rodar via Compose/`psql` se o `.env` do host não autenticar o Postgres.
 - `scripts/migrate_review_columns.py`: Migração idempotente (SQLite/PostgreSQL) das colunas `review_status`/`review_note`/`reviewed_at` na tabela `corrections` (legado; preferir Alembic).
 - `scripts/benchmark.py` + `scripts/benchmark_fixtures.py`: Benchmark de qualidade da análise (recall/precisão/F1) com TRs fixture e LLM real; grava `benchmark_report.json`.
 - `tests/`: Testes unitários (loader, extractor, comparator, matrix, llm_timeout, golden, jobs, OCR, privacy, grounding, reliability P0, chat, feedback).
@@ -213,6 +215,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `semantic.py`: Busca semântica por embeddings (extraído de `retriever.py` em 13/08).
 - `app/services/llm/`:
   - `provider.py`: Classe abstrata `LLMProvider` e factory `get_llm_provider()`.
+  - `factory.py`: `get_llm_provider_for(classification)` — singleton full-failover, singleton local-only ou `PrivacyPolicyError`.
+  - `privacy.py`: `resolve_policy` (`cloud_llm` / `cloud_embeddings` / `llm_rerank`); `NULL` tratado como `sigiloso`.
   - `groq_provider.py`, `gemini_provider.py`, `ollama_provider.py`: Implementações dos provedores.
 - `app/services/analyzer/`:
   - `prompts.py`: Persona do Especialista Sênior, regras estritas, checklist do Art. 6º XXIII, prompts de análise e de revisão cruzada.
@@ -273,7 +277,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `globals.css`: Estilos globais, glassmorphism e estilização de diffs DE/PARA.
   - `layout.tsx`: Layout raiz com `Sidebar` e `Header`.
   - `page.tsx`: Dashboard (resumo de métricas, lista de documentos enviados, status e ações).
-  - `upload/page.tsx`: Tela de upload com drag-and-drop (via `DropZone`), indicador de progresso e validação client-side (361→204 LOC).
+  - `upload/page.tsx`: Tela de upload com drag-and-drop (via `DropZone`), seletor obrigatório de classificação (`doc-classification`), indicador de progresso e validação client-side.
   - `analysis/[id]/page.tsx`: Tela principal de análise:
     - Cópia SEI **somente** com correções `aprovada`/`ajustada` (badge de `review_status`)
     - Status `completed_with_errors` com banner de cobertura incompleta
@@ -306,7 +310,8 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (15/09/2026)**: `main` (`9a6eecd`; revisor-inteligente mergeado). CI permanece desabilitado.
+- **Branch ativa (23/09/2026)**: `main` (`e52b712`; Fase 0A mergeada). CI permanece desabilitado.
+- **Fase 0A — sigilo fail-closed (23/09/2026, branch `fix/seguranca-sigilo-auth`, merge `e52b712`)**: plano de revisão em `.cursor/plans/revisão_fase_0a_sigilo_f9474b9c.plan.md`; plano completo arquivado em [docs/ops/plano-tecnico-ajustado.md](docs/ops/plano-tecnico-ajustado.md). `PrivacyPolicyError` em análise/reanálise/worker/chat/revisor/gerador; upload/chat/gerar-tr exigem classificação na UI; HTTP 422 com mensagem única. Backfill de `NULL` → `publico` no Postgres piloto (script `backend/scripts/backfill_classification.py` com `--dry-run` default; apply via `docker compose exec db psql`). E2E: `e2e/tests/test_e2e_privacy.py` (`e2e_fast`) + Playwright `frontend/e2e/privacy-classification.spec.ts`. Fix colateral: redirect pós-upload usava `setTimeout` cancelado pelo `setState` — passou a `window.setTimeout`. Comparator e `llm_fallback.py` intocados (determinístico / código morto). `ILIKE` e `APP_ENV`/`API_TOKEN` no Compose ficam para Fase 2 e 0C. **Próxima fase técnica: 0B (quarentena corpus TCU).**
 - **Auditoria backend 15/09 (P0+P1+P2 — `.omo/plans/fix-backend-auditoria-2026-09-15.md`)**: failover com lista filtrada (`is_last_provider`), fila atômica (`UPDATE...WHERE pending` + rowcount + `expire_all`), upload `max+1` bytes → 413 sem OOM + ZIP/`octet-stream` com assinatura `PK` p/ DOCX/ODT, parser semáforo `PARSE_MAX_CONCURRENT=2` + `PARSE_TIMEOUT_SECONDS` + log `orphan_thread`, orphans só em `running` stale (>2x lease), rate-limit evicção 5k IPs + `TRUST_PROXY`/XFF, `mkdir` no lifespan, `/metrics` com token fora de dev, métricas sem `threading.Lock`, `document.error_message` em `completed_with_errors`, snapshot `total/work_items`, `get_upload_path` com `is_relative_to`, PDF preserva causa raiz + OCR com motivo, ODT anti-zipbomb (5k entries, 200MB). Testes novos `test_llm_failover_last.py` + `test_jobs_race.py`. **Backend 261 passed (baseline 258) · E2E 26/26 (7 fast 0.75s + 19 live/full-flow 4m44s, Postgres real + LLM) · LSP 0 errors em `backend/app`**. E2E Docker não atualizado em `memory` antes; DeskcommCRM + free-for.dev avaliados (só periferia com dado fake; dado CODEBA fica local).
 - **Histórico consolidado (08–10/09/2026)**: runtime Docker confiável, modelos LLM atuais, E2E 17/17, UX Sprints 1–3, CSP Next.js, restore drill documentado, unificação `Badge` + Exportar PDF + `backend/tests/conftest.py`.
 - **PRD Executável v2.0 (Correções de Alto Impacto) — fases A–D e validação E concluídas (05/08/2026)**:
@@ -444,7 +449,17 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Backlog histórico: [docs/archive/PLANO.md](docs/archive/PLANO.md). Branch ativa: **`main`** (`9a6eecd`). CI **não** reabilitar sem pedido.
+> Backlog histórico: [docs/archive/PLANO.md](docs/archive/PLANO.md). Plano técnico pós-auditoria (fonte da verdade das fases 0A–9): [docs/ops/plano-tecnico-ajustado.md](docs/ops/plano-tecnico-ajustado.md). Branch ativa: **`main`** (`e52b712`). CI **não** reabilitar sem pedido.
+
+### Contenção pós-auditoria (ondas 0A–0C)
+
+| Fase | Status | Detalhe |
+|------|--------|---------|
+| **0A** Sigilo fail-closed | **Feito (23/09)** | Cloud bloqueada para `sigiloso`/`NULL`; UI exige classificação; 422 sem Ollama; plano arquivado |
+| **0B** Quarentena corpus TCU | **Próxima** | Retirar da busca ativa fontes TCU sem comprovação oficial |
+| **0C** Auth operacional + extensão SEI | Pendente | `APP_ENV`/`API_TOKEN` fail-closed no Compose; XSS/escape da extensão |
+
+Fases 1–9 (rastreio, avaliação, ingestão, modelo jurídico, recuperação, grounding, custo, UX auditoria, multiusuário) só depois da contenção. Não enviar documento `sigiloso` ao piloto até existir Ollama configurado.
 
 ### Valor elaborador (Fases 0–4 — implementado, em `main`)
 - Fila Prioridade (alto/crítico + estrutural), pacote SEI, TR HTML corrigido, fluxo Atualizar TR (`?diffFrom=`), ops piloto (`docs/ops/piloto.md`, `scripts/backup_daily.sh`, `scripts/ops_alerts.sh`).
@@ -558,11 +573,11 @@ Tokens claros endurecidos (`--text-muted` `#475569`, borders mais fortes); `Badg
 Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh --build` (ou `docker compose up -d --build frontend`).
 
 ### Agora (ops / Bruno) — ordem sugerida
-1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build` (worker precisa de `defusedxml`).
-2. **Próxima sessão (15/09/2026):** testes reais com TR de TI `fixtures/trs-codeba/piloto-unico/09-ti-pabx-nuvem.pdf` — **re-upload** (parser TOC/hardening pós-14/09); economic + `ANALYSIS_MAX_LLM_CALLS=24`; expectativa **~10–15 min** (sessão ouro: 13 min / 778 s).
-3. Continuar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md)): revisar alto/crítico, anotar rejeição, validar pacote SEI/DOCX.
+1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build` (worker precisa de `defusedxml`). Upload/chat/gerar-tr **exigem classificação**; não enviar `sigiloso` sem Ollama (422 esperado).
+2. **Próxima sessão técnica:** Fase **0B** — quarentena do corpus TCU não verificado ([plano-tecnico-ajustado.md](docs/ops/plano-tecnico-ajustado.md)). Branch nova a partir de `main`.
+3. Continuar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md), aberto até 28/09): revisar alto/crítico, anotar rejeição, validar pacote SEI/DOCX.
 4. Em paralelo quando houver cota: demais TRs da quinzena (`07` → `11` → `01` → `05`) + colar export no SEI real.
-5. Rotacionar secrets quando conveniente; anonimizar Emergência antes de cloud.
+5. Rotacionar secrets quando conveniente. Emergência já anonimizada (15/09).
 6. **Não** abrir fine-tune até existir volume de feedback humano curado.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
@@ -602,3 +617,4 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Piloto RAG executado (21/09/2026, mesma branch):** backup `/tmp/rag_corpus_backup.dump`; reingestão v2 **599/599 dim 3072, 0 falhas** (~9 min, sem 429); latência real p50 1,7s/p95 2,5s (meta <2s estourada; driver = embedding Gemini); re-run ouro `e0d37c4e` economic → `completed_with_errors` 12/257 (teto 24 calls), 8 achados, `claim_support` médio 1.0, `art6_coverage` 1.0; modo LLM medido: +1,9–12,3s/query com 1 regressão → **NO-GO, manter heuristic**. Entregue junto: `claim_support` serializado + selo no `CorrectionCard`, `llm_rerank_allowed_for_document()` + `test_rag_privacy.py`, `RAG_*` no `.env.example`, flags `rag_top_k`/`rag_regime_filter` default-off, `corpus_version: legal-v2`. **303 passed · `tsc` limpo.** Pendente humano: rotular recall (`tmp/rag_probe.json`), revisão cega do ouro, decisão go/no-go, merge na `main`.
 > **Fechamento gaps RAG (21/09/2026, mesma branch):** flags `rag_top_k` (default 5)/`rag_regime_filter` (default 0/off) fiadas em `retrieve()`/`analysis_phases.py` + 2 testes em `test_retriever.py` (comportamento inalterado por padrão); `corpus_version: legal-v2` em analysis/comparison; seção RAG v2 no `README`. **305 passed · `tsc` limpo · ruff/LSP limpos** (1 I001 pré-existente em `analysis_phases.py`). Sessão anterior (mesmo dia): venv (`defusedxml`), `utcnow`→`now(timezone.utc)` em `document_revision.py`, fixtures dispose nos testes de chat/review (warnings 0). Pronto p/ commit + merge na `main`; pendente humano mantido.
 > **Para elevar o nível — o que realmente falta testar e como:** (1) Recall no corpus real: rotular 20 queries de elaboradores vs 599 chunks (`scripts/eval_rag.py` contra o Postgres piloto; meta Recall@5 ≥0.85); (2) Precisão+recall da análise: re-run ouro 09-ti-pabx-nuvem + 3 TRs diversos com revisão humana cega, meta precisão ≥0.80 e 0 placeholders/números inventados; (3) Latência p95 do `retrieve()` no corpus real (meta <2s; `rag_candidates=50` escaneia tudo em Python no fallback); (4) Custo do modo LLM: 1 ouro com `rag_rerank_mode="llm"` medindo tokens extras vs ganho (go/no-go); (5) `claim_support_rate` médio ≥0.9 no golden. Nada disso roda sem chaves LLM + Docker — é trabalho de piloto, não de laboratório.
+> **Fase 0A sigilo fail-closed (23/09/2026, `fix/seguranca-sigilo-auth` → `main` `e52b712`):** `NULL`=sigiloso; cloud bloqueada; 422/job não-retriável sem Ollama; UI com seletor obrigatório (upload/chat/gerar-tr); E2E `test_e2e_privacy.py` + `privacy-classification.spec.ts`; backfill `NULL`→`publico` no Postgres piloto; redirect pós-upload corrigido (`window.setTimeout`); plano completo em `docs/ops/plano-tecnico-ajustado.md`. **Próximo código: Fase 0B.**
