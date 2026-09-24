@@ -207,6 +207,10 @@ def validate_llm_answer(
         )
         return _recusa("sem-citacao")
 
+    if not _claims_evidence_ok(dados.get("claims"), valid_source_ids, citations):
+        logger.info("Resposta recusada: claim sem evidência válida")
+        return _recusa("source-id-inexistente")
+
     return ValidatedAnswer(
         content=answer.strip(),
         grounded=grounded if citations else False,
@@ -214,3 +218,25 @@ def validate_llm_answer(
         citations=citations,
         refused=False,
     )
+
+
+def _claims_evidence_ok(
+    claims,
+    valid_source_ids: set[str] | None,
+    citations: list[ChatCitation],
+) -> bool:
+    """Cada claim factual precisa apontar para source_id fornecido."""
+    if not isinstance(claims, list):
+        return True
+    allowed = set(valid_source_ids or ())
+    allowed.update(c.source_id for c in citations if c.source_id)
+    for claim in claims:
+        if not isinstance(claim, dict):
+            return False
+        ids = claim.get("evidence_ids") or claim.get("source_ids") or []
+        if not isinstance(ids, list) or not ids:
+            return False
+        for eid in ids:
+            if str(eid) not in allowed:
+                return False
+    return True

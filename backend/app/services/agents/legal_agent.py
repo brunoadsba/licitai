@@ -6,6 +6,11 @@ from typing import Any
 
 from app.services.agents.base_agent import BaseSpecializedAgent
 
+_EMPTY_RAG = (
+    "Nenhum contexto jurídico recuperado. NÃO cite artigos, leis, súmulas "
+    "nem jurisprudência. Se não houver vício evidente no texto do item, retorne []."
+)
+
 
 class LegalAgent(BaseSpecializedAgent):
     """
@@ -41,8 +46,9 @@ Sua ÚNICA missão é auditar o item do Termo de Referência sob o prisma de **C
 
 ## SUAS REGRAS E LIMITES JURÍDICOS:
 1. Examine se há ausência de amparo legal, exigências ilegais de habilitação, critérios de julgamento vedados, sanções desproporcionais ou riscos de representação ao órgão de controle.
-2. CITE SEMPRE a fundamentação jurídica exata (Artigo, Inciso, Alínea da Lei ou Número do Acórdão TCU). NUNCA invente leis.
-3. Se não houver infração legal ou risco jurídico no item, retorne um array JSON vazio `[]`.
+2. CITE SEMPRE a fundamentação jurídica exata (Artigo, Inciso, Alínea da Lei ou Número do Acórdão TCU) somente se ela estiver no bloco RAG. NUNCA invente leis.
+3. Se o bloco RAG estiver vazio ou indicar ausência de contexto, NÃO emita fundamento jurídico. Retorne `[]` ou achado sem `legal_basis`.
+4. Se não houver infração legal ou risco jurídico no item, retorne um array JSON vazio `[]`.
 
 ## FORMATO DE SAÍDA (EXCLUSIVAMENTE JSON):
 Retorne um array JSON com objetos no seguinte formato:
@@ -81,7 +87,7 @@ Retorne um array JSON com objetos no seguinte formato:
 {item_content}
 
 ## Base Jurídica de Referência (RAG):
-{legal_context if legal_context else "Usar jurisprudência padrão da Lei 14.133/21 e TCU."}
+{legal_context if legal_context else _EMPTY_RAG}
 
 Examine minuciosamente sob o aspecto JURÍDICO e retorne o JSON de achados. Se estiver em conformidade legal, retorne [].
 """

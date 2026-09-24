@@ -39,6 +39,12 @@ class ChatCitation(BaseModel):
     reference: str
     title: str = ""
     snippet: str = ""
+    version: str | None = None
+    status: str | None = None
+    article: str | None = None
+    official_url: str | None = None
+    page: str | None = None
+    is_interpretation: bool = False
 
 
 class ChatSuggestedAction(BaseModel):

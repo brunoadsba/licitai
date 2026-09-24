@@ -41,7 +41,9 @@ nem snippet — o servidor monta o texto canônico.
 6. NUNCA invente source_id. Use somente IDs listados nas fontes.
 7. Todo fato jurídico citado deve ter pelo menos uma citação correspondente.
 8. Não invente números de artigo nem leis. NUNCA responda um fato jurídico sem citação.
-9. No campo "answer", use somente português do Brasil.
+9. Em "claims", cada afirmação factual leva "evidence_ids" com os source_id usados.
+10. No campo "answer", use somente português do Brasil.
+11. "confidence" é estimativa do modelo, não métrica calibrada.
 
 Responda APENAS com um JSON válido e nada mais, no formato:
 {
@@ -50,6 +52,7 @@ Responda APENAS com um JSON válido e nada mais, no formato:
   "grounded": true,
   "confidence": 0.0,
   "citations": [{"type": "legal", "source_id": "legal:..."}],
+  "claims": [{"text": "afirmação", "evidence_ids": ["legal:..."]}],
   "suggested_actions": []
 }
 """
