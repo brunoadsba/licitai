@@ -100,7 +100,10 @@ def build_corrected_html(
     corrections_by_item: dict,
 ) -> tuple[str, list[dict], list[dict]]:
     """HTML simples (h1/h2/p). Retorna (html, applied, skipped)."""
-    parts: list[str] = [f"<h1>{html.escape(filename.upper())}</h1>\n"]
+    parts: list[str] = [
+        "<p>LicitAI</p>\n",
+        f"<h1>{html.escape(filename.upper())}</h1>\n",
+    ]
     all_applied: list[dict] = []
     all_skipped: list[dict] = []
     for item in sorted(items, key=lambda i: getattr(i, "item_order", 0) or 0):
@@ -132,6 +135,7 @@ def build_corrected_docx(
     from docx import Document as DocxDocument
 
     doc = DocxDocument()
+    doc.add_paragraph("LicitAI")
     doc.add_heading(filename.upper(), level=0)
     all_applied: list[dict] = []
     all_skipped: list[dict] = []
@@ -163,7 +167,7 @@ def build_sei_pack_text(
     lines = [
         f"# Pacote SEI — {document_name}",
         "",
-        "Somente correções aprovadas ou ajustadas.",
+        "Gerado pelo LicitAI. Somente correções aprovadas ou ajustadas.",
         "",
     ]
     if not entries:

@@ -25,11 +25,12 @@ async def list_provisions(
         .join(LegalWork, LegalWork.id == LegalProvision.work_id)
     )
     if law_number:
-        stmt = stmt.where(LegalWork.law_number == law_number)
+        stmt = stmt.where(LegalWork.law_number.ilike(f"%{law_number.strip()}%"))
     if path:
         stmt = stmt.where(LegalProvision.path == path)
     if article:
-        stmt = stmt.where(LegalProvision.article == article)
+        needle = article.strip()
+        stmt = stmt.where(LegalProvision.article.ilike(f"%{needle}%"))
     if include_historical:
         stmt = stmt.where(LegalVersion.status.in_(("published", "superseded")))
         stmt = stmt.where(LegalProvision.status.in_(("vigente", "historical", "vetado")))

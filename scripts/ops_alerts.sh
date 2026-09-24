@@ -8,6 +8,7 @@ API="${1:-http://127.0.0.1:8000}"
 LOG_DIR="${LICITAI_ALERT_LOG:-/tmp}"
 STATE_FILE="${LICITAI_ALERT_STATE:-$LOG_DIR/licitai-alerts.state}"
 LLM_DELTA_ALERT="${LICITAI_LLM_ERROR_DELTA:-3}"
+COST_USD_ALERT="${LICITAI_COST_USD_ALERT:-1}"
 mkdir -p "$LOG_DIR"
 STAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ALERT=0
@@ -42,9 +43,29 @@ if (( delta >= LLM_DELTA_ALERT )); then
   ALERT=1
 fi
 
+cost_usd="$(python3 -c "
+import json,sys
+d=json.loads(sys.argv[1])
+print(float(d.get('cost_usd') or (d.get('counters') or {}).get('cost_usd') or 0))
+" "$metrics" 2>/dev/null || echo 0)"
+
+cost_over=0
+if ! python3 -c "
+cost=float('$cost_usd')
+limit=float('$COST_USD_ALERT')
+raise SystemExit(0 if cost < limit else 1)
+"; then
+  cost_over=1
+fi
+
+if (( cost_over == 1 )); then
+  echo "[$STAMP] ALERT cost_usd=${cost_usd} (threshold=${COST_USD_ALERT})" | tee -a "$LOG_DIR/licitai-alerts.log"
+  ALERT=1
+fi
+
 if (( ALERT == 0 )); then
-  echo "[$STAMP] OK readyz=ready llm_errors=${llm_errors} delta=${delta}" >> "$LOG_DIR/licitai-alerts.log"
-  echo "OK ready=${status} llm_errors=${llm_errors} delta=${delta}"
+  echo "[$STAMP] OK readyz=ready llm_errors=${llm_errors} delta=${delta} cost_usd=${cost_usd}" >> "$LOG_DIR/licitai-alerts.log"
+  echo "OK ready=${status} llm_errors=${llm_errors} delta=${delta} cost_usd=${cost_usd}"
   exit 0
 fi
 

@@ -86,7 +86,7 @@ O **pacote de auditoria** (JSON) não vai para o SEI. Serve para guardar o rastr
 |------|------|
 | Tema claro/escuro | Interruptor no cabeçalho |
 | Gerar TR, Comparações, Versões, Moldes | Mais ferramentas (opcional) |
-| Dispositivo jurídico | `/legal` |
+| Dispositivo jurídico | Mais ferramentas → Dispositivo jurídico (`/legal`) |
 | 2ª opinião local | Env `REVIEWER_SECOND_OPINION=1` (Ollama local, opt-in) |
 
 ---

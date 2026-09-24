@@ -19,7 +19,7 @@ Código das fases **0A–8** está em `main`. Schema esperado: `20260924_004`.
 | FTS Postgres, grounding, custo, auditoria | Gate 14 dias, colar SEI real, rotação de secrets | LangGraph |
 | Pacote SEI / HTML / DOCX | Ollama se for usar TR `sigiloso` | |
 
-Recall@5 no corpus piloto (599 chunks): **0.357** (FTS). Semente local: 1.0. `pgvector` instalado; vetores ainda só em JSON.
+Recall@5 no corpus piloto (599 chunks): **0.929** (FTS). Semente local: 1.0. `pgvector` preenchido a partir do JSON; sem HNSW.
 
 ## Stack
 

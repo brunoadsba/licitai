@@ -55,7 +55,9 @@ def chunk_regime(row: dict) -> str | None:
 
 
 def _query_terms(query: str) -> list[str]:
-    return [t for t in _normalize(query).split() if len(t) >= 4]
+    from app.services.rag.query_terms import content_terms
+
+    return [t for t in content_terms(query) if len(t) >= 4]
 
 
 def _article_numbers(text: str) -> set[str]:

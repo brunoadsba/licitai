@@ -129,6 +129,20 @@ def generate_markdown_report(report: ReportResponse) -> str:
             if fundamento:
                 lines.append(f"**Fundamento Legal:** {fundamento}")
                 lines.append("")
+            evidence = getattr(correction, "evidence", None) or {}
+            if isinstance(evidence, dict) and (
+                evidence.get("de") or evidence.get("para") or evidence.get("retrieval_run_id")
+            ):
+                lines.append("**Evidência:**")
+                if evidence.get("de"):
+                    lines.append(f"- DE: {evidence['de']}")
+                if evidence.get("para"):
+                    lines.append(f"- PARA: {evidence['para']}")
+                if evidence.get("retrieval_run_id"):
+                    lines.append(f"- Rastro: {evidence['retrieval_run_id']}")
+                if evidence.get("corpus_version"):
+                    lines.append(f"- Corpus: {str(evidence['corpus_version'])[:12]}")
+                lines.append("")
 
             lines.append("---")
             lines.append("")
@@ -144,7 +158,7 @@ def generate_markdown_report(report: ReportResponse) -> str:
     # Rodapé
     lines.append("---")
     lines.append("")
-    lines.append("*Relatório gerado automaticamente pelo Sistema de Análise de Termos de Referência.*")
+    lines.append("*Relatório gerado pelo LicitAI — Sistema de Análise de Termos de Referência.*")
     lines.append(f"*Gerado em: {_format_date(report.analyzed_at)}*")
 
     return "\n".join(lines)

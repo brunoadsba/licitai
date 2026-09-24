@@ -19,6 +19,7 @@ const BREADCRUMB_MAP: Record<string, string> = {
   '/comparacao/versoes': 'Versões de TR',
   '/moldes': 'Moldes de Regras',
   '/guia': 'Guia do usuário',
+  '/legal': 'Dispositivo jurídico',
   '/design': 'Design System',
 };
 

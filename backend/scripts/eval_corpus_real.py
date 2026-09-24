@@ -50,14 +50,17 @@ async def _run(args: argparse.Namespace) -> dict:
     if not url:
         raise SystemExit("DATABASE_URL ou --database-url é obrigatório")
     engine = create_async_engine(url)
-    if args.seed:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-    Session = async_sessionmaker(engine, expire_on_commit=False)
-    async with Session() as db:
+    try:
         if args.seed:
-            await seed_eval_corpus(db)
-        return await run_eval(db, load_dataset(), allow_semantic=args.semantic)
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
+        Session = async_sessionmaker(engine, expire_on_commit=False)
+        async with Session() as db:
+            if args.seed:
+                await seed_eval_corpus(db)
+            return await run_eval(db, load_dataset(), allow_semantic=args.semantic)
+    finally:
+        await engine.dispose()
 
 
 def main() -> int:

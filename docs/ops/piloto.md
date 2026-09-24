@@ -28,16 +28,17 @@ Modelo jurídico versionado (Fase 4): [modelo-juridico-fase4.md](modelo-juridico
 | Backup dry-run | **Feito** (`scripts/backup_daily.sh` → `backups/licitai_*`) |
 | Gate 14 dias de uso real CODEBA | **Aberto 2026-09-14 → 2026-09-28** (sessão 0 = TR ouro) — [gate-piloto-14d.md](gate-piloto-14d.md) |
 | Confiabilidade Fase 0–4 (gate G1-G4/OPS + régua 11 casos + regime no snapshot) | **Feito 18/09 em `main`** (283 passed, LSP 0, tsc limpo; re-run ouro p/ medir precisão ainda pendente) |
-| Branding MVP LicitAI | **Parcial 18/09** (`logo.svg` + header + `docs/branding/`; falta `icon.png` 512 + SEI/DOCX/guia) |
+| Branding MVP LicitAI | **Feito** (`logo.svg`, `icon.svg`, cabeçalho LicitAI em SEI/HTML/DOCX) |
 | Rotação de secrets | **Pendente** (manual) |
 | Benchmark quinzenal com 5 TRs CODEBA | **Baseline Art.6** + **sessão ouro LLM** em [quinzena-2026-09-14.md](quinzena-2026-09-14.md) — [piloto-qualidade.md](piloto-qualidade.md) · fixtures em `fixtures/trs-codeba/` |
 | Avaliação RAG Fase 2 (conjunto + baseline) | **Feito** ([eval-fase2.md](eval-fase2.md)); visto jurídico pendente |
 | Ingestão Fase 3 (hash, worker, OCR kill) | **Feito** ([ingestao-fase3.md](ingestao-fase3.md)); schema `20260924_002` |
 | Modelo jurídico Fase 4 | **Feito** ([modelo-juridico-fase4.md](modelo-juridico-fase4.md)); índice legado ativo; visto jurídico da amostra pendente |
-| Recuperação Postgres Fase 5 | **Feito** ([recuperacao-fase5.md](recuperacao-fase5.md)); schema `20260924_004`; FTS GIN no piloto; r@5 0.357; pgvector 0.8.6 sem vetores preenchidos |
-| Grounding Fase 6 | **Feito** (claims por evidence_id, LegalAgent sem RAG vazio, UI de citação) |
-| Ops Fase 7 | **Feito** (custo, cache de embedding, imagem não-root, p50/p95) |
-| Auditoria Fase 8 | **Feito** (`/legal/provisions`, pacote de auditoria JSON, evidência DE→PARA) |
+| Recuperação Postgres Fase 5 | **Feito** ([recuperacao-fase5.md](recuperacao-fase5.md)); FTS AND/OR + rerank em `rag_candidates`; backfill `scripts/backfill_embedding_vector.py` (sem HNSW) |
+| Grounding Fase 6 | **Feito** (claims, LegalAgent vazio, UI de citação, parecer com rastro DE→PARA) |
+| Ops Fase 7 | **Feito** (custo, cache, non-root, p50/p95, alerta `LICITAI_COST_USD_ALERT`) |
+| Auditoria Fase 8 | **Feito** (`/legal` com busca no menu, evidência DE→PARA, audit-pack) |
+| URLs TCU | **Proposta só** ([tcu-urls-propostas.md](tcu-urls-propostas.md)); quarentena mantida |
 | CI GitHub / K8s / fine-tune / multi-tenant | **Fora de escopo** (não fazer) |
 
 ## Secrets (manual Bruno)

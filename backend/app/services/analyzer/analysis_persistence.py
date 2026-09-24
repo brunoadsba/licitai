@@ -23,7 +23,10 @@ from app.services.analyzer.grounding import (
     should_fail_closed_legal,
 )
 from app.services.rag.quarantine import sanitize_legal_basis
-from app.services.analyzer.parecer_origins import append_parecer_origins
+from app.services.analyzer.parecer_origins import (
+    append_parecer_origins,
+    traces_from_corrections,
+)
 from app.services.analyzer.scoring import (
     calculate_fallback_scores,
     generate_scores,
@@ -251,10 +254,20 @@ async def finalize_analysis(
         analysis.final_opinion = scores["final_opinion"]
 
     snapshot = dict(analysis.run_snapshot or {})
+    from sqlalchemy import select
+
+    persisted = list(
+        (
+            await db.execute(
+                select(Correction).where(Correction.analysis_id == analysis.id)
+            )
+        ).scalars().all()
+    )
     analysis.final_opinion = append_parecer_origins(
         analysis.final_opinion or "",
         snapshot.get("origin_correction_ids") or [],
         snapshot.get("retrieval_run_ids") or [],
+        traces_from_corrections(persisted),
     )
 
     # Finalizar

@@ -139,10 +139,12 @@ async def retrieve(
                 db, cleaned, law_numbers, cache_key, rows[:eff_top_k], dropped
             )
 
-    textual = await _search_textual(db, cleaned, eff_top_k, law_numbers)
+    textual = await _search_textual(db, cleaned, fetch_k, law_numbers)
+    if textual and rerank_mode in ("heuristic", "llm"):
+        textual = heuristic_rerank(cleaned, textual)
     textual, dropped = filter_active_rows(textual)
     return await _cache_result(
-        db, cleaned, law_numbers, cache_key, textual, dropped
+        db, cleaned, law_numbers, cache_key, textual[:eff_top_k], dropped
     )
 
 

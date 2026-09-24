@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="LicitAI">
+  <rect width="512" height="512" rx="96" fill="#0B0E13"/>
+  <rect x="24" y="24" width="464" height="464" rx="80" fill="none" stroke="#3AA4A4" stroke-width="20"/>
+  <text x="256" y="300" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="168" font-weight="700" fill="#F2F5F7">L<tspan fill="#3AA4A4">AI</tspan></text>
+</svg>

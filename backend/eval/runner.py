@@ -23,8 +23,15 @@ def load_dataset(path: Path | None = None) -> EvalDataset:
     return EvalDataset.model_validate(raw)
 
 
+def _norm_article(article: str) -> str:
+    import re
+
+    match = re.search(r"(\d+[a-z]?)", (article or "").lower())
+    return match.group(1) if match else (article or "").strip()
+
+
 def _key(law_number: str, article: str) -> tuple[str, str]:
-    return (law_number.strip(), article.strip())
+    return (law_number.strip(), _norm_article(article))
 
 
 def _expected_keys(case: EvalCase) -> set[tuple[str, str]]:
@@ -104,7 +111,7 @@ async def run_eval(
             allow_llm_rerank=False,
         )
         latencies.append((time.perf_counter() - started) * 1000)
-        ranked = [(c.law_number, c.article) for c in chunks]
+        ranked = [_key(c.law_number, c.article or "") for c in chunks]
         texts = [c.text for c in chunks]
         per_case.append(_score_case(case, ranked, texts))
 

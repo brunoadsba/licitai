@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-import unicodedata
 
 from sqlalchemy import text
 
@@ -73,19 +72,16 @@ def merge_article_hits(
     return merged
 
 
-def _fold(text: str) -> str:
-    nfd = unicodedata.normalize("NFD", text or "")
-    return "".join(ch for ch in nfd if unicodedata.category(ch) != "Mn").lower()
-
-
 def filter_weak_fts_hits(query: str, rows: list[dict]) -> list[dict]:
-    """Descarta hit de um único termo quando a consulta tem 3+ palavras."""
-    terms = [t for t in re.findall(r"[0-9A-Za-zÀ-ÿ]{3,}", _fold(query)) if t]
+    """Descarta hit fraco; ignora 'lei'/'14.133' que estão em quase todo o corpus."""
+    from app.services.rag.query_terms import content_terms, fold
+
+    terms = [t for t in content_terms(query) if len(t) >= 3]
     if len(terms) < 3 or not rows:
         return rows
     kept: list[dict] = []
     for row in rows:
-        hay = _fold(f"{row.get('chunk_text') or ''} {row.get('article') or ''}")
+        hay = fold(f"{row.get('chunk_text') or ''} {row.get('article') or ''}")
         hits = sum(1 for t in terms if t in hay)
         if hits >= 2:
             kept.append(row)

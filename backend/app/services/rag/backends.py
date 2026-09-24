@@ -29,17 +29,9 @@ async def _search_textual(
 
 
 def _postgres_or_tsquery(query: str) -> str:
-    """OR dos termos (AND do plainto_tsquery mata consulta com ruído)."""
-    import re
+    from app.services.rag.query_terms import postgres_tsquery
 
-    terms: list[str] = []
-    for raw in query.split():
-        if raw.lower() in _STOPWORDS_PT:
-            continue
-        token = re.sub(r"[^0-9A-Za-zÀ-ÿ]+", "", raw)
-        if token:
-            terms.append(token)
-    return " | ".join(terms) or re.sub(r"[^0-9A-Za-zÀ-ÿ]+", "", query) or "lei"
+    return postgres_tsquery(query, "or")
 
 
 _STOPWORDS_PT = frozenset({
@@ -129,10 +121,15 @@ async def _search_postgres(
     """FTS português com ranking; artigo direto; ILIKE só se o índice FTS faltar."""
     from app.services.rag.article_query import article_like
 
+    from app.services.rag.article_query import filter_weak_fts_hits, merge_article_hits
+    from app.services.rag.query_terms import postgres_tsquery
+
     art_like = article_like(query)
-    fts_q = _postgres_or_tsquery(query)
-    params: dict = {"q": fts_q, "limit": top_k, "art_like": art_like or ""}
-    sql = """
+    merged: list[dict] = []
+    for mode in ("and", "or"):
+        fts_q = postgres_tsquery(query, mode)
+        params: dict = {"q": fts_q, "limit": top_k, "art_like": art_like or ""}
+        sql = """
         SELECT CAST(lc.id AS TEXT) AS id, ld.law_number, ld.law_title, lc.article,
                lc.section, lc.chunk_text, ld.version,
                ts_rank_cd(lc.search_tsv, query) AS score
@@ -143,26 +140,25 @@ async def _search_postgres(
             lc.search_tsv @@ query
             OR (:art_like <> '' AND lc.article ILIKE :art_like)
         )
-    """
-    if exclude_quarantine:
-        sql = apply_sql_quarantine_filter(sql, params)
-    sql = apply_sql_published_filter(sql)
-    if law_numbers:
-        placeholders = ", ".join(f":law{i}" for i in range(len(law_numbers)))
-        sql += f" AND ld.law_number IN ({placeholders})"
-        params.update({f"law{i}": law for i, law in enumerate(law_numbers)})
-    sql += " ORDER BY score DESC NULLS LAST LIMIT :limit"
-    try:
-        result = await db.execute(text(sql), params)
-        from app.services.rag.article_query import filter_weak_fts_hits
-
-        rows = filter_weak_fts_hits(
-            query, [dict(row._mapping) for row in result.fetchall()]
-        )
-        if rows:
-            return rows
-    except Exception:
-        pass
+        """
+        if exclude_quarantine:
+            sql = apply_sql_quarantine_filter(sql, params)
+        sql = apply_sql_published_filter(sql)
+        if law_numbers:
+            placeholders = ", ".join(f":law{i}" for i in range(len(law_numbers)))
+            sql += f" AND ld.law_number IN ({placeholders})"
+            params.update({f"law{i}": law for i, law in enumerate(law_numbers)})
+        sql += " ORDER BY score DESC NULLS LAST LIMIT :limit"
+        try:
+            result = await db.execute(text(sql), params)
+            rows = filter_weak_fts_hits(
+                query, [dict(row._mapping) for row in result.fetchall()]
+            )
+            merged = merge_article_hits(merged, rows, top_k)
+        except Exception:
+            continue
+    if merged:
+        return merged
     return await _search_postgres_ilike(
         db, query, top_k, law_numbers, exclude_quarantine
     )

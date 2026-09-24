@@ -12,6 +12,7 @@ import {
   FilePenLine,
   Layers,
   BookOpen,
+  Scale,
   PanelLeftClose,
   X,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ const EXTRA_NAV: NavItem[] = [
   { href: '/comparacao/versoes', label: 'Versões de TR', icon: ScrollText },
   { href: '/moldes', label: 'Moldes', icon: Layers },
   { href: '/guia', label: 'Guia do usuário', icon: BookOpen },
+  { href: '/legal', label: 'Dispositivo jurídico', icon: Scale },
 ];
 
 const ALL_HREFS = [...PRIMARY_NAV, ...EXTRA_NAV].map((i) => i.href);

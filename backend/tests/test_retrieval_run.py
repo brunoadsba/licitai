@@ -13,7 +13,10 @@ from app.database import Base
 from app.models.legal import LegalChunk, LegalDocument
 from app.models.retrieval import RetrievalRun
 from app.schemas.chat import ChatCitation
-from app.services.analyzer.parecer_origins import append_parecer_origins
+from app.services.analyzer.parecer_origins import (
+    append_parecer_origins,
+    traces_from_corrections,
+)
 from app.services.chat.sources import hydrate_citations
 from app.services.chat.validator import validate_llm_answer
 from app.services.rag.corpus_version import (
@@ -168,8 +171,23 @@ def test_parecer_aponta_correcoes_e_recuperacoes():
         "Parecer base.",
         ["corr-1", "corr-2"],
         ["run-a"],
+        ["corr-1 · Art. 6º · DE: objeto"],
     )
     assert texto.startswith("Parecer base.")
     assert "corr-1" in texto
     assert "corr-2" in texto
     assert "run-a" in texto
+    assert "Rastro das correções" in texto
+    assert "Art. 6º" in texto
+
+
+def test_traces_from_corrections():
+    class _C:
+        id = "abcdef12-xxxx"
+        legal_basis = "Art. 5º da Lei 14.133/2021"
+        original_text = "texto original longo " * 8
+
+    lines = traces_from_corrections([_C()])
+    assert lines
+    assert "abcdef12" in lines[0]
+    assert "Art. 5º" in lines[0]
