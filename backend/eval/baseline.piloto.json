@@ -4,18 +4,18 @@
   "curator": "técnico-piloto",
   "legal_review": "pendente",
   "n_cases": 14,
-  "recall@1": 0.143,
-  "recall@5": 0.214,
-  "mrr": 0.157,
-  "ndcg@5": 0.171,
-  "citation_rate": 0.214,
+  "recall@1": 0.357,
+  "recall@5": 0.357,
+  "mrr": 0.357,
+  "ndcg@5": 0.357,
+  "citation_rate": 0.357,
   "recall@5_por_categoria": {
-    "alteracao_revogacao": 0.0,
+    "alteracao_revogacao": 1.0,
     "ambigua": 0.0,
     "anexos_tabelas": 0.0,
     "comparacao_regimes": 0.0,
     "definicoes": 0.0,
-    "documentos_longos": 0.0,
+    "documentos_longos": 1.0,
     "excecoes": 0.0,
     "jurisdicao": 0.0,
     "localizacao": 0.0,
@@ -25,8 +25,8 @@
     "sem_resposta": 1.0,
     "vigencia": 0.0
   },
-  "latency_ms_p50": 7.5,
-  "latency_ms_p95": 15.0,
+  "latency_ms_p50": 12.3,
+  "latency_ms_p95": 69.2,
   "cost_usd": 0.0,
   "provider_errors": 0,
   "cases": [
@@ -40,24 +40,8 @@
       "citation_ok": 0.0,
       "ranked": [
         [
-          "Lei 13.303/2016",
-          "Art. 3º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 12"
-        ],
-        [
           "Lei 14.133/2021",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "RILC-CODEBA",
-          "Art. 48"
+          "Art. 75"
         ]
       ],
       "found": []
@@ -72,24 +56,8 @@
       "citation_ok": 0.0,
       "ranked": [
         [
-          "Lei 13.303/2016",
-          "Art. 3º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 12"
-        ],
-        [
           "Lei 14.133/2021",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "RILC-CODEBA",
-          "Art. 48"
+          "Art. 86"
         ]
       ],
       "found": []
@@ -105,23 +73,7 @@
       "ranked": [
         [
           "Lei 14.133/2021",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 14"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 27"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 21"
+          "Art. 6º"
         ]
       ],
       "found": []
@@ -137,23 +89,7 @@
       "ranked": [
         [
           "Lei 14.133/2021",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 14"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 27"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 19"
+          "Art. 6º"
         ]
       ],
       "found": []
@@ -169,23 +105,7 @@
       "ranked": [
         [
           "Lei 14.133/2021",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "RILC-CODEBA",
-          "Art. 48"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 14"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 10"
+          "Art. 6º"
         ]
       ],
       "found": []
@@ -200,24 +120,8 @@
       "citation_ok": 0.0,
       "ranked": [
         [
-          "Lei 13.303/2016",
-          "Art. 3º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 12"
-        ],
-        [
           "Lei 14.133/2021",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "RILC-CODEBA",
-          "Art. 48"
+          "Art. 6º"
         ]
       ],
       "found": []
@@ -225,34 +129,23 @@
     {
       "id": "rev-001",
       "category": "alteracao_revogacao",
-      "recall@1": 0.0,
-      "recall@5": 0.0,
-      "rr": 0.0,
-      "ndcg@5": 0.0,
-      "citation_ok": 0.0,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
       "ranked": [
         [
-          "Lei 13.303/2016",
-          "Art. 3º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 12"
-        ],
-        [
           "Lei 14.133/2021",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "RILC-CODEBA",
-          "Art. 48"
+          "Art. 193"
         ]
       ],
-      "found": []
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 193"
+        ]
+      ]
     },
     {
       "id": "jur-001",
@@ -266,22 +159,6 @@
         [
           "Lei 13.303/2016",
           "Art. 3º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 27"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 19"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 38"
         ]
       ],
       "found": []
@@ -307,24 +184,8 @@
       "citation_ok": 0.0,
       "ranked": [
         [
-          "Lei 13.303/2016",
-          "Art. 3º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 12"
-        ],
-        [
           "Lei 14.133/2021",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 11"
+          "Art. 86"
         ]
       ],
       "found": []
@@ -332,34 +193,23 @@
     {
       "id": "long-001",
       "category": "documentos_longos",
-      "recall@1": 0.0,
-      "recall@5": 0.0,
-      "rr": 0.0,
-      "ndcg@5": 0.0,
-      "citation_ok": 0.0,
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
       "ranked": [
         [
-          "Lei 13.303/2016",
-          "Art. 3º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 12"
-        ],
-        [
           "Lei 14.133/2021",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 11"
+          "Art. 6º"
         ]
       ],
-      "found": []
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ]
+      ]
     },
     {
       "id": "tab-001",
@@ -372,23 +222,7 @@
       "ranked": [
         [
           "Lei 14.133/2021",
-          "Art. 12"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 1º"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 14"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 18"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 34"
+          "Art. 6º"
         ]
       ],
       "found": []
@@ -396,31 +230,23 @@
     {
       "id": "inj-001",
       "category": "prompt_injection",
-      "recall@1": 0.0,
+      "recall@1": 1.0,
       "recall@5": 1.0,
-      "rr": 0.2,
-      "ndcg@5": 0.387,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
       "citation_ok": 1.0,
       "ranked": [
         [
-          "Lei 13.303/2016",
-          "Art. 62"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 86"
-        ],
-        [
-          "Lei 13.303/2016",
-          "Art. 87"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 174"
-        ],
-        [
           "Lei 14.133/2021",
           "Art. 5º"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 31"
+        ],
+        [
+          "RILC-CODEBA",
+          "Art. 4º"
         ]
       ],
       "found": [
@@ -441,23 +267,11 @@
       "ranked": [
         [
           "Lei 14.133/2021",
-          "Art. 119"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 47"
-        ],
-        [
-          "Lei 14.133/2021",
-          "Art. 77"
-        ],
-        [
-          "Lei 14.133/2021",
           "Art. 74"
         ],
         [
-          "Lei 14.133/2021",
-          "Art. 137"
+          "Lei 13.303/2016",
+          "Art. 32"
         ]
       ],
       "found": []

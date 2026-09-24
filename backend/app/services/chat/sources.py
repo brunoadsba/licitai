@@ -61,6 +61,7 @@ async def _legal_sources(
     *,
     allow_semantic: bool | None = None,
     allow_llm_rerank: bool | None = None,
+    classification: str | None = None,
 ) -> tuple[list[ChatCitation], str | None]:
     async def _buscar():
         return await retrieve(
@@ -69,6 +70,7 @@ async def _legal_sources(
             top_k=settings.chat_top_k_sources,
             allow_semantic=allow_semantic,
             allow_llm_rerank=allow_llm_rerank,
+            classification=classification,
         )
 
     chunks = await _seguro(db, _buscar)
@@ -78,6 +80,7 @@ async def _legal_sources(
         query=query,
         chunks=chunks,
         params={"top_k": settings.chat_top_k_sources},
+        classification=classification,
     )
 
     return [
@@ -87,6 +90,10 @@ async def _legal_sources(
             reference=f"{c.law_number}, {c.article}".rstrip(", "),
             title=c.law_title,
             snippet=_snippet(c.text),
+            article=c.article or None,
+            version=getattr(c, "version", None),
+            status="vigente",
+            is_interpretation=False,
         )
         for c in chunks
     ], (str(run.id) if run else None)
@@ -211,16 +218,19 @@ async def build_sources(
     *,
     allow_semantic: bool | None = None,
     allow_llm_rerank: bool | None = None,
+    classification: str | None = None,
 ) -> tuple[list[ChatCitation], str | None]:
     """Monta as fontes citáveis da resposta, deduplicadas e limitadas."""
     context = context or {}
     fontes: list[ChatCitation] = []
+    classif = classification or context.get("classification")
 
     legais, retrieval_run_id = await _legal_sources(
         db,
         query,
         allow_semantic=allow_semantic,
         allow_llm_rerank=allow_llm_rerank,
+        classification=classif,
     )
     fontes.extend(legais)
 

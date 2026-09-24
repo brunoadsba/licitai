@@ -34,6 +34,7 @@ Modelo jurídico versionado (Fase 4): [modelo-juridico-fase4.md](modelo-juridico
 | Avaliação RAG Fase 2 (conjunto + baseline) | **Feito** ([eval-fase2.md](eval-fase2.md)); visto jurídico pendente |
 | Ingestão Fase 3 (hash, worker, OCR kill) | **Feito** ([ingestao-fase3.md](ingestao-fase3.md)); schema `20260924_002` |
 | Modelo jurídico Fase 4 | **Feito** ([modelo-juridico-fase4.md](modelo-juridico-fase4.md)); índice legado ativo; visto jurídico da amostra pendente |
+| Recuperação Postgres Fase 5 | **Feito** ([recuperacao-fase5.md](recuperacao-fase5.md)); schema `20260924_004`; FTS GIN no piloto; r@5 0.357; pgvector 0.8.6 sem vetores preenchidos |
 | CI GitHub / K8s / fine-tune / multi-tenant | **Fora de escopo** (não fazer) |
 
 ## Secrets (manual Bruno)

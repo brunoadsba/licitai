@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.legal import LegalChunk, LegalDocument
 from app.services.ingest.schema import IngestManifest
 from app.services.rag.corpus_version import clear_corpus_version_cache
+from app.services.rag.retriever import _clear_legal_context_cache
 from app.services.rag.loader import LawChunk
 
 STATUS_PUBLISHED = "published"
@@ -91,6 +92,7 @@ async def persist_legal_document(
     _add_chunks(db, doc, chunks, law_number, law_title, manifest)
     await db.flush()
     clear_corpus_version_cache()
+    _clear_legal_context_cache()
     return doc, False
 
 
@@ -137,6 +139,7 @@ async def _persist_failure(
     )
     await db.flush()
     clear_corpus_version_cache()
+    _clear_legal_context_cache()
     return doc
 
 
