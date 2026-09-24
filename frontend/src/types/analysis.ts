@@ -34,6 +34,16 @@ export interface CorrectionResponse {
   review_note?: string | null;
   reviewed_at?: string | null;
   claim_support?: { supported: number; total: number } | null;
+  evidence?: {
+    de?: string;
+    para?: string;
+    corpus_version?: string;
+    retrieval_run_id?: string;
+    legal_chunk_ids?: string[];
+    grounded?: boolean;
+    legal_valid?: boolean | null;
+    item_number?: string;
+  } | null;
 }
 
 export interface AnalysisStartResponse {

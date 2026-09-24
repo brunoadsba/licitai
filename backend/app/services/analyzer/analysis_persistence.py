@@ -123,6 +123,8 @@ async def persist_item_outcomes(
                 "legal_valid": legal_valid,
                 "fail_closed_legal": fail_closed,
                 "item_number": item.item_number,
+                "de": correction_data.get("original_text", ""),
+                "para": correction_data.get("suggested_text", ""),
                 "claim_support": claim_support_rate(
                     correction_data, item.content or "", doc_text, regime
                 ),

@@ -83,6 +83,7 @@ export default function AnalysisPage() {
         onCopyCorrectedHtml={() => void s.handleCopyCorrectedHtml()}
         onDownloadDocx={() => void s.handleDownloadDocx()}
         onDownloadSeiPack={() => void s.handleDownloadSeiPack()}
+        onDownloadAuditPack={() => void s.handleDownloadAuditPack()}
         onStartAnalysis={() => void s.handleStartAnalysis()}
         onOpenRevisions={() => s.setRevisionsModalOpen(true)}
       />

@@ -8,6 +8,7 @@ import type { Tone } from '@/lib/badges';
 import { Badge } from '@/components/ui/Badge';
 import { useCopy } from '@/lib/useCopy';
 import CorrectionReviewActions from '@/components/analysis/CorrectionReviewActions';
+import CorrectionEvidence from '@/components/analysis/CorrectionEvidence';
 import { formatOriginalForDisplay } from '@/lib/diffDisplay';
 import { hasPlaceholderText } from '@/lib/placeholderText';
 import { Check, ChevronDown, ClipboardCopy, TriangleAlert } from 'lucide-react';
@@ -188,6 +189,7 @@ export default function CorrectionCard({
             {correction.legal_basis && (
               <p className="tnum mt-2 font-mono text-xs text-accent-400">{correction.legal_basis}</p>
             )}
+            <CorrectionEvidence correction={correction} />
             {correction.risk && (
               <div className="mt-3 flex items-start gap-2">
                 <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-800 dark:text-yellow-400" aria-hidden />

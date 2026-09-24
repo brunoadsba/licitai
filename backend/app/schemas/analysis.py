@@ -49,6 +49,7 @@ class CorrectionResponse(BaseModel):
     review_note: str | None = None
     reviewed_at: AwareDatetime | None = None
     claim_support: ClaimSupport | None = None
+    evidence: dict | None = None
 
 
 class CorrectionReviewUpdate(BaseModel):
