@@ -10,6 +10,12 @@ export interface ChatCitation {
   reference: string;
   title: string;
   snippet: string;
+  version?: string | null;
+  status?: string | null;
+  article?: string | null;
+  official_url?: string | null;
+  page?: string | null;
+  is_interpretation?: boolean;
 }
 
 export interface ChatSuggestedAction {

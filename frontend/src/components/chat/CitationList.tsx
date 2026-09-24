@@ -52,6 +52,29 @@ export default function CitationList({ sources }: { sources: ChatCitation[] }) {
                   <span className="tnum truncate font-mono text-accent-400">{c.reference}</span>
                 </div>
                 {c.title && <p className="mt-0.5 truncate text-content-subtle">{c.title}</p>}
+                {(c.article || c.version || c.status) && (
+                  <p className="mt-0.5 text-content-muted">
+                    {[c.article, c.version && `versão ${c.version}`, c.status]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                )}
+                {c.official_url && (
+                  <a
+                    href={c.official_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-0.5 block truncate text-accent-400 hover:underline"
+                  >
+                    {c.official_url}
+                  </a>
+                )}
+                {c.page && <p className="mt-0.5 text-content-muted">p. {c.page}</p>}
+                {c.is_interpretation && (
+                  <p className="mt-0.5 text-amber-800 dark:text-amber-200">
+                    Interpretação da IA — não é texto normativo
+                  </p>
+                )}
                 {c.snippet && (
                   <p className="mt-0.5 line-clamp-2 text-content-subtle/80">{c.snippet}</p>
                 )}
