@@ -20,9 +20,9 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **📐 Agente Estrutural**: Organização e checklist do Art. 6º, XXIII da Lei 14.133/2021.
   - **👑 Orquestrador Multi-Agente**: Execução concorrente assíncrona (`asyncio.gather`) + deduplicação de achados + etiquetagem com `agent_origin`.
 - Sugestões de melhoria fundamentadas no formato **DE → PARA** (com gravidade, risco, justificativa e embasamento legal).
-- **RAG híbrido (Fases 1–6, 24/09/2026)**:
-  - Texto: FTS Postgres (`unaccent` + `portuguese` + GIN) ou FTS5 no SQLite; lookup direto de artigo; expansão hierárquica com orçamento de tokens.
-  - Semântico: embeddings Gemini / Ollama `bge-m3` em `legal_chunks.embedding` (JSON). `pgvector` instalado; coluna `embedding_vector` ainda vazia — sem HNSW até medir recall.
+- **RAG híbrido (Fases 1–6 + sobras, 24/09/2026)**:
+  - Texto: FTS Postgres AND/OR (`unaccent` + `portuguese` + GIN) ou FTS5 no SQLite; lookup direto de artigo; expansão hierárquica com orçamento de tokens. Termos de citação (`lei`, `14.133`) não entram no FTS. Candidatos = `rag_candidates` + `heuristic_rerank`.
+  - Semântico: embeddings Gemini / Ollama `bge-m3` em `legal_chunks.embedding` (JSON) e `embedding_vector` (599 preenchidos no piloto via `backfill_embedding_vector.py`). Sem HNSW — não reduzir dimensão sem medir recall.
   - Índice vivo: `legal_documents`/`legal_chunks`. Sidecar versionado: `legal_works`/`legal_versions`/`legal_provisions` (Fase 4). TCU sem URL oficial em quarentena (`version=quarantine-0B`).
   - Cache de recuperação por `corpus_version` + `classification`. Grounding: claims com `evidence_ids`; LegalAgent não inventa base se o RAG vier vazio.
   - **Comparador Visual de Versões de TR** (`/comparacao/versoes`): alinhamento por `item_number` (`inalterado`, `alterado`, `adicionado`, `removido`).
@@ -176,6 +176,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `scripts/seed_moldes.py`: Seed idempotente de moldes padrão (TR geral, serviços continuados, obras públicas).
 - `scripts/download_laws.py` e `scripts/ingest_laws.py`: Corpus jurídico (Lei 14.133 + 13.303).
 - `scripts/backup.sh` + `scripts/promote_feedback.py`: Backup Postgres/uploads e promoção de stubs golden.
+- `scripts/backfill_embedding_vector.py`: copia JSON → `embedding_vector` (dry-run padrão; `--apply` no piloto 599/599).
+- `scripts/eval_corpus_real.py`: dispose do engine no `finally` (evita hang no SQLite em memória).
 - `scripts/backfill_classification.py`: Classifica `documents.classification IS NULL` (default `--dry-run`; apply só com flag explícita). Rodar via Compose/`psql` se o `.env` do host não autenticar o Postgres.
 - `scripts/migrate_review_columns.py`: Migração idempotente (SQLite/PostgreSQL) das colunas `review_status`/`review_note`/`reviewed_at` na tabela `corrections` (legado; preferir Alembic).
 - `scripts/benchmark.py` + `scripts/benchmark_fixtures.py`: Benchmark de qualidade da análise (recall/precisão/F1) com TRs fixture e LLM real; grava `benchmark_report.json`.
@@ -217,8 +219,9 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `app/services/upload_service.py`: Orquestração de upload de documentos (extraído de `api/documents.py` em 13/08).
 - `app/services/rag/`:
   - `retriever.py`: Retrieval híbrido (semântico + FTS + artigo) com RRF; cache via `legal_cache.py` (`corpus_version` + `classification`).
-  - `backends.py`: FTS Postgres/SQLite + merge de hits de artigo.
-  - `article_query.py`: Extração de “art. N”, busca na coluna `article`, filtro de hits FTS fracos.
+  - `backends.py`: FTS Postgres AND/OR + SQLite + merge de hits de artigo.
+  - `query_terms.py`: termos de conteúdo vs ruído de citação da lei; `to_tsquery` com prefixo `:*`.
+  - `article_query.py`: Extração de “art. N”, busca na coluna `article`, filtro de hits FTS fracos (ignora `lei`/`14.133`).
   - `hierarchy.py`: Expansão caput/ancestrais a partir de `legal_provisions`.
   - `semantic.py` + `embed_store.py`: embedding de query (memória + disco; respeita classificação).
   - `rrf.py`: fusão por rank recíproco.
@@ -266,7 +269,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `src/lib/utils.ts`: `cn()` (clsx + tailwind-merge).
 - `src/lib/api.ts`: Cliente HTTP via **BFF** `/api/proxy/...` (token só no servidor; proxy monta `/api/v1/...`); `skipCache` em polling.
 - `src/app/guia/page.tsx` + `docs/guia-usuario.md`: guia do elaborador (4 passos) espelhado app/docs.
-- `src/app/legal/page.tsx` + `src/lib/api/legal.ts`: consulta de dispositivo vigente (`/legal`).
+- `src/app/legal/page.tsx` + `src/lib/api/legal.ts` + `src/lib/legalHref.ts`: busca de dispositivo (lei/artigo) em `/legal`; item no menu Mais ferramentas; link a partir das citações do chat.
+- Favicon LicitAI: `src/app/icon.svg` + `icon.png` (512). Cabeçalho **LicitAI** em SEI/HTML/DOCX.
 - `src/components/analysis/CorrectionEvidence.tsx`: evidência DE→PARA no card da correção.
 - Export **Pacote de auditoria (.json)** no menu Exportar da análise (`getAuditPack`).
 - `src/lib/polling.ts`: Polling com deadline, backoff, limite de falhas, pausa em aba oculta.
@@ -322,7 +326,8 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (24/09/2026)**: `main` inclui **0A–8**. CI GitHub permanece desabilitado (`ci.yml.disabled`). Schema esperado: `20260924_004`.
+- **Branch ativa (24/09/2026)**: `main` inclui **0A–8 + sobras** (`a0f76ef`). CI GitHub permanece desabilitado (`ci.yml.disabled`). Schema esperado: `20260924_004`.
+- **Sobras 5–8 (24/09/2026, `a0f76ef`)**: FTS AND/OR + rerank em `rag_candidates` (piloto r@5 **0.929**, só `documentos_longos` em 0); `embedding_vector` 599/599 sem HNSW; `/legal` com formulário + nav; parecer/relatório com rastro DE→PARA; alerta `LICITAI_COST_USD_ALERT` em `scripts/ops_alerts.sh`; marca LicitAI (favicon + SEI/HTML/DOCX); URLs TCU só em [tcu-urls-propostas.md](docs/ops/tcu-urls-propostas.md) — quarentena mantida.
 - **Fase 8 — auditoria (24/09/2026, `76dfd2a`)**: `GET /legal/provisions`, UI `/legal`, `CorrectionResponse.evidence` (DE→PARA + corpus + retrieval_run), `GET /analysis/{id}/audit-pack` + download no menu Exportar. Testes `test_fase8_audit.py`.
 - **Fase 7 — ops (24/09/2026, `4eacf7f`)**: custo por operação (`services/cost.py` + `/metrics`), cache persistente de embedding de query (`embed_store.py`, sem consulta restrita), imagem backend não-root + `.dockerignore`, p50/p95 de latência. Testes `test_fase7_ops.py`.
 - **Fase 6 — grounding (24/09/2026, `53fd9b5`)**: claims com `evidence_ids`; LegalAgent recusa base legal se RAG vazio; `ChatCitation` com artigo/versão/URL/página/`is_interpretation`; bypass de saudação. Testes `test_fase6_grounding.py`.
@@ -484,10 +489,10 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 | **2** Avaliação e baseline | **Feito (24/09)** | Conjunto curado + runner local; piloto r@5 0.929; CI GitHub desligado; visto jurídico pendente |
 | **3** Ingestão confiável | **Feito (24/09)** | Hash/origem/manifesto; parse/OCR no worker; SIGKILL no OCR |
 | **4** Modelo jurídico | **Feito (24/09)** | Sidecar works/versions/provisions; índice legado ativo; visto da amostra pendente |
-| **5** Recuperação Postgres | **Feito (24/09)** | FTS GIN + artigo + hierarquia + cache; [recuperacao-fase5.md](docs/ops/recuperacao-fase5.md) |
-| **6** Grounding e citações | **Feito (24/09)** | Claims por evidência; LegalAgent vazio; UI de citação |
-| **7** Custo e ops | **Feito (24/09)** | Tokens/USD, embed cache, imagem não-root, p50/p95 |
-| **8** UX auditoria | **Feito (24/09)** | `/legal`, evidência DE→PARA, pacote JSON |
+| **5** Recuperação Postgres | **Feito (24/09)** | FTS AND/OR + rerank; r@5 0.929; vetor preenchido sem HNSW; [recuperacao-fase5.md](docs/ops/recuperacao-fase5.md) |
+| **6** Grounding e citações | **Feito (24/09)** | Claims por evidência; LegalAgent vazio; UI de citação; parecer com rastro |
+| **7** Custo e ops | **Feito (24/09)** | Tokens/USD, embed cache, non-root, p50/p95, alerta de custo |
+| **8** UX auditoria | **Feito (24/09)** | `/legal` com busca no menu, evidência DE→PARA, pacote JSON |
 | **9** Multiusuário / OIDC | **Fora de escopo** | Não fazer sem pedido |
 
 Não enviar documento `sigiloso` ao piloto até existir Ollama configurado.
@@ -519,10 +524,10 @@ Não enviar documento `sigiloso` ao piloto até existir Ollama configurado.
 | 7 | ~~**RILC CODEBA completo** no RAG~~ | Feito (14/09/2026) | Fonte `backend/data/rilc/source/` + `provenance.json`; ingestão `python scripts/ingest_rilc_codeba.py` (287 arts., page em metadata) |
 | 8 | **Fine-tune / treino ML** | Bloqueado | Só após gate + dataset de aprovar/rejeitar/thumbs-down (`promote_feedback.py`). Treinar agora sem rótulos estáveis não é o próximo passo |
 | 9 | **Visto jurídico** do conjunto Fase 2 e da amostra Fase 4 | Humano | `legal_review` ainda `pendente` em `eval/baseline.piloto.json` |
-| 10 | **URLs oficiais TCU** (sair da quarentena 0B) | Humano | Sem URL oficial as súmulas 247/272 e o Acórdão 1214/2013 ficam fora da busca |
+| 10 | **URLs oficiais TCU** (sair da quarentena 0B) | Humano | Candidatas em [tcu-urls-propostas.md](docs/ops/tcu-urls-propostas.md); **não** reingestar sem visto |
 | 11 | **Ollama** para TR `sigiloso` | Ops | Sem modelo local o fluxo sigiloso retorna 422 (fail-closed, esperado) |
 
-**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`, exclusão de sumário/títulos na análise + UX análise (14/09/2026), **hardening backend** (TOC/reanálise/lease/pagemap/scores/ODT — 14/09/2026), contraste modo claro na UI.
+**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`, exclusão de sumário/títulos na análise + UX análise (14/09/2026), **hardening backend** (TOC/reanálise/lease/pagemap/scores/ODT — 14/09/2026), contraste modo claro na UI, **sobras 5–8** (r@5 0.929, `/legal` no menu, branding LicitAI, alerta de custo).
 
 ### Correção análise: sumário/títulos + UX (14/09/2026)
 
@@ -599,7 +604,7 @@ Tokens claros endurecidos (`--text-muted` `#475569`, borders mais fortes); `Badg
 | Análise | CTA único **Copiar pacote SEI**; menus Exportar/Mais; fila **Revisar agora** |
 | Relatório | Leitura + Exportar PDF; SEI só na análise |
 | Copiloto | FAB **Perguntar**, fechado por default |
-| Nav | Painel + Enviar TR; Gerar/Comparações/Versões/Moldes/Guia em **Mais ferramentas** |
+| Nav | Painel + Enviar TR; Gerar/Comparações/Versões/Moldes/Guia/Dispositivo jurídico em **Mais ferramentas** |
 | Guia | App `/guia` + [docs/guia-usuario.md](docs/guia-usuario.md); link no Painel/sidebar |
 | BFF | Cliente `/api/proxy/...`; proxy compatível com path legado `/api/proxy/v1/...` |
 | Dados | Samples de teste limpos; empty states nas ferramentas avançadas são normais sem TRs/moldes/fornecedores |
@@ -608,9 +613,9 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 
 ### Agora (ops / Bruno) — ordem sugerida
 1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build`. Upload/chat/gerar-tr **exigem classificação**; não enviar `sigiloso` sem Ollama (422 esperado).
-2. Código agent-implementável das Fases **0A–8** está em **`main`**. Não reabrir 5–8 sem regressão. Fase 9 / CI / K8s / fine-tune / OIDC: fora de escopo.
+2. Código agent-implementável das Fases **0A–8 e sobras** está em **`main`** (`a0f76ef`). Não reabrir 5–8 sem regressão de r@5. UI Docker exige `./scripts/up.sh --build`. Fase 9 / CI / K8s / fine-tune / OIDC: fora de escopo.
 3. Continuar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md), aberto até 28/09): revisar alto/crítico, anotar rejeição, validar pacote SEI/DOCX.
-4. Pendências humanas: visto jurídico do conjunto Fase 2 e da amostra Fase 4; URLs oficiais TCU (sair da quarentena); colar export no SEI real; rotacionar secrets; Ollama se for usar `sigiloso`.
+4. Pendências humanas: visto jurídico do conjunto Fase 2 e da amostra Fase 4; confirmar URLs TCU (proposta pronta, quarentena mantida); colar export no SEI real; rotacionar secrets; Ollama se for usar `sigiloso`.
 5. Em paralelo quando houver cota: demais TRs da quinzena (`07` → `11` → `01` → `05`).
 6. **Não** abrir fine-tune até existir volume de feedback humano curado.
 
@@ -643,7 +648,7 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Frente seguinte (15/09): `feat/revisor-inteligente-15-09`** — tornar a aplicação mais inteligente e autônoma (mínima intervenção humana): revisor-assistente consultivo (sugestão + confiança, fail-closed, decisão final humana no `CorrectionCard`); dataset inaugural: 9 correções da análise `20de1bb8`.
 > **Higiene + UX guiada + Revisor (15/09, `feat/revisor-inteligente-15-09`)**: plano `arquitetura-higiene-ux-2026-09-15.md`. **Higiene** (`3351a6d`): 14→3 arquivos >300 (analysis 953→8, types 411→4, api 614→6, engine 543→3+1, detection 384→4, worker 323→290, pages 620/361→ hook+seções), zero comportamento, `tsc 0` + build OK + 265 passed + smoke 4 healthy. **Fase 3 Guiado** (`fase-3-guiado-2026-09-15.md`): `GuidedReview.tsx` 138 + page análise 218 (toggle Revisar agora 1-por-vez, barra progresso, reúso total do `CorrectionCard`, `pending_only`). **Fase 4 Revisor** (`fase-4-revisor-assistente-2026-09-15.md`): `services/reviewer/{checks,schemas,second_opinion}` + `api/reviewer.py` (GET `/review-suggestions` lista+item, determina via grounding/legal/placeholder/fail-closed; `REVIEWER_SECOND_OPINION` opt-in Ollama) + `lib/api/reviewer.ts` + `types/reviewer.ts` + `ReviewSuggestionBanner` 93 integrado no guiado (banner confiança, aceitar 1 clique, desabilita quando `ajustar` com placeholder). Verificado `tsc 0` + build OK + 265 passed + smoke 4 healthy.
 > **Higiene estrita + Banner + Métrica + Polimento (15/09, `feat/revisor-inteligente-15-09` até `7d97f47`)**: `provider` 304→250+46 (`factory.py`), `extractor` 312→133+168 (`extractor_values.py`), `versoes/page` 313→98+`VersoesSelector`/`VersoesDiffResult`; revisor com banner também em "Ver todas" (`CorrectionCard` 195 c/ `analysisId` + `card-suggestion` + track via `POST /review-suggestions/*/track` c/ métricas `review_suggestion_*`), testes `test_reviewer_*` (7 novos, total **272 passed**), acabamento `fase-4-acabamento-2026-09-15.md` (2ª opinião via `generate`, `ReportSuggestionStats` e `DashboardReviewerStats` no relatório/dashboard + E2E `guided-review.spec.ts`). `tsc 0` + build OK + 0 arquivos >300.
-> **Branding MVP (15/09, pendente):** criar **LOGO** para o MVP e consolidar nome **LicitAI** no projeto (header, `icon.png`, `README`, `guia`, `SEI` pack e `DOCX` header). Guardar em `frontend/public/logo.svg` + `frontend/src/app/icon.png` + `docs/branding/`. Plano antes de executar.
+> **Branding MVP (15/09, feito 24/09 em `a0f76ef`):** `logo.svg` + `icon.svg`/`icon.png` 512 + cabeçalho LicitAI em SEI/HTML/DOCX + guia. Contrato em `docs/branding/README.md`.
 > **E2E 09-ti-pabx-nuvem revalidado (16/09/2026):** re-upload (doc `0e5e1648…`, 257 itens, parser pós-14/09 sem sumário) + análise economic `afd39876…` (`ANALYSIS_MAX_LLM_CALLS=24`, groq `openai/gpt-oss-20b`) em **~7m43s** (mais rápido que os ~13 min da sessão ouro). `completed_with_errors` (`budget_truncated=true`, esperado); nota **9.7**/risco **alto**; **`art6_coverage` 1.0 (100%)**. Artefatos todos HTTP 200: report 19 KB, sei-pack 3 KB, corrected-html 71 KB, corrected-docx 52 KB. `review-suggestions` 200 com 94 bytes (possível lista vazia — conferir na UI em Revisar agora). Stack 4 healthy + `/readyz` ready antes do run. **Pendente humano:** revisar alto/crítico e colar pacote SEI em minuta de teste (gate até 28/09).
 > **Crítica da análise `afd39876…` + plano de confiabilidade (16/09/2026, implementar em 17/09):** Bruno revisou tudo na UI (9 rejeitadas, 1 aprovada, 1 ajustada) → precisão **0.09–0.18**. FP do item 1.1 **confirmado** (prazo em 1.4, prorrogação em 11.5, 130 ramais em 4.3.2; agente julgou cláusula isolada + sugeriu placeholders X/Y/Z). 6 classes: cláusula isolada, dados inventados ([4]: 30%/15%/20% fabricados), lei/regime errado (14.133 citada sob contexto RILC+13.303), trecho alucinado ([0]: texto do RAG), ruído operacional como achado ([1]/[3]/[5]/[8]: "Reexecutar a análise" com sev alto), artefato de segmentação ([6] aprovada mas defeito era fatia truncada; [9] idem). Incoerência: score 9.7 com risco alto após 9/11 rejeições (`recalculate` a verificar). Plano em `.omo/plans/analise-confiavel-2026-09-16.md`: supervisor **determinístico** (`evidence_gate.py` G1–G4) em vez de supervisor-LLM (falhas correlacionadas; review.py já provou não barrar; custo dobraria p/ ~500k tokens), + régua de regressão (Fase 0), contexto em bloco + trava de regime (Fase 2), juiz LLM só no ambíguo + fim do ruído operacional (Fase 3), recalibragem pós-review + precision no dashboard (Fase 4). Meta precisão ≥ 0.80. **Próximo passo proposto: Fase 0+1.** Microcopy do banner `completed_with_errors` simplificada no mesmo dia (`AnalysisBanners.tsx`: "Análise inicial pronta" + texto sem jargão; `tsc` limpo).
 > **Confiabilidade Fase 0–4 implementada (18/09/2026, `main`):** `services/analyzer/evidence_gate.py` (OPS→G1 fuzzy 0.8→G3 regime→G2 placeholder/número/texto→G4 doc-wide, custo zero) fiado em `analysis_persistence.py` (descarta com `evidence_gate_rejected_*`, salva `regime` no snapshot); régua `tests/test_analysis_precision.py` (11 casos `afd39876`) + `tests/test_recalculate_precision.py` (risco cai pós-rejeição, precision 0.18 vs meta 0.80); `PATCH` já recalculava (exclui rejeitadas — 9.7/alto era 2 altos restantes, por design). Branding parcial: `frontend/public/logo.svg` + `docs/branding/README.md` + header LicitAI ao lado de CODEBA (falta `icon.png` 512 + SEI/DOCX/guia). **283 passed · LSP 0 · `tsc` limpo.** Pendente humano: re-run ouro p/ medir precisão, gate até 28/09, secrets, SEI real.
@@ -654,5 +659,6 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Fase 0A sigilo fail-closed (23/09/2026, `fix/seguranca-sigilo-auth` → `main` `e52b712`):** `NULL`=sigiloso; cloud bloqueada; 422/job não-retriável sem Ollama; UI com seletor obrigatório (upload/chat/gerar-tr); E2E `test_e2e_privacy.py` + `privacy-classification.spec.ts`; backfill `NULL`→`publico` no Postgres piloto; redirect pós-upload corrigido (`window.setTimeout`); plano completo em `docs/ops/plano-tecnico-ajustado.md`.
 > **Fase 0B quarentena TCU (24/09/2026, `fix/quarentena-tcu`):** súmulas 247/272 e Acórdão 1214/2013 fora da busca/`legal_basis`/parecer; `version=quarantine-0B` no Postgres piloto; retrieve validado (só lei/RILC).
 > **Fase 0C auth + extensão (24/09/2026, `fix/quarentena-tcu`):** Postgres exige `API_TOKEN`; Compose fail-closed; docs só em development; extensão via BFF + sanitize.
-> **Fase 2 avaliação (24/09/2026, `feat/fase-2-avaliacao-ci`):** `eval/cases.json` + runner Postgres. Baseline semente r@5=1.0; piloto r@5=0.214 (ILIKE) → **0.357** após FTS (Fase 5). CI GitHub permanece `ci.yml.disabled`. Revisão jurídica pendente.
-> **Fases 5–8 (24/09/2026, merges em `main`)**: FTS Postgres + hierarquia + cache (`f81ca21`); grounding/citações (`53fd9b5`); custo/embed cache/non-root (`4eacf7f`); dispositivo + evidência + audit-pack (`76dfd2a`). Docs: [recuperacao-fase5.md](docs/ops/recuperacao-fase5.md), [piloto.md](docs/ops/piloto.md). Pendente só humano (visto jurídico, TCU oficial, gate, SEI, secrets, Ollama).
+> **Fase 2 avaliação (24/09/2026, `feat/fase-2-avaliacao-ci`):** `eval/cases.json` + runner Postgres. Baseline semente r@5=1.0; piloto r@5=0.214 (ILIKE) → 0.357 (FTS simples) → **0.929** (AND/OR + rerank). CI GitHub permanece `ci.yml.disabled`. Revisão jurídica pendente.
+> **Fases 5–8 (24/09/2026, merges em `main`)**: FTS Postgres + hierarquia + cache (`f81ca21`); grounding/citações (`53fd9b5`); custo/embed cache/non-root (`4eacf7f`); dispositivo + evidência + audit-pack (`76dfd2a`).
+> **Sobras 5–8 (24/09/2026, `a0f76ef` em `main`)**: FTS conteúdo + `rag_candidates`; backfill `embedding_vector` 599/599; `/legal` com busca; parecer com rastro; alerta de custo; icon LicitAI; proposta TCU sem sair da quarentena. Docs: [recuperacao-fase5.md](docs/ops/recuperacao-fase5.md), [tcu-urls-propostas.md](docs/ops/tcu-urls-propostas.md), [piloto.md](docs/ops/piloto.md). Pendente só humano (visto jurídico, confirmar TCU, gate, SEI, secrets, Ollama).
