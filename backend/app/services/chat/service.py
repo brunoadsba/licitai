@@ -19,6 +19,10 @@ from app.services.chat.warnings_pt import (
     is_greeting,
     warning_message_pt,
 )
+from app.services.rag.quarantine import (
+    QUARANTINE_ONLY_MESSAGE,
+    consume_quarantine_only,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -142,10 +146,23 @@ async def send_message(
     except Exception:
         logger.exception("Falha ao montar fontes do copiloto")
         fontes = []
+    so_quarentena = consume_quarantine_only()
     logger.info(
-        "chat.sources.retrieved conversation_id=%s count=%d",
-        conversation_id, len(fontes),
+        "chat.sources.retrieved conversation_id=%s count=%d quarantine_only=%s",
+        conversation_id, len(fontes), so_quarentena,
     )
+    if so_quarentena and not fontes:
+        return await _persistir_mensagem(
+            db,
+            conversation,
+            "assistant",
+            QUARANTINE_ONLY_MESSAGE,
+            grounded=False,
+            provider="local",
+            model="quarantine",
+            latency_ms=0,
+            warning=QUARANTINE_ONLY_MESSAGE,
+        )
 
     provider = None
     inicio = time.monotonic()

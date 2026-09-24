@@ -22,6 +22,7 @@ from app.services.analyzer.grounding import (
     is_original_text_grounded,
     should_fail_closed_legal,
 )
+from app.services.rag.quarantine import sanitize_legal_basis
 from app.services.analyzer.scoring import (
     calculate_fallback_scores,
     generate_scores,
@@ -86,11 +87,9 @@ async def persist_item_outcomes(
             grounded = is_original_text_grounded(
                 correction_data.get("original_text", ""), item.content or ""
             )
-            legal_valid = is_legal_basis_valid(
-                correction_data.get("legal_basis"), valid_refs
-            )
+            legal_basis = sanitize_legal_basis(correction_data.get("legal_basis"))
+            legal_valid = is_legal_basis_valid(legal_basis, valid_refs)
             importance = correction_data.get("importance", "media")
-            legal_basis = correction_data.get("legal_basis")
             severity = correction_data.get("severity", "medio")
             fail_closed = should_fail_closed_legal(
                 legal_valid, severity=severity, importance=importance

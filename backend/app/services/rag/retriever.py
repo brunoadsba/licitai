@@ -23,6 +23,7 @@ from app.services.rag.backends import (  # noqa: F401
     _search_sqlite,
     _search_textual,
 )
+from app.services.rag.quarantine import filter_active_rows
 from app.services.rag.semantic import (
     _clear_query_embedding_cache,  # noqa: F401 (re-export: contrato de testes)
     _cosseno,  # noqa: F401 (re-export: contrato de testes)
@@ -36,7 +37,7 @@ DEFAULT_TOP_K = 5
 MAX_QUERY_CHARS = 500
 _CACHE_TTL_SECONDS = 3600
 
-_legal_context_cache: dict[str, tuple[float, list["RetrievedChunk"]]] = {}
+_legal_context_cache: dict[str, tuple[float, list["RetrievedChunk"], bool]] = {}
 
 
 def _clear_legal_context_cache() -> None:
@@ -92,6 +93,9 @@ async def retrieve(
     cached = _legal_context_cache.get(cache_key)
     if cached and time.time() - cached[0] < _CACHE_TTL_SECONDS:
         logger.debug("rag_cache_hit query_hash=%s", cache_key[:12])
+        from app.services.rag.quarantine import quarantine_only_hit
+
+        quarantine_only_hit.set(cached[2])
         return cached[1]
 
     if semantic_on is None:
@@ -116,14 +120,36 @@ async def retrieve(
                 rows = heuristic_rerank(cleaned, rows)
             if rerank_mode == "llm" and rerank_llm is not None:
                 rows = await llm_rerank(rerank_llm, cleaned, rows, top_k)
-            result = _para_chunks(rows[:eff_top_k])
-            _legal_context_cache[cache_key] = (time.time(), result)
-            return result
+            rows, dropped = filter_active_rows(rows)
+            return await _cache_result(
+                db, cleaned, law_numbers, cache_key, rows[:eff_top_k], dropped
+            )
 
-    result = _para_chunks(
-        await _search_textual(db, cleaned, eff_top_k, law_numbers)
+    textual = await _search_textual(db, cleaned, eff_top_k, law_numbers)
+    textual, dropped = filter_active_rows(textual)
+    return await _cache_result(
+        db, cleaned, law_numbers, cache_key, textual, dropped
     )
-    _legal_context_cache[cache_key] = (time.time(), result)
+
+
+async def _cache_result(
+    db,
+    cleaned: str,
+    law_numbers: list[str] | None,
+    cache_key: str,
+    rows: list[dict],
+    dropped: int,
+) -> list[RetrievedChunk]:
+    if dropped:
+        logger.info("rag.quarantine_excluded dropped=%d kept=%d", dropped, len(rows))
+    result = _para_chunks(rows)
+    if not result:
+        peek = await _search_textual(
+            db, cleaned, 5, law_numbers, exclude_quarantine=False
+        )
+        _, dropped = filter_active_rows(peek)
+    only = not result and dropped > 0
+    _legal_context_cache[cache_key] = (time.time(), result, only)
     return result
 
 

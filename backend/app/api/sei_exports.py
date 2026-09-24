@@ -24,6 +24,7 @@ from app.services.analyzer.corrected_document import (
     build_corrected_html,
     build_sei_pack_text,
 )
+from app.services.rag.quarantine import sanitize_legal_basis
 
 router = APIRouter(prefix="/analysis", tags=["Análise"])
 
@@ -74,7 +75,7 @@ async def get_sei_pack(
             title=title,
             suggested_text=c.suggested_text,
             justification=c.justification or "",
-            legal_basis=c.legal_basis,
+            legal_basis=sanitize_legal_basis(c.legal_basis),
             severity=c.severity,
             category=c.category,
         )

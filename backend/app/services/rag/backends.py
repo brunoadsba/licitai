@@ -6,18 +6,25 @@ SQLite usa índice FTS5 com ranking BM25; PostgreSQL usa ILIKE.
 
 from sqlalchemy import text
 
+from app.services.rag.quarantine import apply_sql_quarantine_filter
+
 
 async def _search_textual(
     db,
     query: str,
     top_k: int,
     law_numbers: list[str] | None,
+    exclude_quarantine: bool = True,
 ) -> list[dict]:
     """Executa busca textual respeitando o dialeto do banco."""
     dialect = db.bind.dialect.name if db.bind else "sqlite"
     if dialect == "sqlite":
-        return await _search_sqlite(db, query, top_k, law_numbers)
-    return await _search_postgres(db, query, top_k, law_numbers)
+        return await _search_sqlite(
+            db, query, top_k, law_numbers, exclude_quarantine
+        )
+    return await _search_postgres(
+        db, query, top_k, law_numbers, exclude_quarantine
+    )
 
 
 _STOPWORDS_PT = frozenset({
@@ -55,19 +62,22 @@ async def _search_sqlite(
     query: str,
     top_k: int,
     law_numbers: list[str] | None,
+    exclude_quarantine: bool = True,
 ) -> list[dict]:
     """Busca por FTS5 com ranking BM25."""
     match_expr = " OR ".join(_fts_terms(query))
 
     base_sql = """
         SELECT CAST(lc.id AS TEXT) AS id, ld.law_number, ld.law_title, lc.article, lc.section,
-               lc.chunk_text, bm25(legal_chunks_fts) AS score
+               lc.chunk_text, ld.version, bm25(legal_chunks_fts) AS score
         FROM legal_chunks_fts
         JOIN legal_chunks lc ON CAST(lc.id AS TEXT) = legal_chunks_fts.chunk_id
         JOIN legal_documents ld ON ld.id = lc.legal_document_id
         WHERE legal_chunks_fts MATCH :match
     """
     params = {"match": match_expr}
+    if exclude_quarantine:
+        base_sql = apply_sql_quarantine_filter(base_sql, params)
 
     if law_numbers:
         placeholders = ", ".join(f":law{i}" for i in range(len(law_numbers)))
@@ -86,6 +96,7 @@ async def _search_postgres(
     query: str,
     top_k: int,
     law_numbers: list[str] | None,
+    exclude_quarantine: bool = True,
 ) -> list[dict]:
     """Busca por similaridade textual (ILIKE) em PostgreSQL."""
     terms = [f"%{t}%".replace("'", "") for t in query.split()[:6]]
@@ -94,11 +105,13 @@ async def _search_postgres(
 
     sql = f"""
         SELECT CAST(lc.id AS TEXT) AS id, ld.law_number, ld.law_title, lc.article, lc.section,
-               lc.chunk_text, 1 AS score
+               lc.chunk_text, ld.version, 1 AS score
         FROM legal_chunks lc
         JOIN legal_documents ld ON ld.id = lc.legal_document_id
         WHERE {conditions}
     """
+    if exclude_quarantine:
+        sql = apply_sql_quarantine_filter(sql, params)
 
     if law_numbers:
         placeholders = ", ".join(f":law{i}" for i in range(len(law_numbers)))

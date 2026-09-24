@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 
 from app.schemas.analysis import ReportResponse
+from app.services.rag.quarantine import sanitize_legal_basis, scrub_quarantined_text
 
 logger = logging.getLogger(__name__)
 
@@ -124,18 +125,20 @@ def generate_markdown_report(report: ReportResponse) -> str:
             lines.append(f"**Justificativa:** {correction.justification}")
             lines.append("")
 
-            if correction.legal_basis:
-                lines.append(f"**Fundamento Legal:** {correction.legal_basis}")
+            fundamento = sanitize_legal_basis(correction.legal_basis)
+            if fundamento:
+                lines.append(f"**Fundamento Legal:** {fundamento}")
                 lines.append("")
 
             lines.append("---")
             lines.append("")
 
     # Parecer final
-    if report.final_opinion:
+    parecer = scrub_quarantined_text(report.final_opinion)
+    if parecer:
         lines.append("## 📝 Parecer Final")
         lines.append("")
-        lines.append(report.final_opinion)
+        lines.append(parecer)
         lines.append("")
 
     # Rodapé

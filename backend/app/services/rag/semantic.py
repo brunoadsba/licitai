@@ -15,10 +15,14 @@ import json
 import logging
 from collections import OrderedDict
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 
 from app.config import settings
 from app.models.legal import LegalChunk, LegalDocument
+from app.services.rag.quarantine import (
+    UNVERIFIED_TCU_LAWS,
+    apply_sql_quarantine_filter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -148,19 +152,18 @@ async def _search_semantic_pgvector(
             law_filter = "AND ld.law_number = ANY(:laws)"
             params["laws"] = list(law_numbers)
 
-        sql = text(
-            f"""
+        raw_sql = f"""
             SELECT lc.id, ld.law_number, ld.law_title, lc.article, lc.section,
-                   lc.chunk_text,
+                   lc.chunk_text, ld.version,
                    1 - (lc.embedding_vector <=> CAST(:qvec AS vector)) AS score
             FROM legal_chunks lc
             JOIN legal_documents ld ON ld.id = lc.legal_document_id
             WHERE lc.embedding_vector IS NOT NULL
             {law_filter}
-            ORDER BY lc.embedding_vector <=> CAST(:qvec AS vector)
-            LIMIT :top_k
-            """
-        )
+        """
+        raw_sql = apply_sql_quarantine_filter(raw_sql, params)
+        raw_sql += " ORDER BY lc.embedding_vector <=> CAST(:qvec AS vector) LIMIT :top_k"
+        sql = text(raw_sql)
         rows = (await db.execute(sql, params)).mappings().all()
         scored = [
             {
@@ -170,6 +173,7 @@ async def _search_semantic_pgvector(
                 "article": r["article"],
                 "section": r["section"],
                 "chunk_text": r["chunk_text"],
+                "version": r.get("version"),
                 "score": float(r["score"] or 0.0),
             }
             for r in rows
@@ -237,6 +241,13 @@ async def _search_semantic(
     )
     if law_numbers:
         stmt = stmt.where(LegalDocument.law_number.in_(law_numbers))
+    stmt = stmt.where(~LegalDocument.law_number.in_(list(UNVERIFIED_TCU_LAWS)))
+    stmt = stmt.where(
+        or_(
+            LegalDocument.version.is_(None),
+            ~LegalDocument.version.like("quarantine%"),
+        )
+    )
 
     result = await db.execute(stmt)
     scored: list[dict] = []

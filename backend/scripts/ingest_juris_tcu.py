@@ -1,7 +1,9 @@
 """
-Script de Ingestão de Jurisprudência Relevante do TCU (RAG Fase 4.2).
+Ingestão de jurisprudência TCU (dados preservados, busca inativa).
 
-Popula legal_documents/legal_chunks com súmulas/acórdãos do TCU.
+Fase 0B: os itens abaixo entram com version=quarantine-0B e não participam
+da recuperação padrão até haver URL oficial específica, hash e revisão.
+Ver docs/ops/quarentena-tcu.md.
 
 O RILC CODEBA completo é ingerido separadamente:
     PYTHONPATH=. python scripts/ingest_rilc_codeba.py
@@ -19,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.database import async_session_factory, engine, Base
 from app.services.rag.loader import ingest_extra_document, build_fts_index
+from app.services.rag.quarantine import QUARANTINE_VERSION
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger("ingest_juris_tcu")
@@ -28,7 +31,7 @@ JURISPRUDENCIA_DATA = [
         "law_number": "Súmula 247/TCU",
         "law_title": "Princípio do Parcelamento do Objeto e Competitividade",
         "source_url": "https://pesquisa.apps.tcu.gov.br/",
-        "version": "Súmula TCU",
+        "version": QUARANTINE_VERSION,
         "content": """SÚMULA Nº 247 DO TCU:
 É obrigatória a admissão da adjudicação por item e não por lote, nas licitações para a contratação de obras, serviços, compras e alienações, cujo objeto seja divisível, desde que não haja prejuízo para o conjunto ou perda de economia de escala, tendo em vista o objetivo de propiciar a ampla participação de licitantes que, embora não dispondo de capacidade para a execução da totalidade do objeto, possam fazê-lo com relação a itens isolados.
 Art. 47, II da Lei 14.133/2021 estabelece que as licitações atenderão ao princípio do parcelamento quando for tecnicamente viável e economicamente vantajoso.""",
@@ -37,7 +40,7 @@ Art. 47, II da Lei 14.133/2021 estabelece que as licitações atenderão ao prin
         "law_number": "Súmula 272/TCU",
         "law_title": "Votação de Marcas e Especificações Exclusivas",
         "source_url": "https://pesquisa.apps.tcu.gov.br/",
-        "version": "Súmula TCU",
+        "version": QUARANTINE_VERSION,
         "content": """SÚMULA Nº 272 DO TCU:
 No edital de licitação, é vedada a indicação de marca, característica ou especificação exclusiva, salvo nos casos formalmente justificados no processo administrativo de contratação pela autoridade competente.
 Art. 41, I da Lei 14.133/2021 autoriza indicação de marca apenas para padronização, padronização técnica previamente formalizada ou quando for a única capaz de atender às necessidades da Administração.""",
@@ -46,7 +49,7 @@ Art. 41, I da Lei 14.133/2021 autoriza indicação de marca apenas para padroniz
         "law_number": "Acórdão 1214/2013-TCU-Plenário",
         "law_title": "Critérios de Qualificação Técnica e Exequibilidade",
         "source_url": "https://pesquisa.apps.tcu.gov.br/",
-        "version": "Acórdão TCU",
+        "version": QUARANTINE_VERSION,
         "content": """ACÓRDÃO 1214/2013 PLENÁRIO TCU:
 A exigência de quantitativos mínimos em atestados de capacidade técnico-operacional não deve ultrapassar 50% dos quantitativos previstos para o objeto da licitação, salvo em casos excepcionais devidamente justificados no Termo de Referência. Exigências desproporcionais restringem indevidamente o caráter competitivo da licitação.""",
     },

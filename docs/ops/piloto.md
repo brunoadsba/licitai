@@ -4,6 +4,8 @@ Checklist operacional do elaborador de TR em ambiente single-user.
 
 Plano técnico pós-auditoria (ondas 0A–0C e fases 1–9): [plano-tecnico-ajustado.md](plano-tecnico-ajustado.md).
 
+Quarentena TCU (Fase 0B): [quarentena-tcu.md](quarentena-tcu.md).
+
 ## Status (código vs pendências humanas)
 
 | Item | Status |

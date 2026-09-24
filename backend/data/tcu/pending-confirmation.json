@@ -1,0 +1,33 @@
+{
+  "phase": "0B",
+  "version": "quarantine-0B",
+  "policy": "fail-closed: fontes sem URL oficial específica saem da busca padrão; dados não são apagados",
+  "reingest_requires": [
+    "URL oficial específica (não a busca genérica pesquisa.apps.tcu.gov.br)",
+    "título oficial",
+    "data de coleta",
+    "hash do texto",
+    "separação entre enunciado e comentário",
+    "revisão jurídica"
+  ],
+  "pending": [
+    {
+      "law_number": "Súmula 247/TCU",
+      "title": "Princípio do Parcelamento do Objeto e Competitividade",
+      "source_url": "https://pesquisa.apps.tcu.gov.br/",
+      "reason": "URL genérica da busca TCU; enunciado misturado com comentário da Lei 14.133"
+    },
+    {
+      "law_number": "Súmula 272/TCU",
+      "title": "Vedação de Marcas e Especificações Exclusivas",
+      "source_url": "https://pesquisa.apps.tcu.gov.br/",
+      "reason": "URL genérica da busca TCU; enunciado misturado com comentário da Lei 14.133"
+    },
+    {
+      "law_number": "Acórdão 1214/2013-TCU-Plenário",
+      "title": "Critérios de Qualificação Técnica e Exequibilidade",
+      "source_url": "https://pesquisa.apps.tcu.gov.br/",
+      "reason": "URL genérica da busca TCU; atribuição e texto sem fonte específica"
+    }
+  ]
+}

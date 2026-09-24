@@ -7,6 +7,7 @@ import re
 from typing import Iterable
 
 from app.services.analyzer.grounding import _normalize
+from app.services.rag.quarantine import sanitize_legal_basis
 
 SEI_APPLICABLE_STATUSES = frozenset({"aprovada", "ajustada"})
 
@@ -181,8 +182,9 @@ def build_sei_pack_text(
             lines.append("**Justificativa:**")
             lines.append(e["justification"])
             lines.append("")
-        if e.get("legal_basis"):
-            lines.append(f"**Base legal:** {e['legal_basis']}")
+        fundamento = sanitize_legal_basis(e.get("legal_basis"))
+        if fundamento:
+            lines.append(f"**Base legal:** {fundamento}")
             lines.append("")
         lines.append("---")
         lines.append("")

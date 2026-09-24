@@ -19,6 +19,7 @@ KNOWN_REASON_SLUGS = frozenset(
         "resposta-vazia",
         "source-id-inexistente",
         "falha-llm",
+        "fonte-quarentena",
     }
 )
 
@@ -53,6 +54,7 @@ _WARNING_PT: dict[str, str | None] = {
     "source-id-inexistente": None,
     "falha-llm": None,
     "recusa-llm": None,
+    "fonte-quarentena": None,
 }
 
 _CONTENT_PT: dict[str, str] = {

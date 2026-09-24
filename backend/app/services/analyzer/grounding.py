@@ -16,6 +16,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import selectinload
 
+from app.services.rag.quarantine import is_quarantined_law
+
 # Refs válidas: "lei_norm|artigo_num" (ex.: "14.133/2021|6")
 LegalRefSet = set[str]
 
@@ -136,6 +138,8 @@ async def get_valid_legal_refs(db) -> LegalRefSet:
         for chunk in chunks:
             doc = chunk.legal_document
             if not doc or not doc.law_number:
+                continue
+            if is_quarantined_law(doc.law_number, doc.version):
                 continue
             art_num = _normalize_article_number(chunk.article)
             if not art_num:
