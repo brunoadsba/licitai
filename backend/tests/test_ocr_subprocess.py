@@ -1,4 +1,4 @@
-"""Testes do OCR isolado (timeout hard)."""
+"""Testes do OCR isolado (timeout hard que mata o processo)."""
 
 from __future__ import annotations
 
@@ -11,18 +11,19 @@ import pytest
 from app.services.parser.ocr_subprocess import run_ocr_isolated
 
 
-def test_run_ocr_isolated_timeout_raises():
+def test_run_ocr_isolated_timeout_kills_process():
     fut = MagicMock()
     fut.result.side_effect = FuturesTimeoutError()
     pool = MagicMock()
-    pool.__enter__.return_value = pool
-    pool.__exit__.return_value = False
     pool.submit.return_value = fut
+    pool._processes = {}
 
     with patch(
         "app.services.parser.ocr_subprocess.ProcessPoolExecutor",
         return_value=pool,
-    ):
+    ), patch(
+        "app.services.parser.ocr_subprocess._terminate_pool"
+    ) as terminate:
         with pytest.raises(ValueError, match="timeout hard"):
             run_ocr_isolated(
                 Path("/tmp/fake.pdf"),
@@ -30,15 +31,14 @@ def test_run_ocr_isolated_timeout_raises():
                 max_ocr_pages=5,
                 timeout_seconds=1,
             )
-    fut.cancel.assert_called()
+    terminate.assert_called_once_with(pool)
+    pool.shutdown.assert_called_with(wait=False, cancel_futures=True)
 
 
 def test_run_ocr_isolated_success():
     fut = MagicMock()
     fut.result.return_value = [{"page": 1, "text": "ola"}]
     pool = MagicMock()
-    pool.__enter__.return_value = pool
-    pool.__exit__.return_value = False
     pool.submit.return_value = fut
 
     with patch(
@@ -53,6 +53,7 @@ def test_run_ocr_isolated_success():
         )
     assert pages == [{"page": 1, "text": "ola"}]
     pool.submit.assert_called_once()
+    pool.shutdown.assert_called_with(wait=False, cancel_futures=True)
 
 
 def test_ocr_pages_sync_rejects_over_quota():

@@ -1,17 +1,17 @@
 """
-Pipeline de upload de documentos: validação, persistência e parsing.
-
-Extraído de app/api/documents.py para manter os endpoints enxutos e
-permitir reuso (ex.: scripts de importação em lote).
+Pipeline de upload: validação, persistência e enfileiramento do parse.
 """
 
 import logging
 
 import aiofiles
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.document import Document, DocumentItem
-from app.services.parser import parse_document
+from app.models.job import Job
+from app.services.jobs import enqueue
+from app.services.parser import ParseResult, parse_document
 from app.utils.file_validation import (
     UPLOAD_DIR,
     generate_safe_filename,
@@ -22,6 +22,8 @@ from app.utils.file_validation import (
 )
 
 logger = logging.getLogger(__name__)
+
+_PARSE_ACTIVE = ("pending", "running")
 
 
 class UploadValidationError(ValueError):
@@ -55,13 +57,25 @@ async def salvar_arquivo_upload(file_bytes: bytes, file_ext: str) -> str:
     return safe_filename
 
 
+async def enqueue_document_parse(db: AsyncSession, document: Document) -> Job:
+    """Enfileira parse no worker. Não executa extração pesada no request."""
+    doc_id = str(document.id)
+    result = await db.execute(
+        select(Job).where(Job.type == "parse", Job.status.in_(_PARSE_ACTIVE))
+    )
+    for job in result.scalars():
+        if (job.payload or {}).get("document_id") == doc_id:
+            return job
+    return await enqueue(db, "parse", {"document_id": doc_id})
+
+
 async def parse_e_inserir_itens(
     db: AsyncSession, document: Document, file_ext: str
 ) -> bool:
-    """Parseia o documento e insere os itens; False em caso de erro de parsing."""
+    """Parseia no worker e insere itens a partir da estrutura intermediária."""
     file_path = get_upload_path(document.filename_stored)
     try:
-        items = await parse_document(file_path, file_ext)
+        parsed = await parse_document(file_path, file_ext)
     except Exception:
         logger.exception("Erro ao parsear documento %s", document.id)
         document.status = "error"
@@ -69,18 +83,32 @@ async def parse_e_inserir_itens(
         await db.flush()
         return False
 
-    for order, item_data in enumerate(items):
-        db.add(DocumentItem(
-            document_id=document.id,
-            item_number=item_data["item_number"],
-            title=item_data.get("title"),
-            content=item_data["content"],
-            page_number=item_data.get("page_number"),
-            item_order=order,
-            item_type=item_data.get("item_type", "item"),
-        ))
+    if not isinstance(parsed, ParseResult):
+        parsed = ParseResult.model_validate(parsed)
+    if not parsed.items:
+        document.status = "error"
+        document.error_message = "Documento incompleto: nenhum item extraído."
+        await db.flush()
+        return False
 
-    document.total_items = len(items)
+    await db.execute(
+        delete(DocumentItem).where(DocumentItem.document_id == document.id)
+    )
+    for order, item in enumerate(parsed.items):
+        db.add(
+            DocumentItem(
+                document_id=document.id,
+                item_number=item.item_number,
+                title=item.title,
+                content=item.content,
+                page_number=item.page_number,
+                item_order=order,
+                item_type=item.item_type,
+            )
+        )
+
+    document.total_items = len(parsed.items)
     document.status = "parsed"
+    document.error_message = None
     await db.flush()
     return True

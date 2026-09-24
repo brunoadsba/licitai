@@ -60,7 +60,14 @@ CREATE TABLE IF NOT EXISTS schema_meta (
     key VARCHAR(64) PRIMARY KEY,
     value VARCHAR(255) NOT NULL
 );
-INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_001')
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS content_hash VARCHAR(64);
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS origin VARCHAR(200);
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS collected_at TIMESTAMPTZ;
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS ingest_status VARCHAR(20) NOT NULL DEFAULT 'published';
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS last_error TEXT;
+ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS ingest_manifest JSONB;
+
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_002')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 CREATE TABLE IF NOT EXISTS retrieval_runs (
@@ -88,7 +95,7 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL
 );
 DELETE FROM alembic_version;
-INSERT INTO alembic_version (version_num) VALUES ('20260924_001');
+INSERT INTO alembic_version (version_num) VALUES ('20260924_002');
 
 -- CHECKs alinhados ao ORM (idempotente em Postgres legado)
 DO $$

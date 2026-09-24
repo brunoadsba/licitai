@@ -48,8 +48,11 @@ def parse_law_text(content: str) -> list[LawChunk]:
     Agrupa o artigo com seus §§ e incisos. Rastreia título/capítulo.
     Ignora cabeçalho (antes do 1º artigo) e rodapé (após a nota DOU).
     Preserva página de origem quando houver marcadores `# Página N`
-    ou `[[pagina:N]]`.
+    ou `[[pagina:N]]`. Tachado e (VETADO) saem do texto vigente.
     """
+    from app.services.parser.legal_marks import normalize_legal_text
+
+    content = normalize_legal_text(content).vigente
     chunks: list[LawChunk] = []
     current_article: str | None = None
     current_section = ""
@@ -242,14 +245,26 @@ async def ingest_law_text(
     law_title: str,
     source_url: str | None = None,
     version: str | None = None,
+    origin: str | None = None,
+    collected_at=None,
 ) -> LegalDocument:
-    """Ingere o texto de uma lei no banco, substituindo versão anterior."""
-    chunks = parse_law_text(content)
-    if not chunks:
-        raise ValueError(f"Nenhum artigo encontrado em {law_number}")
-    return await _persist_document(
-        db, chunks, law_number, law_title, source_url, version
+    """Ingere o texto de uma lei no banco (idempotente por hash)."""
+    from app.services.ingest.pipeline import ingest_legal_source
+
+    result = await ingest_legal_source(
+        db,
+        content=content,
+        law_number=law_number,
+        law_title=law_title,
+        source_url=source_url,
+        version=version,
+        origin=origin,
+        collected_at=collected_at,
+        require_articles=True,
     )
+    if not result.success or result.document is None:
+        raise ValueError(result.message or f"Falha ao ingerir {law_number}")
+    return result.document
 
 
 async def ingest_extra_document(
@@ -259,14 +274,26 @@ async def ingest_extra_document(
     law_title: str,
     source_url: str | None = None,
     version: str | None = None,
+    origin: str | None = None,
+    collected_at=None,
 ) -> LegalDocument:
     """Ingere um documento jurídico genérico (acórdão/instrução/ementa)."""
-    chunks = parse_extra_text(content)
-    if not chunks:
-        raise ValueError(f"Nenhum conteúdo encontrado em {law_number}")
-    return await _persist_document(
-        db, chunks, law_number, law_title, source_url, version
+    from app.services.ingest.pipeline import ingest_legal_source
+
+    result = await ingest_legal_source(
+        db,
+        content=content,
+        law_number=law_number,
+        law_title=law_title,
+        source_url=source_url,
+        version=version,
+        origin=origin,
+        collected_at=collected_at,
+        require_articles=False,
     )
+    if not result.success or result.document is None:
+        raise ValueError(result.message or f"Falha ao ingerir {law_number}")
+    return result.document
 
 
 async def build_fts_index(db: AsyncSession) -> None:

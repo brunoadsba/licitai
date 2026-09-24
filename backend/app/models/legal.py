@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import (
     JSON,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Integer,
@@ -37,6 +38,19 @@ class LegalDocument(Base):
     source_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     version: Mapped[str | None] = mapped_column(String(50), nullable=True)
     total_chunks: Mapped[int] = mapped_column(Integer, default=0)
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    origin: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    collected_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    ingest_status: Mapped[str] = mapped_column(
+        String(20),
+        CheckConstraint("ingest_status IN ('draft', 'published', 'failed')"),
+        default="published",
+        nullable=False,
+    )
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ingest_manifest: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

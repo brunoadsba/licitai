@@ -57,6 +57,7 @@ async def main() -> None:
                 law_title=law["law_title"],
                 source_url=law["source_url"],
                 version=law["version"],
+                origin="planalto",
             )
         await build_fts_index(db)
         await db.commit()

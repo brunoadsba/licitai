@@ -162,3 +162,13 @@ class TestInitSqlChatContract:
         assert types["query_hash"] == "varchar"
         assert types["corpus_version"] == "varchar"
         assert types["retrieved_ids"] == "jsonb"
+
+    def test_legal_documents_ingest_fase3(self):
+        tables = _create_table_statements()
+        types = _column_types(tables["legal_documents"])
+        assert types["content_hash"] == "varchar"
+        assert types["origin"] == "varchar"
+        assert types["ingest_status"] == "varchar"
+        assert types["ingest_manifest"] == "jsonb"
+        raw = INIT_SQL_PATH.read_text(encoding="utf-8")
+        assert "schema_version', '20260924_002'" in raw
