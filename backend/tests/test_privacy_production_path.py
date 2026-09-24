@@ -36,7 +36,7 @@ from app.services.rag.loader import build_fts_index
 from app.services.rag.retriever import _clear_legal_context_cache, retrieve
 from app.services.reviewer.second_opinion import refine_with_llm
 
-SECRET = "SIGILO-NAO-LOGAR-9f3a"
+CANARY = "texto-canario-de-sigilo"
 _ENGINES: list = []
 
 
@@ -82,7 +82,7 @@ def _item(document_id) -> DocumentItem:
         item_number="1.1",
         title="Objeto",
         content=(
-            f"{SECRET} A contratação deverá observar os requisitos técnicos "
+            f"{CANARY} A contratação deverá observar os requisitos técnicos "
             "e jurídicos estabelecidos neste termo de referência."
         ),
         item_order=1,
@@ -229,7 +229,7 @@ async def test_analise_sigilosa_nao_chama_nuvem(
         assert fresh.llm_provider == "blocked"
         assert "sigiloso" in (fresh.error_message or "").lower()
     assert guard_against_cloud == []
-    assert SECRET not in caplog.text
+    assert CANARY not in caplog.text
     assert "privacy.decision" in caplog.text
     assert "blocked" in caplog.text
 
@@ -398,7 +398,7 @@ async def test_chat_sigiloso_bloqueia_e_publico_passa(
         assert ok_resp.status_code == 200
         assert spy.calls == 1
     assert guard_against_cloud == []
-    assert SECRET not in resp.text
+    assert CANARY not in resp.text
 
 
 @pytest.mark.asyncio
@@ -415,7 +415,7 @@ async def test_revisor_sigiloso_nao_chama_nuvem(monkeypatch, guard_against_cloud
     result = await refine_with_llm(
         suggestion,
         correction=correction,
-        item_content=f"{SECRET} trecho do item sigiloso.",
+        item_content=f"{CANARY} trecho do item sigiloso.",
         classification="sigiloso",
     )
     assert guard_against_cloud == []
