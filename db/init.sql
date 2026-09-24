@@ -149,6 +149,13 @@ CREATE TABLE IF NOT EXISTS legal_documents (
     source_url VARCHAR(500),
     version VARCHAR(50),
     total_chunks INTEGER DEFAULT 0,
+    content_hash VARCHAR(64),
+    origin VARCHAR(200),
+    collected_at TIMESTAMP WITH TIME ZONE,
+    ingest_status VARCHAR(20) NOT NULL DEFAULT 'published'
+        CHECK (ingest_status IN ('draft', 'published', 'failed')),
+    last_error TEXT,
+    ingest_manifest JSONB,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -340,7 +347,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
     value VARCHAR(255) NOT NULL
 );
 
-INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_001')
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_002')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 CREATE INDEX IF NOT EXISTS idx_legal_chunks_embedding_hnsw

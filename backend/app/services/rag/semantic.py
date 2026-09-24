@@ -19,6 +19,7 @@ from sqlalchemy import func, or_, select, text
 
 from app.config import settings
 from app.models.legal import LegalChunk, LegalDocument
+from app.services.rag.published import apply_sql_published_filter
 from app.services.rag.quarantine import (
     UNVERIFIED_TCU_LAWS,
     apply_sql_quarantine_filter,
@@ -162,6 +163,7 @@ async def _search_semantic_pgvector(
             {law_filter}
         """
         raw_sql = apply_sql_quarantine_filter(raw_sql, params)
+        raw_sql = apply_sql_published_filter(raw_sql)
         raw_sql += " ORDER BY lc.embedding_vector <=> CAST(:qvec AS vector) LIMIT :top_k"
         sql = text(raw_sql)
         rows = (await db.execute(sql, params)).mappings().all()
@@ -246,6 +248,12 @@ async def _search_semantic(
         or_(
             LegalDocument.version.is_(None),
             ~LegalDocument.version.like("quarantine%"),
+        )
+    )
+    stmt = stmt.where(
+        or_(
+            LegalDocument.ingest_status == "published",
+            LegalDocument.ingest_status.is_(None),
         )
     )
 

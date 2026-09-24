@@ -6,7 +6,7 @@ import hashlib
 import json
 import time
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.legal import LegalDocument
@@ -38,7 +38,14 @@ async def compute_corpus_version(
             LegalDocument.law_number,
             LegalDocument.version,
             LegalDocument.total_chunks,
-        ).order_by(LegalDocument.law_number)
+        )
+        .where(
+            or_(
+                LegalDocument.ingest_status == "published",
+                LegalDocument.ingest_status.is_(None),
+            )
+        )
+        .order_by(LegalDocument.law_number)
     )
     rows = [
         {

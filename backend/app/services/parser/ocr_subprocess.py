@@ -1,8 +1,10 @@
-"""OCR em subprocesso isolado com hard timeout."""
+"""OCR em subprocesso isolado com hard timeout que mata o processo."""
 
 from __future__ import annotations
 
 import logging
+import os
+import signal
 from concurrent.futures import ProcessPoolExecutor, TimeoutError as FuturesTimeoutError
 from multiprocessing import get_context
 from pathlib import Path
@@ -42,6 +44,22 @@ def _ocr_pages_sync(file_path: str, max_pages: int, max_ocr_pages: int) -> list[
     return pages
 
 
+def _terminate_pool(pool: ProcessPoolExecutor) -> None:
+    """Encerra os processos do pool (SIGKILL). O timeout não pode só cancelar o Future."""
+    processes = getattr(pool, "_processes", None) or {}
+    for proc in list(processes.values()):
+        pid = getattr(proc, "pid", None)
+        if not pid:
+            kill = getattr(proc, "kill", None)
+            if callable(kill):
+                kill()
+            continue
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            continue
+
+
 def run_ocr_isolated(
     file_path: Path,
     *,
@@ -52,10 +70,12 @@ def run_ocr_isolated(
     """
     Executa OCR em processo separado e aplica hard timeout.
 
-    Se o timeout estourar, o pool é encerrado (processo filho terminado).
+    Se o timeout estourar, os processos filhos são mortos — o `with`
+    ProcessPoolExecutor faria shutdown(wait=True) e esperaria o OCR acabar.
     """
     ctx = get_context("spawn")
-    with ProcessPoolExecutor(max_workers=1, mp_context=ctx) as pool:
+    pool = ProcessPoolExecutor(max_workers=1, mp_context=ctx)
+    try:
         fut = pool.submit(
             _ocr_pages_sync, str(file_path), max_pages, max_ocr_pages
         )
@@ -63,10 +83,13 @@ def run_ocr_isolated(
             return fut.result(timeout=timeout_seconds)
         except FuturesTimeoutError as exc:
             logger.error(
-                "OCR hard-timeout após %.0fs para %s", timeout_seconds, file_path.name
+                "OCR hard-timeout após %.0fs para %s",
+                timeout_seconds,
+                file_path.name,
             )
-            # Cancelamento + shutdown do pool mata o worker.
-            fut.cancel()
+            _terminate_pool(pool)
             raise ValueError(
                 f"OCR excedeu o timeout hard de {int(timeout_seconds)}s."
             ) from exc
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)

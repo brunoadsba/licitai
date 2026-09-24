@@ -6,6 +6,7 @@ SQLite usa índice FTS5 com ranking BM25; PostgreSQL usa ILIKE.
 
 from sqlalchemy import text
 
+from app.services.rag.published import apply_sql_published_filter
 from app.services.rag.quarantine import apply_sql_quarantine_filter
 
 
@@ -78,6 +79,7 @@ async def _search_sqlite(
     params = {"match": match_expr}
     if exclude_quarantine:
         base_sql = apply_sql_quarantine_filter(base_sql, params)
+    base_sql = apply_sql_published_filter(base_sql)
 
     if law_numbers:
         placeholders = ", ".join(f":law{i}" for i in range(len(law_numbers)))
@@ -112,6 +114,7 @@ async def _search_postgres(
     """
     if exclude_quarantine:
         sql = apply_sql_quarantine_filter(sql, params)
+    sql = apply_sql_published_filter(sql)
 
     if law_numbers:
         placeholders = ", ".join(f":law{i}" for i in range(len(law_numbers)))

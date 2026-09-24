@@ -10,6 +10,8 @@ Auth operacional do piloto (Fase 0C): [auth-piloto.md](auth-piloto.md). O token 
 
 Avaliação curada (Fase 2): [eval-fase2.md](eval-fase2.md). Runner local; CI GitHub desligado.
 
+Ingestão confiável (Fase 3): [ingestao-fase3.md](ingestao-fase3.md). Schema `20260924_002`.
+
 ## Status (código vs pendências humanas)
 
 | Item | Status |
@@ -28,6 +30,7 @@ Avaliação curada (Fase 2): [eval-fase2.md](eval-fase2.md). Runner local; CI Gi
 | Rotação de secrets | **Pendente** (manual) |
 | Benchmark quinzenal com 5 TRs CODEBA | **Baseline Art.6** + **sessão ouro LLM** em [quinzena-2026-09-14.md](quinzena-2026-09-14.md) — [piloto-qualidade.md](piloto-qualidade.md) · fixtures em `fixtures/trs-codeba/` |
 | Avaliação RAG Fase 2 (conjunto + baseline) | **Feito** ([eval-fase2.md](eval-fase2.md)); visto jurídico pendente |
+| Ingestão Fase 3 (hash, worker, OCR kill) | **Feito** ([ingestao-fase3.md](ingestao-fase3.md)); schema `20260924_002` |
 | CI GitHub / K8s / fine-tune / multi-tenant | **Fora de escopo** (não fazer) |
 
 ## Secrets (manual Bruno)

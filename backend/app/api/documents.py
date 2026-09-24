@@ -35,7 +35,7 @@ from app.services.privacy import (
 )
 from app.services.upload_service import (
     UploadValidationError,
-    parse_e_inserir_itens,
+    enqueue_document_parse,
     salvar_arquivo_upload,
     validar_upload,
 )
@@ -53,7 +53,7 @@ TIPOS_DOCUMENTO = {"tr", "proposta"}
     response_model=DocumentResponse,
     status_code=201,
     summary="Upload de documento",
-    description="Envia um PDF ou DOCX para análise. O documento será parseado automaticamente.",
+    description="Envia um PDF ou DOCX. O parse pesado corre no worker; a resposta não espera a extração.",
 )
 async def upload_document(
     file: UploadFile = File(..., description="Arquivo PDF ou DOCX"),
@@ -146,9 +146,8 @@ async def upload_document(
 
     try:
         await db.flush()
-        document.status = "parsing"
-        await parse_e_inserir_itens(db, document, file_ext)
-        # Commit explícito antes do 201: evita corrida com DELETE/GET imediatos.
+        await enqueue_document_parse(db, document)
+        # Commit explícito antes do 201: o parse pesado corre no worker.
         await db.commit()
     except Exception:
         await db.rollback()
@@ -257,6 +256,28 @@ async def get_document(
     response.total_items = len(items_response)
 
     return response
+
+
+@router.post(
+    "/{document_id}/reparse",
+    response_model=DocumentResponse,
+    summary="Reprocessar parse",
+    description="Enfileira novamente o parse de um documento com falha ou já extraído.",
+)
+async def reparse_document(
+    document_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+):
+    """Reprocessa extração sem novo upload (falha reprocessável)."""
+    result = await db.execute(select(Document).where(Document.id == document_id))
+    document = result.scalar_one_or_none()
+    if not document:
+        raise HTTPException(status_code=404, detail="Documento não encontrado.")
+    document.status = "uploaded"
+    document.error_message = None
+    await enqueue_document_parse(db, document)
+    await db.commit()
+    return DocumentResponse.model_validate(document)
 
 
 @router.delete(

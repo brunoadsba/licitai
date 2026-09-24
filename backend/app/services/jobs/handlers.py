@@ -50,5 +50,6 @@ async def _run_parse_job(payload: dict) -> None:
         await db.flush()
         ok = await parse_e_inserir_itens(db, document, document.file_type)
         if not ok:
+            await db.commit()
             raise RuntimeError(document.error_message or "Falha no parse.")
         await db.commit()
