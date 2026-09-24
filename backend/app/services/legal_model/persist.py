@@ -109,7 +109,11 @@ async def _insert_provisions(
     published: bool,
 ) -> dict[str, LegalProvision]:
     by_path: dict[str, LegalProvision] = {}
+    seen: set[str] = set()
     for draft in drafts:
+        if draft.path in seen:
+            continue
+        seen.add(draft.path)
         status = draft.status if published else "historical"
         row = LegalProvision(
             version_id=version_id,

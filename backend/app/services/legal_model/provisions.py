@@ -37,6 +37,11 @@ def _norm_art(raw: str) -> str:
     return cleaned.lower()
 
 
+def _norm_para(raw: str) -> str:
+    digits = re.sub(r"\D", "", raw)
+    return digits or raw.lower()
+
+
 def parse_provisions(content: str) -> list[ProvisionDraft]:
     """Extrai dispositivos do texto vigente, com caminho e ancestral."""
     vigente = normalize_legal_text(content).vigente
@@ -49,7 +54,7 @@ def parse_provisions(content: str) -> list[ProvisionDraft]:
             return None
         parts = [f"art.{_norm_art(article)}"]
         if paragraph:
-            parts.append(f"par.{paragraph.lower()}")
+            parts.append(f"par.{_norm_para(paragraph)}")
         if inciso:
             parts.append(f"inc.{inciso}")
         if alinea:
@@ -69,6 +74,12 @@ def parse_provisions(content: str) -> list[ProvisionDraft]:
         text = "\n".join(buffers.pop(path)).strip()
         if not text:
             return
+        for draft in drafts:
+            if draft.path == path:
+                merged = f"{draft.canonical_text}\n{text}".strip()
+                draft.canonical_text = merged
+                draft.provision_hash = sha256_text(merged)
+                return
         drafts.append(
             ProvisionDraft(
                 path=path,

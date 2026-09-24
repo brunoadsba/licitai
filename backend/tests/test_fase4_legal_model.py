@@ -36,11 +36,21 @@ def _engine():
     )
 
 
+def test_parser_mescla_paragrafo_repetido_apos_veto():
+    drafts = parse_provisions(
+        "Art. 37. Julgamento.\n§ 2º (VETADO).\n§ 2º Redação promulgada.\n"
+    )
+    paths = [d.path for d in drafts]
+    assert paths.count("art.37/par.2") == 1
+    para = next(d for d in drafts if d.path == "art.37/par.2")
+    assert "Redação promulgada" in para.canonical_text
+
+
 def test_parser_hierarquico_e_vetado():
     drafts = parse_provisions(LAW)
     paths = [d.path for d in drafts]
     assert "art.1" in paths
-    assert "art.1/par.1º" in paths or "art.1/par.1" in paths
+    assert "art.1/par.1" in paths
     assert any(p.endswith("/inc.I") for p in paths)
     assert any(p.endswith("/inc.II") for p in paths)
     assert "art.2" not in paths
