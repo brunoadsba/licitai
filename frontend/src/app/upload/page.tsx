@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
+import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { uploadDocument, listFornecedores } from '@/lib/api';
+import { uploadDocument } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import { Button } from '@/components/ui/Button';
@@ -13,8 +12,9 @@ import UploadTypeFields, {
   type DocumentClassification,
 } from '@/components/upload/UploadTypeFields';
 import { useUploadAnalysisPipeline } from '@/components/upload/useUploadAnalysisPipeline';
-import type { DocumentStatus, Fornecedor } from '@/types';
+import type { DocumentStatus } from '@/types';
 import { cn } from '@/lib/utils';
+import { copy } from '@/lib/copy';
 
 type UploadState = 'idle' | 'processing' | 'success' | 'error';
 
@@ -35,12 +35,8 @@ export default function UploadPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [documentId, setDocumentId] = useState<string | null>(null);
-  const [documentType, setDocumentType] = useState<'tr' | 'proposta'>('tr');
-  const [fornecedorId, setFornecedorId] = useState('');
   const [classification, setClassification] = useState<DocumentClassification | ''>('');
-  const [fornecedores, setFornecedores] = useState<Fornecedor[]>([]);
   const [currentStage, setCurrentStage] = useState<DocumentStatus>('uploaded');
-  /** Default piloto: econômico (jurídico + Art. 6). Completo só em opções. */
   const [analysisMode, setAnalysisMode] = useState<'economic' | 'multi_agent'>('economic');
   const [optionsOpen, setOptionsOpen] = useState(false);
 
@@ -51,14 +47,7 @@ export default function UploadPage() {
     setError,
     setCurrentStage,
     analysisMode,
-    documentType,
   });
-
-  useEffect(() => {
-    listFornecedores()
-      .then((data) => setFornecedores(data.fornecedores))
-      .catch(() => {});
-  }, []);
 
   function validateAndSet(file: File) {
     setError(null);
@@ -81,12 +70,6 @@ export default function UploadPage() {
     if (!selectedFile) return;
     if (!classification) {
       setError('Selecione a classificação do documento antes de enviar.');
-      setOptionsOpen(true);
-      return;
-    }
-    if (documentType === 'proposta' && !fornecedorId) {
-      setError('Selecione o fornecedor da proposta antes de enviar.');
-      setOptionsOpen(true);
       return;
     }
     try {
@@ -94,9 +77,8 @@ export default function UploadPage() {
       setCurrentStage('uploaded');
       setError(null);
       const result = await uploadDocument(selectedFile, {
-        documentType,
+        documentType: 'tr',
         classification,
-        fornecedorId: documentType === 'proposta' ? fornecedorId : undefined,
       });
       setDocumentId(result.id);
     } catch (err) {
@@ -122,22 +104,14 @@ export default function UploadPage() {
     <div className="animate-fade-in mx-auto max-w-2xl space-y-8">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
-          Enviar TR
+          {copy.upload.title}
         </h1>
-        <p className="mt-1 text-sm text-content-muted">
-          Solte o Termo de Referência. A análise começa em seguida; você revisa o que importa e
-          copia só o aprovado para o SEI.
-        </p>
+        <p className="mt-1 text-sm text-content-muted">{copy.upload.subtitle}</p>
       </div>
 
       <UploadTypeFields
-        documentType={documentType}
-        fornecedorId={fornecedorId}
         classification={classification}
-        fornecedores={fornecedores}
         locked={locked}
-        onDocumentTypeChange={setDocumentType}
-        onFornecedorChange={setFornecedorId}
         onClassificationChange={setClassification}
       />
 
@@ -146,14 +120,8 @@ export default function UploadPage() {
         processing={state === 'processing'}
         success={state === 'success'}
         stageLabel={stageLabel}
-        successTitle={
-          documentType === 'proposta' ? 'Proposta enviada!' : 'Análise iniciada!'
-        }
-        successSubtitle={
-          documentType === 'proposta'
-            ? 'Abrindo Comparações…'
-            : 'Abrindo a tela de análise…'
-        }
+        successTitle="Análise iniciada!"
+        successSubtitle="Abrindo a tela de análise…"
         onFileSelect={validateAndSet}
         onUpload={handleUpload}
         onReset={resetUpload}
@@ -175,48 +143,34 @@ export default function UploadPage() {
           />
         </button>
         {optionsOpen && (
-          <div className="space-y-5 border-t border-line-subtle px-4 py-4">
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-content-secondary">Abrangência da análise</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={analysisMode === 'economic' ? 'primary' : 'secondary'}
-                  disabled={locked}
-                  data-testid="analysis-mode-essential"
-                  onClick={() => setAnalysisMode('economic')}
-                >
-                  Revisão essencial
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={analysisMode === 'multi_agent' ? 'primary' : 'secondary'}
-                  disabled={locked}
-                  data-testid="analysis-mode-full"
-                  onClick={() => setAnalysisMode('multi_agent')}
-                >
-                  Revisão completa
-                </Button>
-              </div>
-              <p className="text-[11px] text-content-subtle">
-                Essencial = estrutura do TR + riscos jurídicos. Completa = também técnico e
-                redação.
-              </p>
+          <div className="space-y-2 border-t border-line-subtle px-4 py-4">
+            <p className="text-xs font-medium text-content-secondary">Abrangência da análise</p>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={analysisMode === 'economic' ? 'primary' : 'secondary'}
+                disabled={locked}
+                data-testid="analysis-mode-essential"
+                onClick={() => setAnalysisMode('economic')}
+              >
+                Revisão essencial
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={analysisMode === 'multi_agent' ? 'primary' : 'secondary'}
+                disabled={locked}
+                data-testid="analysis-mode-full"
+                onClick={() => setAnalysisMode('multi_agent')}
+              >
+                Revisão completa
+              </Button>
             </div>
-
-            <div className="rounded-md border border-line-subtle bg-canvas/40 p-3">
-              <p className="text-sm font-medium text-content-primary">Atualizar TR existente</p>
-              <p className="mt-1 text-xs text-content-muted">
-                Compare a versão antiga com a nova e depois analise o documento novo.
-              </p>
-              <Link href="/comparacao/versoes" className="mt-3 inline-flex">
-                <Button type="button" size="sm" variant="secondary">
-                  Abrir comparação de versões
-                </Button>
-              </Link>
-            </div>
+            <p className="text-[11px] text-content-subtle">
+              Essencial = estrutura do TR + riscos jurídicos. Completa = também técnico e
+              redação.
+            </p>
           </div>
         )}
       </div>

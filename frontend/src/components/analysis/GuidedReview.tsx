@@ -9,6 +9,7 @@ import { getReviewSuggestion, trackSuggestion, updateCorrectionReview } from '@/
 import type { CorrectionResponse } from '@/types';
 import type { ReviewSuggestion } from '@/types/reviewer';
 import { filterPriorityCorrections } from '@/lib/priorityQueue';
+import { copy } from '@/lib/copy';
 
 const SEVERITY_ORDER = ['critico', 'alto', 'estrutural'] as const;
 
@@ -110,23 +111,21 @@ export default function GuidedReview({
   if (total === 0) {
     const hasAnyPriority = filterPriorityCorrections(corrections, 'priority').length > 0;
     return (
-      <div className="rounded-lg border border-line-subtle bg-surface/30 p-8 text-center">
+      <div className="rounded-lg border border-line-subtle bg-surface/30 p-8 text-center" data-testid="guided-review">
         <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-400" aria-hidden />
         <p className="text-sm font-medium text-content-primary">
-          {hasAnyPriority ? 'Todas as pendências prioritárias foram revisadas' : 'Nenhuma pendência prioritária'}
+          {hasAnyPriority ? copy.analysis.guidedDone : copy.analysis.guidedNone}
         </p>
         <p className="mx-auto mt-1 max-w-md text-xs text-content-subtle">
-          {hasAnyPriority
-            ? 'Use "Copiar pacote SEI" no topo para levar as aprovadas ao SEI, ou "Ver todas" para revisar o restante.'
-            : 'Este TR não tem achados alto/crítico ou estruturais pendentes. Veja "Ver todas" para o restante ou siga para o relatório.'}
+          {hasAnyPriority ? copy.analysis.guidedDoneHint : copy.analysis.guidedNoneHint}
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
           <Button size="sm" variant="secondary" onClick={onExit} data-testid="guided-exit">
-            Ver todas
+            {copy.cta.verTodas}
           </Button>
           {hasAnyPriority && onAfterComplete && (
             <Button size="sm" onClick={onAfterComplete}>
-              Ir ao pacote SEI
+              {copy.analysis.goToSei}
             </Button>
           )}
         </div>
@@ -139,7 +138,7 @@ export default function GuidedReview({
       <div className="rounded-lg border border-line-subtle bg-surface/40 p-4">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-content-subtle">
-            Revisão guiada · {idx + 1} de {total}
+            {copy.analysis.guidedLabel(idx + 1, total)}
           </p>
           <Button size="sm" variant="ghost" onClick={onExit} data-testid="guided-exit">
             <ListTree className="h-3.5 w-3.5" aria-hidden />

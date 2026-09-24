@@ -1,8 +1,6 @@
 'use client';
 
-import Link from 'next/link';
 import {
-  ChevronLeft,
   ClipboardCopy,
   Clock,
   FileBarChart,
@@ -25,6 +23,7 @@ import type {
   AnalysisDetailResponse,
   DocumentDetailResponse,
 } from '@/types';
+import { copy } from '@/lib/copy';
 
 interface AnalysisHeaderProps {
   document: DocumentDetailResponse;
@@ -65,28 +64,19 @@ export default function AnalysisHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-4">
       <div className="min-w-0">
-        <div className="mb-1 flex items-center gap-1.5 text-xs text-content-subtle">
-          <Link
-            href="/"
-            className="inline-flex items-center gap-0.5 outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
-          >
-            <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-            Painel
-          </Link>
-          <span aria-hidden>/</span>
-          <span className="text-content-muted">Análise</span>
-        </div>
         <h1 className="max-w-xl truncate text-xl font-semibold tracking-tight text-content-primary sm:text-2xl">
           {document.filename_original}
         </h1>
         <p className="tnum mt-1 text-sm text-content-muted">
-          {document.total_items} itens · {document.file_type.toUpperCase()}
-          {analysis && (
+          {analysis ? (
             <>
-              {' '}
-              · {pendingPriority} para revisar agora
+              {pendingPriority > 0
+                ? `${pendingPriority} para revisar agora`
+                : 'Nada urgente para revisar'}
               {approvedCount > 0 ? ` · ${approvedCount} prontas para o SEI` : ''}
             </>
+          ) : (
+            'Ainda sem análise'
           )}
         </p>
       </div>
@@ -99,15 +89,11 @@ export default function AnalysisHeader({
               loading={exporting === 'pack'}
               disabled={approvedCount === 0}
               data-testid="sei-pack-btn"
-              title={
-                approvedCount === 0
-                  ? 'Aprove ou ajuste ao menos uma correção'
-                  : 'Copiar pacote com correções aprovadas/ajustadas'
-              }
+              title={approvedCount === 0 ? copy.cta.copySeiDisabled : copy.cta.copySeiOk}
               onClick={onCopySeiPack}
             >
               <ClipboardCopy className="h-4 w-4" aria-hidden />
-              {isCopied('sei_pack') ? 'Pacote copiado' : 'Copiar pacote SEI'}
+              {isCopied('sei_pack') ? copy.cta.copySeiDone : copy.cta.copySei}
             </Button>
 
             <DropdownMenu>

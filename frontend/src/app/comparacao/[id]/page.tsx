@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeft, LoaderCircle } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
 import { getComparacao, getMatriz, extractErrorMessage } from '@/lib/api';
 import { startPolling } from '@/lib/polling';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -149,24 +149,6 @@ export default function MatrizPage() {
       {/* Cabeçalho */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="mb-1 flex items-center gap-1.5 text-xs text-content-subtle">
-            <Link
-              href="/"
-              className="inline-flex items-center gap-0.5 outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-              Painel
-            </Link>
-            <span aria-hidden>/</span>
-            <Link
-              href="/comparacao"
-              className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
-            >
-              Comparações
-            </Link>
-            <span aria-hidden>/</span>
-            <span className="text-content-muted">Matriz de Conformidade</span>
-          </div>
           <h1 className="text-xl font-semibold tracking-tight text-content-primary sm:text-2xl">
             Matriz de Conformidade
           </h1>

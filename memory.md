@@ -49,7 +49,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - Backends: `_search_postgres` (FTS `to_tsquery` OR + `ts_rank_cd`; fallback ILIKE se o índice faltar) e `_search_sqlite` (FTS5 + coluna `article`).
   - Módulos: `article_query.py`, `hierarchy.py`, `legal_cache.py`, `rrf.py`, `embed_store.py` (cache persistente de embedding de query; não cacheia consulta restrita).
   - Embeddings via `GeminiEmbeddingsProvider` / `OllamaEmbeddingsProvider` em `legal_chunks.embedding`.
-  - Ingestão: leis (`ingest_laws.py`), RILC (`ingest_rilc_codeba.py`), TCU (`ingest_juris_tcu.py` — fontes sem URL oficial ficam em quarentena e saem da busca padrão).
+  - Ingestão: leis (`ingest_laws.py`), RILC (`ingest_rilc_codeba.py`), TCU (`ingest_juris_tcu.py` — 3 peças no banco com `quarantine-0B`; saem da busca, de `legal_basis` e do SEI até URL oficial + visto).
   - Diff entre versões do TR (`services/comparator/diff.py`) e endpoint `/documents/diff`.
 - **Módulo de Auditoria TR × Propostas & Polimentos**:
   - **Novos Extratores**: CNPJ (dígitos verificadores), Prazo Relativo (ex: "30 dias"), CEP (`#####-###`).
@@ -206,7 +206,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `fornecedores.py`: CRUD de fornecedores (`/fornecedores`) com delete protegido (409 se houver propostas).
   - `comparison.py`: `/comparison/start` **só enfileira**; lista/matrix; feedback SMTP.
   - `chat.py`: Endpoints `/chat/health`, `/chat/conversations`, `/chat/conversations/{id}/messages`, `/chat/messages/{id}/feedback`.
-  - `legal.py`: `GET /legal/provisions` e `GET /legal/provisions/{id}` (dispositivo vigente + ancestrais).
+  - `legal.py`: `GET /legal/sources` (inventário do piloto), `GET /legal/provisions` e `GET /legal/provisions/{id}` (dispositivo vigente + ancestrais).
+  - `services/legal_model/catalog.py`: 14.133 / 13.303 / RILC em uso se houver `legal_works` ou `legal_documents`; TCU `quarentena` (`searchable=false`).
   - `analysis_audit.py`: `GET /analysis/{id}/audit-pack` (correções + retrieval runs).
 - BFF (token): `frontend/src/app/api/proxy/[...path]/route.ts` — não existe proxy no backend.
 - `app/services/parser/`:
@@ -270,7 +271,9 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `src/lib/utils.ts`: `cn()` (clsx + tailwind-merge).
 - `src/lib/api.ts`: Cliente HTTP via **BFF** `/api/proxy/...` (token só no servidor; proxy monta `/api/v1/...`); `skipCache` em polling.
 - `src/app/guia/page.tsx` + `docs/guia-usuario.md`: guia do elaborador (4 passos) espelhado app/docs.
-- `src/app/legal/page.tsx` + `src/lib/api/legal.ts` + `src/lib/legalHref.ts`: busca de dispositivo (lei/artigo) em `/legal`; item no menu Mais ferramentas; link a partir das citações do chat.
+- `src/app/legal/page.tsx` + `src/components/legal/LegalSources.tsx` + `src/lib/api/legal.ts` + `src/lib/copy.ts`: Consultar a lei com lista **Fontes** (contexto de cada norma). 14.133 / 13.303 / RILC clicáveis. TCU visível, **não clicável**, selo **Fora da análise** + motivo (texto ainda sem documento oficial conferido).
+- `src/app/complementos/page.tsx`: índice dos extras (Gerar TR, Comparações, Versões, Moldes, Guia, Consultar a lei). Breadcrumb `Painel / Complementos / tela`.
+- `src/lib/legalHref.ts`: link de citação do chat → `/legal`.
 - Favicon LicitAI: `src/app/icon.svg` + `icon.png` (512). Cabeçalho **LicitAI** em SEI/HTML/DOCX.
 - `src/components/analysis/CorrectionEvidence.tsx`: evidência DE→PARA no card da correção.
 - Export **Pacote de auditoria (.json)** no menu Exportar da análise (`getAuditPack`).
@@ -278,7 +281,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `src/lib/badges.tsx`: `getCategoryTone` / `getSeverityTone` + `AGENT_ORIGIN_CONFIG` (Lucide) — consome o primitivo `Badge` (`tone`).
 - `src/lib/useCopy.ts`: Hook `useCopy()` com feedback de cópia (2s).
 - `src/components/ui/`: primitivos do design system (Button, Input, Card, Badge, Dialog, Toaster, etc.).
-- `src/components/Layout/`: `Sidebar.tsx` (drawer mobile), `Header.tsx` (polling `/readyz`), `ShellContext.tsx`.
+- `src/components/Layout/`: `Sidebar.tsx` (Painel, Enviar TR, Complementos), `Header.tsx` (LicitAI + tema), `Breadcrumb.tsx` no `AppShell`, `ShellContext.tsx`.
 - `src/app/api/proxy/[...path]/route.ts`: BFF que encaminha ao backend com `X-API-Token`.
 - Rota dev-only `/design`: showcase dos primitivos (gate de QA visual do design system).
 - `src/components/` (extração de páginas grandes, 13/08 — páginas < ~280 LOC; **analysis/, report/, upload/ e chat/ migrados para primitivos+Lucide em 25/08**):
@@ -327,7 +330,8 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (24/09/2026)**: `main` inclui **0A–8 + sobras** (`a0f76ef`). CI GitHub permanece desabilitado (`ci.yml.disabled`). Schema esperado: `20260924_004`.
+- **Branch ativa (24/09/2026)**: `main` inclui **0A–8 + sobras** (`a0f76ef`) e a UX do elaborador + Fontes (`feat/ux-simples-elaborador`). CI GitHub permanece desabilitado (`ci.yml.disabled`). Schema esperado: `20260924_004`.
+- **UX simples + Fontes (24/09/2026)**: chrome enxuto (Painel / Enviar TR / Complementos); `copy.ts` PT-BR; análise guiada por padrão; Enviar TR só TR; proposta com classificação em Comparações. `GET /legal/sources`. Piloto reingeriu RILC-CODEBA (287 chunks) e 3 peças TCU. TCU **não** entra na análise/chat/SEI; a UI diz por quê. Não ligar TCU no RAG sem visto + URL oficial.
 - **Sobras 5–8 (24/09/2026, `a0f76ef`)**: FTS AND/OR + rerank em `rag_candidates` (piloto r@5 **0.929**, só `documentos_longos` em 0); `embedding_vector` 599/599 sem HNSW; `/legal` com formulário + nav; parecer/relatório com rastro DE→PARA; alerta `LICITAI_COST_USD_ALERT` em `scripts/ops_alerts.sh`; marca LicitAI (favicon + SEI/HTML/DOCX); URLs TCU só em [tcu-urls-propostas.md](docs/ops/tcu-urls-propostas.md) — quarentena mantida.
 - **Fase 8 — auditoria (24/09/2026, `76dfd2a`)**: `GET /legal/provisions`, UI `/legal`, `CorrectionResponse.evidence` (DE→PARA + corpus + retrieval_run), `GET /analysis/{id}/audit-pack` + download no menu Exportar. Testes `test_fase8_audit.py`.
 - **Fase 7 — ops (24/09/2026, `4eacf7f`)**: custo por operação (`services/cost.py` + `/metrics`), cache persistente de embedding de query (`embed_store.py`, sem consulta restrita), imagem backend não-root + `.dockerignore`, p50/p95 de latência. Testes `test_fase7_ops.py`.
@@ -525,10 +529,10 @@ Não enviar documento `sigiloso` ao piloto até existir Ollama configurado.
 | 7 | ~~**RILC CODEBA completo** no RAG~~ | Feito (14/09/2026) | Fonte `backend/data/rilc/source/` + `provenance.json`; ingestão `python scripts/ingest_rilc_codeba.py` (287 arts., page em metadata) |
 | 8 | **Fine-tune / treino ML** | Bloqueado | Só após gate + dataset de aprovar/rejeitar/thumbs-down (`promote_feedback.py`). Treinar agora sem rótulos estáveis não é o próximo passo |
 | 9 | **Visto jurídico** do conjunto Fase 2 e da amostra Fase 4 | Humano | `legal_review` ainda `pendente` em `eval/baseline.piloto.json` |
-| 10 | **URLs oficiais TCU** (sair da quarentena 0B) | Humano | Candidatas em [tcu-urls-propostas.md](docs/ops/tcu-urls-propostas.md); **não** reingestar sem visto |
+| 10 | **URLs oficiais TCU** (sair da quarentena 0B) | Humano | 3 peças já no banco + linha nas Fontes (**Fora da análise**). Candidatas em [tcu-urls-propostas.md](docs/ops/tcu-urls-propostas.md). **Não** citar no RAG/`legal_basis` sem visto |
 | 11 | **Ollama** para TR `sigiloso` | Ops | Sem modelo local o fluxo sigiloso retorna 422 (fail-closed, esperado) |
 
-**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`, exclusão de sumário/títulos na análise + UX análise (14/09/2026), **hardening backend** (TOC/reanálise/lease/pagemap/scores/ODT — 14/09/2026), contraste modo claro na UI, **sobras 5–8** (r@5 0.929, `/legal` no menu, branding LicitAI, alerta de custo).
+**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`, exclusão de sumário/títulos na análise + UX análise (14/09/2026), **hardening backend** (TOC/reanálise/lease/pagemap/scores/ODT — 14/09/2026), contraste modo claro na UI, **sobras 5–8** (r@5 0.929, `/legal` no menu, branding LicitAI, alerta de custo), **UX simples + Fontes** (24/09; TCU honesto na lista, fora da análise).
 
 ### Correção análise: sumário/títulos + UX (14/09/2026)
 
@@ -605,7 +609,7 @@ Tokens claros endurecidos (`--text-muted` `#475569`, borders mais fortes); `Badg
 | Análise | CTA único **Copiar pacote SEI**; menus Exportar/Mais; fila **Revisar agora** |
 | Relatório | Leitura + Exportar PDF; SEI só na análise |
 | Copiloto | FAB **Perguntar**, fechado por default |
-| Nav | Painel + Enviar TR; Gerar/Comparações/Versões/Moldes/Guia/Dispositivo jurídico em **Mais ferramentas** |
+| Nav | Painel + Enviar TR + Complementos; extras só pelo hub `/complementos` (sem item “em desenvolvimento” no menu) |
 | Guia | App `/guia` + [docs/guia-usuario.md](docs/guia-usuario.md); link no Painel/sidebar |
 | BFF | Cliente `/api/proxy/...`; proxy compatível com path legado `/api/proxy/v1/...` |
 | Dados | Samples de teste limpos; empty states nas ferramentas avançadas são normais sem TRs/moldes/fornecedores |
@@ -614,7 +618,7 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 
 ### Agora (ops / Bruno) — ordem sugerida
 1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build`. Upload/chat/gerar-tr **exigem classificação**; não enviar `sigiloso` sem Ollama (422 esperado).
-2. Código agent-implementável das Fases **0A–8 e sobras** está em **`main`** (`a0f76ef`). Não reabrir 5–8 sem regressão de r@5. UI Docker exige `./scripts/up.sh --build`. Fase 9 / CI / K8s / fine-tune / OIDC: fora de escopo.
+2. Código agent-implementável das Fases **0A–8 e sobras** + UX simples/Fontes está em **`main`**. Não reabrir 5–8 sem regressão de r@5. Não tirar TCU da quarentena de RAG sem visto. UI Docker exige `./scripts/up.sh --build`. Fase 9 / CI / K8s / fine-tune / OIDC: fora de escopo.
 3. Continuar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md), aberto até 28/09): revisar alto/crítico, anotar rejeição, validar pacote SEI/DOCX.
 4. Pendências humanas: visto jurídico do conjunto Fase 2 e da amostra Fase 4; confirmar URLs TCU (proposta pronta, quarentena mantida); colar export no SEI real; rotacionar secrets; Ollama se for usar `sigiloso`.
 5. Em paralelo quando houver cota: demais TRs da quinzena (`07` → `11` → `01` → `05`).
@@ -663,3 +667,4 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Fase 2 avaliação (24/09/2026, `feat/fase-2-avaliacao-ci`):** `eval/cases.json` + runner Postgres. Baseline semente r@5=1.0; piloto r@5=0.214 (ILIKE) → 0.357 (FTS simples) → **0.929** (AND/OR + rerank). CI GitHub permanece `ci.yml.disabled`. Revisão jurídica pendente.
 > **Fases 5–8 (24/09/2026, merges em `main`)**: FTS Postgres + hierarquia + cache (`f81ca21`); grounding/citações (`53fd9b5`); custo/embed cache/non-root (`4eacf7f`); dispositivo + evidência + audit-pack (`76dfd2a`).
 > **Sobras 5–8 (24/09/2026, `a0f76ef` em `main`)**: FTS conteúdo + `rag_candidates`; backfill `embedding_vector` 599/599; `/legal` com busca; parecer com rastro; alerta de custo; icon LicitAI; proposta TCU sem sair da quarentena. Docs: [recuperacao-fase5.md](docs/ops/recuperacao-fase5.md), [tcu-urls-propostas.md](docs/ops/tcu-urls-propostas.md), [piloto.md](docs/ops/piloto.md). Pendente só humano (visto jurídico, confirmar TCU, gate, SEI, secrets, Ollama).
+> **UX simples + Fontes (24/09/2026, `feat/ux-simples-elaborador`)**: chrome Painel / Enviar TR / Complementos; breadcrumb no conteúdo; `copy.ts`; Enviar TR só TR; proposta classificada em Comparações. `/legal` lista Fontes com contexto. RILC reingerido (287 chunks, clicável). TCU ingerido (Súmulas 247/272 + Acórdão 1214, `quarantine-0B`): selo **Fora da análise** + texto “Ainda sem documento oficial conferido. Por isso a análise e o SEI não usam.” Gerar TR sem prometer jurisprudência TCU. Quarentena de RAG/`legal_basis` **mantida**.

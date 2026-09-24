@@ -21,6 +21,7 @@ import DocumentListItem from '@/components/dashboard/DocumentListItem';
 import { PendingReviewList } from '@/components/dashboard/PilotSignals';
 import DashboardReviewerStats from '@/components/dashboard/DashboardReviewerStats';
 import type { DocumentResponse } from '@/types';
+import { copy } from '@/lib/copy';
 
 export default function DashboardClient({
   initialDocuments,
@@ -65,6 +66,10 @@ export default function DashboardClient({
 
   useEffect(() => {
     void loadPending();
+    if (initialError) {
+      void handleRefresh();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -100,19 +105,19 @@ export default function DashboardClient({
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
-            Revisar Termos de Referência
+            {copy.dashboard.title}
           </h1>
           <p className="mt-1 max-w-xl text-sm text-content-muted">
             {awaitingReview > 0
-              ? `${awaitingReview} correção(ões) aguardando sua decisão.`
-              : 'Envie um TR, revise os achados e copie só o aprovado para o SEI.'}
+              ? copy.dashboard.subtitlePending(awaitingReview)
+              : copy.dashboard.subtitle}
           </p>
           <Link
             href="/guia"
             className="mt-2 inline-flex items-center gap-1.5 text-xs text-content-subtle outline-none hover:text-accent-400 focus-visible:ring-2 focus-visible:ring-accent-500/60"
           >
             <BookOpen className="h-3.5 w-3.5" aria-hidden />
-            Guia do usuário
+            {copy.nav.comoUsar}
           </Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -192,8 +197,8 @@ export default function DashboardClient({
           <div className="rounded-lg border border-line-subtle bg-surface/30">
             <EmptyState
               icon={FileText}
-              title="Nenhum TR ainda"
-              description="Envie um Termo de Referência para revisar achados e copiar o aprovado para o SEI."
+              title={copy.dashboard.emptyTitle}
+              description={copy.dashboard.emptyDescription}
               action={
                 <Link href="/upload">
                   <Button>
@@ -216,6 +221,9 @@ export default function DashboardClient({
                 <DocumentListItem
                   key={doc.id}
                   doc={doc}
+                  pendingPriority={
+                    pending?.items.find((item) => item.document_id === doc.id)?.pending_priority ?? 0
+                  }
                   onRequestDelete={setConfirmDelete}
                 />
               ))}
@@ -226,9 +234,9 @@ export default function DashboardClient({
 
       <ConfirmDialog
         open={confirmDelete !== null}
-        title="Remover documento"
-        message={`Remover "${confirmDelete?.filename_original}"? Esta ação não pode ser desfeita.`}
-        confirmLabel="Remover"
+        title={copy.dashboard.removeTitle}
+        message={copy.dashboard.removeMessage(confirmDelete?.filename_original ?? '')}
+        confirmLabel={copy.dashboard.remove}
         danger
         onConfirm={() => {
           if (confirmDelete) handleDelete(confirmDelete.id);

@@ -10,6 +10,7 @@ import {
   uploadDocument,
   extractErrorMessage,
 } from '@/lib/api';
+import type { DocumentClassification } from '@/components/upload/UploadTypeFields';
 import type { DocumentResponse, Fornecedor } from '@/types';
 
 export function useFornecedorPanelState(options: {
@@ -24,6 +25,9 @@ export function useFornecedorPanelState(options: {
   const [editandoFornecedorId, setEditandoFornecedorId] = useState<string | null>(null);
   const [propostaFile, setPropostaFile] = useState<File | null>(null);
   const [propostaFornecedorId, setPropostaFornecedorId] = useState('');
+  const [propostaClassification, setPropostaClassification] = useState<
+    DocumentClassification | ''
+  >('');
   const [uploading, setUploading] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
@@ -78,12 +82,17 @@ export function useFornecedorPanelState(options: {
       setError('Selecione o arquivo e o fornecedor da proposta.');
       return;
     }
+    if (!propostaClassification) {
+      setError('Selecione a classificação da proposta antes de enviar.');
+      return;
+    }
     try {
       setUploading(true);
       setError(null);
       await uploadDocument(propostaFile, {
         documentType: 'proposta',
         fornecedorId: propostaFornecedorId,
+        classification: propostaClassification,
       });
       setPropostaFile(null);
       setPropostaFornecedorId('');
@@ -105,12 +114,14 @@ export function useFornecedorPanelState(options: {
     editandoFornecedorId,
     propostaFile,
     propostaFornecedorId,
+    propostaClassification,
     uploading,
     confirmDeleteId,
     setNovoFornecedor,
     setNovoFornecedorCnpj,
     setNovoFornecedorEmail,
     setPropostaFornecedorId,
+    setPropostaClassification,
     setPropostaFile,
     setConfirmDeleteId,
     clearFornecedorForm,

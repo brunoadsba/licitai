@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight, FileText, MessageSquareText, PenLine, Scale } from 'lucide-react';
 import type { ChatCitation } from '@/types';
 import { legalSearchHref } from '@/lib/legalHref';
+import { copy } from '@/lib/copy';
 
 const TYPE_ICONS = {
   legal: Scale,
@@ -65,7 +66,7 @@ export default function CitationList({ sources }: { sources: ChatCitation[] }) {
                     href={legalSearchHref(c.title || c.reference, c.article)}
                     className="mt-0.5 block truncate text-accent-400 hover:underline"
                   >
-                    Abrir dispositivo
+                    {copy.legal.open}
                   </a>
                 )}
                 {c.official_url && (

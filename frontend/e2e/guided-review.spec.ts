@@ -10,12 +10,10 @@ test.describe('Guiado + sugestão do revisor', () => {
   test('guided-review mostra sugestão e aceitação', async ({ page }) => {
     await page.goto(`/analysis/${documentId}`);
 
-    const guidedBtn = page.getByTestId('queue-priority');
-    await expect(guidedBtn).toBeVisible({ timeout: 30_000 });
-    await guidedBtn.click();
-
     const guided = page.getByTestId('guided-review');
     await expect(guided).toBeVisible({ timeout: 30_000 });
+    const guidedBtn = page.getByTestId('queue-priority');
+    await expect(guidedBtn).toBeVisible();
 
     const suggestion = page.getByTestId('review-suggestion');
     if ((await suggestion.count()) > 0) {

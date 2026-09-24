@@ -1,46 +1,33 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  ChevronDown,
-  FileUp,
-  GitCompareArrows,
-  LayoutGrid,
-  ScrollText,
-  FilePenLine,
-  Layers,
-  BookOpen,
-  Scale,
-  PanelLeftClose,
-  X,
-} from 'lucide-react';
+import { FileUp, Layers, LayoutGrid, PanelLeftClose, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useShell } from './ShellContext';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/Sheet';
+import { copy } from '@/lib/copy';
 
 type NavItem = { href: string; label: string; icon: typeof LayoutGrid };
 
-/** Fluxo principal do elaborador — uma ação de envio, sem competir com Gerar TR. */
 const PRIMARY_NAV: NavItem[] = [
-  { href: '/', label: 'Painel', icon: LayoutGrid },
-  { href: '/upload', label: 'Enviar TR', icon: FileUp },
+  { href: '/', label: copy.nav.painel, icon: LayoutGrid },
+  { href: '/upload', label: copy.nav.enviarTr, icon: FileUp },
+  { href: '/complementos', label: copy.nav.complementos, icon: Layers },
 ];
 
-const EXTRA_NAV: NavItem[] = [
-  { href: '/gerar-tr', label: 'Gerar TR', icon: FilePenLine },
-  { href: '/comparacao', label: 'Comparações', icon: GitCompareArrows },
-  { href: '/comparacao/versoes', label: 'Versões de TR', icon: ScrollText },
-  { href: '/moldes', label: 'Moldes', icon: Layers },
-  { href: '/guia', label: 'Guia do usuário', icon: BookOpen },
-  { href: '/legal', label: 'Dispositivo jurídico', icon: Scale },
-];
+const ALL_HREFS = PRIMARY_NAV.map((i) => i.href);
 
-const ALL_HREFS = [...PRIMARY_NAV, ...EXTRA_NAV].map((i) => i.href);
+const COMPLEMENTO_PREFIXES = ['/gerar-tr', '/comparacao', '/moldes', '/legal'] as const;
 
-/** Active = longest matching prefix (evita Comparações + Versões juntos). */
+/** Active = longest matching prefix. */
 export function isNavActive(pathname: string, href: string, allHrefs: string[] = ALL_HREFS): boolean {
+  if (href === '/complementos') {
+    return (
+      pathname === '/complementos' ||
+      COMPLEMENTO_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+    );
+  }
   if (href === '/') return pathname === '/';
   if (!pathname.startsWith(href)) return false;
   const hasLongerMatch = allHrefs.some(
@@ -72,42 +59,11 @@ function NavItemLink({
 }
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
-  const pathname = usePathname();
-  const extrasActive = EXTRA_NAV.some((item) => isNavActive(pathname, item.href));
-  const [extrasOpen, setExtrasOpen] = useState(extrasActive);
-
   return (
-    <nav className="flex-1 space-y-4 overflow-y-auto p-4" aria-label="Navegação principal">
-      <div className="space-y-1">
-        <p className="px-3 pb-1 text-[10px] font-medium uppercase tracking-widest text-content-subtle">
-          Revisar TR
-        </p>
-        {PRIMARY_NAV.map((item) => (
-          <NavItemLink key={item.href} item={item} onNavigate={onNavigate} />
-        ))}
-      </div>
-
-      <div className="space-y-1">
-        <button
-          type="button"
-          onClick={() => setExtrasOpen((v) => !v)}
-          className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-[10px] font-medium uppercase tracking-widest text-content-subtle outline-none hover:bg-white/[0.04] focus-visible:ring-2 focus-visible:ring-accent-500/60"
-          aria-expanded={extrasOpen}
-        >
-          Mais ferramentas
-          <ChevronDown
-            className={cn('h-3.5 w-3.5 transition-transform', extrasOpen && 'rotate-180')}
-            aria-hidden
-          />
-        </button>
-        {extrasOpen && (
-          <div className="space-y-1">
-            {EXTRA_NAV.map((item) => (
-              <NavItemLink key={item.href} item={item} onNavigate={onNavigate} />
-            ))}
-          </div>
-        )}
-      </div>
+    <nav className="flex-1 space-y-1 overflow-y-auto p-4" aria-label="Navegação principal">
+      {PRIMARY_NAV.map((item) => (
+        <NavItemLink key={item.href} item={item} onNavigate={onNavigate} />
+      ))}
     </nav>
   );
 }
@@ -125,9 +81,6 @@ function Brand() {
           className="h-8 w-auto object-contain"
         />
       </div>
-      <p className="mt-2.5 text-center text-[10px] font-medium uppercase tracking-[0.14em] text-content-subtle">
-        Revisar TR · SEI
-      </p>
     </Link>
   );
 }

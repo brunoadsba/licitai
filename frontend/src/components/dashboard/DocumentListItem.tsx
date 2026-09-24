@@ -1,26 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, Trash2 } from 'lucide-react';
+import { FileText, MoreHorizontal, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Badge } from '@/components/ui/Badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/DropdownMenu';
 import type { DocumentResponse } from '@/types';
-import { STATUS_LABELS } from '@/types';
-
-const STATUS_TONES: Record<string, 'info' | 'medium' | 'low' | 'critical'> = {
-  uploaded: 'info',
-  parsing: 'medium',
-  parsed: 'medium',
-  analyzing: 'medium',
-  completed: 'low',
-  error: 'critical',
-};
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+import { copy } from '@/lib/copy';
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('pt-BR', {
@@ -34,31 +24,37 @@ function formatDate(dateStr: string): string {
 
 export function statusCta(
   doc: DocumentResponse,
-): { href: string; label: string; variant?: 'primary' | 'secondary' } | null {
+  pendingPriority = 0,
+): { href: string; label: string } {
   switch (doc.status) {
     case 'parsed':
-      // Secondary: o primary da página é "Enviar TR"
-      return { href: `/analysis/${doc.id}`, label: 'Analisar', variant: 'secondary' };
+      return { href: `/analysis/${doc.id}`, label: copy.cta.analisar };
     case 'completed':
-      return { href: `/analysis/${doc.id}`, label: 'Ver resultado', variant: 'secondary' };
+      return {
+        href: `/analysis/${doc.id}`,
+        label: pendingPriority > 0 ? copy.cta.revisar : copy.cta.abrir,
+      };
     case 'parsing':
     case 'analyzing':
     case 'uploaded':
-      return { href: `/analysis/${doc.id}`, label: 'Acompanhar', variant: 'secondary' };
-    case 'error':
-      return { href: `/analysis/${doc.id}`, label: 'Ver detalhes', variant: 'secondary' };
+      return { href: `/analysis/${doc.id}`, label: copy.cta.acompanhar };
     default:
-      return { href: `/analysis/${doc.id}`, label: 'Abrir', variant: 'secondary' };
+      return { href: `/analysis/${doc.id}`, label: copy.cta.abrir };
   }
 }
 
 interface DocumentListItemProps {
   doc: DocumentResponse;
+  pendingPriority?: number;
   onRequestDelete: (doc: DocumentResponse) => void;
 }
 
-export default function DocumentListItem({ doc, onRequestDelete }: DocumentListItemProps) {
-  const cta = statusCta(doc);
+export default function DocumentListItem({
+  doc,
+  pendingPriority = 0,
+  onRequestDelete,
+}: DocumentListItemProps) {
+  const cta = statusCta(doc, pendingPriority);
 
   return (
     <motion.li
@@ -68,7 +64,7 @@ export default function DocumentListItem({ doc, onRequestDelete }: DocumentListI
       }}
     >
       <Link
-        href={`/analysis/${doc.id}`}
+        href={cta.href}
         className="block rounded-xl border border-line-subtle bg-surface/40 p-5 outline-none transition-colors hover:bg-surface-hover/50 focus-visible:ring-2 focus-visible:ring-accent-500/60"
       >
         <div className="flex flex-wrap items-center justify-between gap-4 sm:flex-nowrap">
@@ -87,50 +83,37 @@ export default function DocumentListItem({ doc, onRequestDelete }: DocumentListI
               <p className="truncate text-sm font-medium text-content-primary">
                 {doc.filename_original}
               </p>
-              <div className="tnum mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-content-muted">
-                <span>{formatFileSize(doc.file_size_bytes)}</span>
-                <span aria-hidden>·</span>
-                <span>{doc.total_items} itens</span>
-                {doc.status === 'completed' && doc.tokens_estimated ? (
-                  <>
-                    <span aria-hidden>·</span>
-                    <span className="text-content-muted">
-                      ~{doc.tokens_estimated.toLocaleString('pt-BR')} tokens
-                    </span>
-                  </>
-                ) : null}
-                <span aria-hidden>·</span>
-                <span>{formatDate(doc.created_at)}</span>
-              </div>
+              <p className="tnum mt-1 text-xs text-content-muted">{formatDate(doc.created_at)}</p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2.5">
-            <Badge tone={STATUS_TONES[doc.status] ?? 'info'}>
-              {STATUS_LABELS[doc.status] || doc.status}
-            </Badge>
-            {cta && (
-              <span
-                className={
-                  cta.variant === 'secondary'
-                    ? 'inline-flex h-8 items-center rounded-md border border-line-strong bg-white/[0.04] px-3 text-xs font-medium text-content-secondary'
-                    : 'inline-flex h-8 items-center rounded-md bg-accent-700 px-3 text-xs font-medium text-white shadow-rim'
-                }
-              >
-                {cta.label}
-              </span>
-            )}
-            <button
-              type="button"
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="inline-flex h-8 items-center rounded-md border border-line-strong bg-white/[0.04] px-3 text-xs font-medium text-content-secondary">
+              {cta.label}
+            </span>
+            <div
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                onRequestDelete(doc);
               }}
-              className="rounded-lg p-2 text-content-subtle outline-none transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:ring-2 focus-visible:ring-accent-500/60"
-              aria-label={`Remover ${doc.filename_original}`}
             >
-              <Trash2 className="h-4 w-4" aria-hidden />
-            </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  className="rounded-lg p-2 text-content-subtle outline-none transition-colors hover:bg-white/[0.06] hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
+                  aria-label={`${copy.dashboard.more} ${doc.filename_original}`}
+                >
+                  <MoreHorizontal className="h-4 w-4" aria-hidden />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    destructive
+                    onSelect={() => onRequestDelete(doc)}
+                  >
+                    <Trash2 className="h-4 w-4" aria-hidden />
+                    {copy.dashboard.remove}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
       </Link>

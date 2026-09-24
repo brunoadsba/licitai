@@ -4,13 +4,22 @@ import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getLegalProvisions, type LegalProvision } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
+import { LegalSources } from '@/components/legal/LegalSources';
+import { copy } from '@/lib/copy';
 
 export default function LegalProvisionPage() {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-content-muted">Carregando dispositivo…</p>}>
+    <Suspense fallback={<p className="p-6 text-sm text-content-muted">{copy.legal.loading}</p>}>
       <LegalProvisionSearch />
     </Suspense>
   );
+}
+
+function hrefFor(law: string, article: string) {
+  const query = new URLSearchParams();
+  if (law) query.set('law', law);
+  if (article) query.set('article', article);
+  return query.toString() ? `/legal?${query}` : '/legal';
 }
 
 function LegalProvisionSearch() {
@@ -22,9 +31,10 @@ function LegalProvisionSearch() {
   const law = params.get('law') || params.get('law_number') || '';
   const article = params.get('article') || '';
   const path = params.get('path') || '';
+  const idle = !law && !article && !path;
 
   useEffect(() => {
-    if (!law && !article && !path) {
+    if (idle) {
       setRows([]);
       setError(null);
       return;
@@ -39,59 +49,88 @@ function LegalProvisionSearch() {
         setRows(data);
         setError(null);
       })
-      .catch(() => setError('Não foi possível carregar o dispositivo.'))
+      .catch(() => setError(copy.legal.error))
       .finally(() => setLoading(false));
-  }, [law, article, path]);
+  }, [law, article, path, idle]);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     const nextLaw = String(form.get('law') || '').trim();
     const nextArticle = String(form.get('article') || '').trim();
-    const query = new URLSearchParams();
-    if (nextLaw) query.set('law', nextLaw);
-    if (nextArticle) query.set('article', nextArticle);
-    router.push(query.toString() ? `/legal?${query}` : '/legal');
+    router.push(hrefFor(nextLaw, nextArticle));
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
-      <h1 className="text-xl font-semibold text-content-primary">Dispositivo jurídico</h1>
-      <p className="text-sm text-content-muted">
-        Consulte o texto vigente (lei e artigo). O índice versionado cobre a amostra
-        14.133/13.303.
-      </p>
-      <form onSubmit={onSubmit} className="flex flex-wrap items-end gap-3">
-        <label className="grid gap-1 text-xs text-content-muted">
-          Lei
-          <input
-            name="law"
-            defaultValue={law}
-            placeholder="14.133"
-            className="h-10 rounded-lg border border-line-strong bg-transparent px-3 text-sm text-content-primary"
-          />
-        </label>
-        <label className="grid gap-1 text-xs text-content-muted">
-          Artigo
-          <input
-            name="article"
-            defaultValue={article}
-            placeholder="Art. 6º"
-            className="h-10 rounded-lg border border-line-strong bg-transparent px-3 text-sm text-content-primary"
-          />
-        </label>
-        <Button type="submit">Buscar</Button>
-      </form>
-      {loading && <p className="text-sm text-content-muted">Buscando…</p>}
-      {error && <p className="text-sm text-red-400">{error}</p>}
-      {!loading && !error && !law && !article && !path && (
-        <p className="text-sm text-content-muted">Informe a lei ou o artigo para buscar.</p>
-      )}
-      {!loading && !error && (law || article || path) && rows.length === 0 && (
-        <p className="text-sm text-content-muted">Nenhum dispositivo vigente encontrado.</p>
-      )}
+    <div className="mx-auto max-w-4xl space-y-6">
+      <header>
+        <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
+          {copy.legal.title}
+        </h1>
+        <p className="mt-1 text-sm text-content-muted">
+          Consulte o texto ingerido neste piloto.
+        </p>
+      </header>
+
+      <LegalSources onOpen={(nextLaw) => router.push(hrefFor(nextLaw, ''))} />
+
+      <div className="glass-card space-y-5 p-5 sm:p-6">
+        <form
+          key={`${law}|${article}`}
+          onSubmit={onSubmit}
+          className="flex flex-wrap items-end gap-3"
+        >
+          <label className="grid min-w-[8rem] flex-1 gap-1 text-xs text-content-muted">
+            Lei
+            <input
+              name="law"
+              defaultValue={law}
+              placeholder="14.133"
+              className="input-field h-10 w-full text-sm"
+            />
+          </label>
+          <label className="grid min-w-[8rem] flex-1 gap-1 text-xs text-content-muted">
+            Artigo
+            <input
+              name="article"
+              defaultValue={article}
+              placeholder="Art. 6º"
+              className="input-field h-10 w-full text-sm"
+            />
+          </label>
+          <Button type="submit" className="shrink-0">
+            Buscar
+          </Button>
+        </form>
+
+        {idle && (
+          <div>
+            <p className="text-sm text-content-muted">{copy.legal.empty}</p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {copy.legal.shortcuts.map((item) => (
+                <Button
+                  key={item.label}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => router.push(hrefFor(item.law, item.article))}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {loading && <p className="text-sm text-content-muted">Buscando…</p>}
+        {error && <p className="text-sm text-red-400">{error}</p>}
+        {!loading && !error && !idle && rows.length === 0 && (
+          <p className="text-sm text-content-muted">{copy.legal.none}</p>
+        )}
+      </div>
+
       {rows.map((row) => (
-        <article key={row.id} className="rounded-lg border border-line-subtle bg-surface/50 p-4">
+        <article key={row.id} className="glass-card p-5 sm:p-6">
           <p className="text-xs text-content-muted">
             {row.law_number} · {row.path} · {row.status} · versão {row.version_status}
           </p>

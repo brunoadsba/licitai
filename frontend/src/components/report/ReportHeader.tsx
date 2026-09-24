@@ -9,20 +9,6 @@ export default function ReportHeader({ documentId, documentName }: { documentId:
   return (
     <div className="flex flex-wrap items-center justify-between gap-4">
       <div>
-        <div className="mb-1 flex items-center gap-1.5 text-xs text-content-subtle no-print">
-          <Link href="/" className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60">
-            Painel
-          </Link>
-          <span aria-hidden>/</span>
-          <Link
-            href={`/analysis/${documentId}`}
-            className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
-          >
-            Análise
-          </Link>
-          <span aria-hidden>/</span>
-          <span className="text-content-muted">Relatório</span>
-        </div>
         <h1 className="text-2xl font-semibold tracking-tight text-content-primary">Relatório de Análise</h1>
         <p className="mt-1 text-sm text-content-muted">{documentName}</p>
         <p className="mt-1 text-xs text-content-subtle no-print">

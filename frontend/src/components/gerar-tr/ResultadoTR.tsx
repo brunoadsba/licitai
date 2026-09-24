@@ -35,7 +35,7 @@ export default function ResultadoTR({ resultado, onCopiarHtml, onRecomecar }: Re
               {resultado.filename_original}
             </h2>
             <p className="tnum mt-0.5 text-xs text-content-muted">
-              Total de {resultado.total_itens} seções geradas com fundamentação no TCU
+              Total de {resultado.total_itens} seções geradas
             </p>
           </div>
 

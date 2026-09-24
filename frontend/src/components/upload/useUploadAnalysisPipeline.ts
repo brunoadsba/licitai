@@ -12,9 +12,8 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1000;
 type UploadState = 'idle' | 'processing' | 'success' | 'error';
 
 /**
- * Após upload: aguarda parse.
- * TR → inicia análise e redireciona para /analysis/[id].
- * Proposta → só confirma envio (sem análise de TR) e vai para Comparações.
+ * Após upload do TR: aguarda parse, inicia análise e abre /analysis/[id].
+ * Proposta não passa por esta tela — vai em Comparações.
  */
 export function useUploadAnalysisPipeline(options: {
   state: UploadState;
@@ -23,7 +22,6 @@ export function useUploadAnalysisPipeline(options: {
   setError: (msg: string | null) => void;
   setCurrentStage: (s: DocumentStatus) => void;
   analysisMode?: 'economic' | 'multi_agent' | 'single';
-  documentType?: 'tr' | 'proposta';
 }) {
   const router = useRouter();
   const {
@@ -33,7 +31,6 @@ export function useUploadAnalysisPipeline(options: {
     setError,
     setCurrentStage,
     analysisMode = 'economic',
-    documentType = 'tr',
   } = options;
 
   useEffect(() => {
@@ -74,16 +71,6 @@ export function useUploadAnalysisPipeline(options: {
         return;
       }
 
-      if (documentType === 'proposta') {
-        if (cancelled) return;
-        setState('success');
-        toast.success('Proposta enviada — use em Comparações');
-        window.setTimeout(() => {
-          router.push('/comparacao');
-        }, 1200);
-        return;
-      }
-
       setCurrentStage('analyzing');
       try {
         await startAnalysis(documentId, analysisMode);
@@ -116,6 +103,5 @@ export function useUploadAnalysisPipeline(options: {
     setError,
     setCurrentStage,
     analysisMode,
-    documentType,
   ]);
 }

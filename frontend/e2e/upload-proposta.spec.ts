@@ -1,7 +1,7 @@
 import path from "node:path";
 import { test, expect } from "@playwright/test";
 
-/** P0.4 — Proposta não inicia análise de TR. */
+/** P0.4 — Proposta em Comparações não inicia análise de TR. */
 const live = process.env.E2E_LIVE === "1";
 const fixture = path.resolve(__dirname, "../../e2e/fixtures/sample-tr.docx");
 
@@ -25,21 +25,17 @@ test.describe("P0.4 upload proposta guard", () => {
     });
 
     try {
-      await page.goto("/upload");
+      await page.goto("/comparacao");
+      await page.getByRole("tab", { name: "Fornecedores" }).click();
       await page.getByTestId("doc-classification").click();
       await page.getByRole("option", { name: /Público/i }).click();
-      await page.getByTestId("doc-type").click();
-      await page.getByRole("option", { name: "Proposta de fornecedor" }).click();
       await page.getByLabel("Fornecedor da proposta").click();
       await page.getByRole("option", { name: nome, exact: true }).click();
-
-      await page.locator('input[type="file"]').setInputFiles(fixture);
-      await page.getByTestId("upload-submit").click();
-
-      await expect(page.getByText("Proposta enviada!", { exact: true })).toBeVisible({
+      await page.getByLabel("Arquivo da proposta").setInputFiles(fixture);
+      await page.getByTestId("proposta-upload-submit").click();
+      await expect(page.getByTestId("proposta-upload-submit")).toBeEnabled({
         timeout: 120_000,
       });
-      await expect(page).toHaveURL(/\/comparacao/, { timeout: 15_000 });
       expect(startCalls, startCalls.join("\n")).toEqual([]);
     } finally {
       await request.delete(`/api/proxy/fornecedores/${fornecedorId}`);

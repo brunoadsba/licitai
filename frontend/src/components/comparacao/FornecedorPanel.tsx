@@ -11,6 +11,9 @@ import {
   SelectValue,
 } from '@/components/ui/Select';
 import type { Fornecedor } from '@/types';
+import UploadTypeFields, {
+  type DocumentClassification,
+} from '@/components/upload/UploadTypeFields';
 
 interface FornecedorPanelProps {
   fornecedores: Fornecedor[];
@@ -19,12 +22,14 @@ interface FornecedorPanelProps {
   cnpj: string;
   email: string;
   propostaFornecedorId: string;
+  propostaClassification: DocumentClassification | '';
   propostaFile: File | null;
   uploading: boolean;
   setNome: (v: string) => void;
   setCnpj: (v: string) => void;
   setEmail: (v: string) => void;
   setPropostaFornecedorId: (v: string) => void;
+  setPropostaClassification: (v: DocumentClassification) => void;
   setPropostaFile: (f: File | null) => void;
   onSalvar: () => void;
   onCancelarEdicao: () => void;
@@ -43,12 +48,14 @@ export default function FornecedorPanel({
   cnpj,
   email,
   propostaFornecedorId,
+  propostaClassification,
   propostaFile,
   uploading,
   setNome,
   setCnpj,
   setEmail,
   setPropostaFornecedorId,
+  setPropostaClassification,
   setPropostaFile,
   onSalvar,
   onCancelarEdicao,
@@ -133,6 +140,10 @@ export default function FornecedorPanel({
       <div className="glass-card p-4">
         <h3 className="mb-3 text-sm font-semibold text-content-primary">Enviar Proposta</h3>
         <div className="space-y-3">
+          <UploadTypeFields
+            classification={propostaClassification}
+            onClassificationChange={setPropostaClassification}
+          />
           <div>
             <span className="mb-2 block text-[11px] uppercase tracking-widest text-content-subtle">
               Fornecedor
@@ -162,7 +173,13 @@ export default function FornecedorPanel({
                 onChange={(e) => setPropostaFile(e.target.files?.[0] || null)}
               />
             </label>
-            <Button onClick={onUpload} disabled={!propostaFile || uploading} loading={uploading} size="sm">
+            <Button
+              onClick={onUpload}
+              disabled={!propostaFile || uploading}
+              loading={uploading}
+              size="sm"
+              data-testid="proposta-upload-submit"
+            >
               {!uploading && <FileUp className="h-4 w-4" aria-hidden />}
               {uploading ? 'Enviando…' : 'Enviar'}
             </Button>

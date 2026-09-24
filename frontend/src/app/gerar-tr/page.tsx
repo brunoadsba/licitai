@@ -94,17 +94,16 @@ export default function GerarTRPage() {
 
   return (
     <div className="animate-fade-in mx-auto max-w-4xl space-y-8">
-      {/* Cabeçalho */}
-      <div>
+      <header>
         <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-content-primary">
           <Sparkles className="h-6 w-6 text-accent-400" aria-hidden />
           Assistente de Geração de TRs
         </h1>
         <p className="mt-1 text-sm text-content-muted">
-          Gere um rascunho completo de Termo de Referência alinhado à Lei 14.133/2021, Lei
-          13.303/2016 e jurisprudência do TCU.
+          Gere um rascunho de Termo de Referência alinhado à Lei 14.133/2021, à Lei
+          13.303/2016 e ao RILC da CODEBA.
         </p>
-      </div>
+      </header>
 
       {error && (
         <div className="glass-card border-red-500/20 p-4">

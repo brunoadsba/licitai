@@ -65,7 +65,7 @@ export default function DiffVersoesPage() {
 
   return (
     <div className="animate-fade-in mx-auto max-w-6xl space-y-8">
-      <div>
+      <header>
         <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-content-primary">
           <ArrowRightLeft className="h-6 w-6 text-accent-400" aria-hidden />
           Comparador de Versões de TR
@@ -73,7 +73,7 @@ export default function DiffVersoesPage() {
         <p className="mt-1 text-sm text-content-muted">
           Alinhamento inteligente item por item para identificar acréscimos, exclusões e alterações de texto entre duas versões do Termo de Referência.
         </p>
-      </div>
+      </header>
 
       {error && (
         <div className="glass-card border-red-500/20 p-4">

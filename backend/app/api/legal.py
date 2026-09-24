@@ -13,9 +13,19 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.legal_versioned import LegalProvision, LegalVersion, LegalWork
+from app.services.legal_model.catalog import list_pilot_sources
 from app.services.legal_model.query import ancestors_and_related, list_provisions
 
 router = APIRouter(prefix="/legal", tags=["Jurídico"])
+
+
+class SourceResponse(BaseModel):
+    id: str
+    label: str
+    kind: str
+    status: str
+    searchable: bool
+    search_law: str | None = None
 
 
 class ProvisionResponse(BaseModel):
@@ -65,6 +75,12 @@ def _to_response(
             if a.id != provision.id
         ],
     )
+
+
+@router.get("/sources", response_model=list[SourceResponse])
+async def get_sources(db: AsyncSession = Depends(get_db)):
+    rows = await list_pilot_sources(db)
+    return [SourceResponse(**row) for row in rows]
 
 
 @router.get("/provisions", response_model=list[ProvisionResponse])

@@ -1,27 +1,10 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Menu, ShieldCheck, ShieldAlert, ShieldQuestion } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Menu, ShieldAlert } from 'lucide-react';
 import { useShell } from './ShellContext';
 import { ThemeToggle } from '@/components/theme/ThemeToggle';
-
-const BREADCRUMB_MAP: Record<string, string> = {
-  '/': 'Painel',
-  '/upload': 'Enviar TR',
-  '/wizard': 'Enviar TR',
-  '/gerar-tr': 'Gerar TR',
-  '/analysis': 'Análise',
-  '/report': 'Relatório',
-  '/comparacao': 'Comparações',
-  '/comparacao/versoes': 'Versões de TR',
-  '/moldes': 'Moldes de Regras',
-  '/guia': 'Guia do usuário',
-  '/legal': 'Dispositivo jurídico',
-  '/design': 'Design System',
-};
+import { copy } from '@/lib/copy';
 
 type BackendStatus = 'checking' | 'online' | 'offline';
 
@@ -52,69 +35,9 @@ function useBackendStatus(): BackendStatus {
   return status;
 }
 
-const STATUS_CONFIG: Record<
-  BackendStatus,
-  { label: string; icon: typeof ShieldCheck; className: string }
-> = {
-  checking: { label: 'Verificando…', icon: ShieldQuestion, className: 'text-content-subtle' },
-  online: { label: 'Sistema ativo', icon: ShieldCheck, className: 'text-green-400' },
-  offline: { label: 'Sistema indisponível', icon: ShieldAlert, className: 'text-red-400' },
-};
-
-function Breadcrumb({ pathname }: { pathname: string }) {
-  const parts = pathname.split('/').filter(Boolean);
-
-  if (parts.length === 0) {
-    return <span className="text-content-muted">SEI</span>;
-  }
-
-  const crumbs = parts.map((part, i) => {
-    const path = '/' + parts.slice(0, i + 1).join('/');
-    const label =
-      BREADCRUMB_MAP[path] ??
-      (/^[\w-]{8,}$/.test(part) ? 'Detalhe' : decodeURIComponent(part));
-    return { path, label, last: i === parts.length - 1 };
-  });
-
-  return (
-    <nav
-      aria-label="Trilha de navegação"
-      className="flex items-center gap-1.5 text-xs text-content-subtle"
-    >
-      <Link
-        href="/"
-        className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
-      >
-        Painel
-      </Link>
-      {crumbs.map((c) => (
-        <span key={c.path} className="flex items-center gap-1.5">
-          <span aria-hidden>/</span>
-          {c.last ? (
-            <span className="text-content-muted">{c.label}</span>
-          ) : (
-            <Link
-              href={c.path}
-              className="outline-none transition-colors hover:text-content-primary focus-visible:ring-2 focus-visible:ring-accent-500/60"
-            >
-              {c.label}
-            </Link>
-          )}
-        </span>
-      ))}
-    </nav>
-  );
-}
-
 export default function Header() {
-  const pathname = usePathname();
   const { openSidebar, desktopNavHidden, showDesktopNav } = useShell();
   const status = useBackendStatus();
-  const statusConfig = STATUS_CONFIG[status];
-  const StatusIcon = statusConfig.icon;
-
-  const parts = pathname.split('/').filter(Boolean);
-  const title = BREADCRUMB_MAP[pathname] ?? BREADCRUMB_MAP['/' + (parts[0] ?? '')] ?? 'Painel';
 
   return (
     <header className="sticky top-0 z-30 border-b border-line-subtle bg-panel/70 backdrop-blur-2xl">
@@ -147,34 +70,19 @@ export default function Header() {
             height={28}
             className="h-6 w-auto object-contain"
           />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/logo-codeba.png"
-            alt="CODEBA"
-            width={90}
-            height={24}
-            className={cn(
-              'h-6 w-auto rounded-md border border-white/10 bg-white px-1.5 py-0.5 object-contain',
-              desktopNavHidden ? 'lg:block' : 'lg:hidden',
-            )}
-          />
-          <div className="min-w-0">
-            <Breadcrumb pathname={pathname} />
-            <h2 className="truncate text-base font-semibold tracking-tight text-content-primary sm:text-lg">
-              {title}
-            </h2>
-          </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
           <ThemeToggle />
-          <div
-            className="flex items-center gap-2 rounded-full border border-line-subtle bg-white/[0.04] px-3 py-1.5 shadow-rim dark:bg-white/[0.04]"
-            title="Disponibilidade do serviço verificada a cada 30s"
-          >
-            <StatusIcon className={cn('h-3.5 w-3.5', statusConfig.className)} aria-hidden />
-            <span className="text-xs text-content-muted">{statusConfig.label}</span>
-          </div>
+          {status === 'offline' && (
+            <div
+              className="flex items-center gap-2 rounded-full border border-red-500/30 bg-red-500/10 px-3 py-1.5"
+              title={copy.header.offline}
+            >
+              <ShieldAlert className="h-3.5 w-3.5 text-red-400" aria-hidden />
+              <span className="text-xs text-content-muted">{copy.header.offline}</span>
+            </div>
+          )}
         </div>
       </div>
     </header>

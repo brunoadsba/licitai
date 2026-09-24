@@ -201,20 +201,22 @@ export default function MoldesPage() {
 
   return (
     <div className="animate-fade-in space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
-            Moldes de Regras
-          </h1>
-          <p className="mt-1 text-sm text-content-muted">
-            Editor visual das regras de conformidade para a auditoria TR × Propostas
-          </p>
+      <header>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
+              Moldes de Regras
+            </h1>
+            <p className="mt-1 text-sm text-content-muted">
+              Editor visual das regras de conformidade para a auditoria TR × Propostas
+            </p>
+          </div>
+          <Button onClick={startNew}>
+            <Plus className="h-4 w-4" aria-hidden />
+            Novo Molde
+          </Button>
         </div>
-        <Button onClick={startNew}>
-          <Plus className="h-4 w-4" aria-hidden />
-          Novo Molde
-        </Button>
-      </div>
+      </header>
 
       <div className="glass-card p-4">
         <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-content-subtle">Começar com template</p>

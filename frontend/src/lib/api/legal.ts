@@ -19,6 +19,21 @@ export type LegalProvision = {
   ancestors: Array<{ path: string; text: string; status: string }>;
 };
 
+export type LegalSourceStatus = 'em_uso' | 'nao_ingerido' | 'quarentena';
+
+export type LegalSource = {
+  id: string;
+  label: string;
+  kind: string;
+  status: LegalSourceStatus;
+  searchable: boolean;
+  search_law: string | null;
+};
+
+export async function getLegalSources(): Promise<LegalSource[]> {
+  return fetchAPI<LegalSource[]>('/legal/sources');
+}
+
 export async function getLegalProvisions(params: {
   law_number?: string;
   path?: string;

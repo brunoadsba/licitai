@@ -8,6 +8,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
 import type { Tone } from '@/components/ui/Badge';
 import { COMPARACAO_STATUS_LABELS } from '@/types';
+import { copy } from '@/lib/copy';
 
 interface Comparacao {
   id: string;
@@ -25,6 +26,7 @@ interface ComparacaoListProps {
   sendingFeedbackId: string | null;
   feedbackEnviadosIds: string[];
   onFeedback: (id: string) => void;
+  onNovaAuditoria?: () => void;
 }
 
 function formatDate(dateStr: string): string {
@@ -53,6 +55,7 @@ export default function ComparacaoList({
   sendingFeedbackId,
   feedbackEnviadosIds,
   onFeedback,
+  onNovaAuditoria,
 }: ComparacaoListProps) {
   if (loading) {
     return (
@@ -70,7 +73,12 @@ export default function ComparacaoList({
         <EmptyState
           icon={GitCompareArrows}
           title="Nenhuma comparação ainda"
-          description="Inicie uma auditoria na aba Nova auditoria após cadastrar fornecedores e propostas."
+          description="Cadastre fornecedores e propostas, depois inicie uma auditoria."
+          action={
+            onNovaAuditoria ? (
+              <Button onClick={onNovaAuditoria}>{copy.cta.novaAuditoria}</Button>
+            ) : undefined
+          }
         />
       </div>
     );

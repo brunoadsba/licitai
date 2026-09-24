@@ -22,10 +22,11 @@ import ItemList from '@/components/analysis/ItemList';
 import ItemDetail from '@/components/analysis/ItemDetail';
 import { isSeiCopyAllowed } from '@/components/analysis/CorrectionCard';
 import { useAnalysisPage } from './useAnalysisPage';
+import { copy } from '@/lib/copy';
 
 export default function AnalysisPage() {
   const s = useAnalysisPage();
-  const [guided, setGuided] = useState(false);
+  const [showAllItems, setShowAllItems] = useState(false);
 
   if (s.loading) {
     return (
@@ -63,6 +64,8 @@ export default function AnalysisPage() {
     s.analysis?.corrections?.filter((c) => isSeiCopyAllowed(c.review_status)).length ?? 0;
   const analysisDone =
     s.analysis?.status === 'completed' || s.analysis?.status === 'completed_with_errors';
+  const hasCorrections = (s.analysis?.corrections?.length ?? 0) > 0;
+  const guided = (analysisDone || hasCorrections) && !showAllItems;
   const visibleItems =
     document && s.analysis
       ? filterItemsForPriorityMode(document.items, s.analysis.corrections, s.priorityMode)
@@ -108,17 +111,17 @@ export default function AnalysisPage() {
 
       {s.analysis && (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-medium text-content-secondary">Próximo passo:</span>
+          <span className="text-xs font-medium text-content-secondary">{copy.analysis.nextStep}</span>
           <Button
             size="sm"
             variant={guided ? 'primary' : s.priorityMode === 'priority' ? 'primary' : 'secondary'}
             data-testid="queue-priority"
             onClick={() => {
               s.setPriorityMode('priority');
-              setGuided(true);
+              setShowAllItems(false);
             }}
           >
-            Revisar agora
+            {copy.cta.revisarAgora}
           </Button>
           <Button
             size="sm"
@@ -126,18 +129,14 @@ export default function AnalysisPage() {
             data-testid="queue-all"
             onClick={() => {
               s.setPriorityMode('all');
-              setGuided(false);
+              setShowAllItems(true);
             }}
           >
-            Ver todas
+            {copy.cta.verTodas}
           </Button>
-          {guided ? (
-            <span className="text-xs text-content-muted">Modo guiado: 1 por vez, grave primeiro</span>
-          ) : (
-            <span className="text-xs text-content-muted">
-              Comece pelas sugestões graves e partes faltantes do TR
-            </span>
-          )}
+          <span className="text-xs text-content-muted">
+            {guided ? copy.analysis.guidedHint : copy.analysis.listHint}
+          </span>
         </div>
       )}
 
@@ -146,7 +145,10 @@ export default function AnalysisPage() {
           analysisId={s.analysis.id}
           corrections={s.analysis.corrections}
           onReviewUpdated={s.handleReviewUpdated}
-          onExit={() => setGuided(false)}
+          onExit={() => {
+            s.setPriorityMode('all');
+            setShowAllItems(true);
+          }}
           onAfterComplete={() => {
             const el = window.document.querySelector('[data-testid="sei-pack-btn"]') as HTMLElement | null;
             el?.scrollIntoView({ behavior: 'smooth', block: 'center' });

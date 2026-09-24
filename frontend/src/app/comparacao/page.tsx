@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/Tabs';
 import AlertBanner from '@/components/ui/AlertBanner';
@@ -10,17 +11,18 @@ import { useComparacaoPage } from '@/components/comparacao/useComparacaoPage';
 
 export default function ComparacaoPage() {
   const page = useComparacaoPage();
+  const [tab, setTab] = useState('historico');
 
   return (
     <div className="animate-fade-in space-y-6">
-      <div>
+      <header>
         <h1 className="text-2xl font-semibold tracking-tight text-content-primary">
           Auditoria TR × Propostas
         </h1>
         <p className="mt-1 text-sm text-content-muted">
           Compare propostas com o Termo de Referência em etapas separadas
         </p>
-      </div>
+      </header>
 
       {page.error && (
         <AlertBanner variant="error" title="Não foi possível concluir">
@@ -34,7 +36,7 @@ export default function ComparacaoPage() {
         </AlertBanner>
       )}
 
-      <Tabs defaultValue="historico">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList aria-label="Seções da auditoria">
           <TabsTrigger value="historico">Histórico</TabsTrigger>
           <TabsTrigger value="nova">Nova auditoria</TabsTrigger>
@@ -48,6 +50,7 @@ export default function ComparacaoPage() {
             sendingFeedbackId={page.sendingFeedbackId}
             feedbackEnviadosIds={page.feedbackEnviadosIds}
             onFeedback={page.handleFeedback}
+            onNovaAuditoria={() => setTab('nova')}
           />
         </TabsContent>
 
@@ -82,12 +85,14 @@ export default function ComparacaoPage() {
               cnpj={page.novoFornecedorCnpj}
               email={page.novoFornecedorEmail}
               propostaFornecedorId={page.propostaFornecedorId}
+              propostaClassification={page.propostaClassification}
               propostaFile={page.propostaFile}
               uploading={page.uploading}
               setNome={page.setNovoFornecedor}
               setCnpj={page.setNovoFornecedorCnpj}
               setEmail={page.setNovoFornecedorEmail}
               setPropostaFornecedorId={page.setPropostaFornecedorId}
+              setPropostaClassification={page.setPropostaClassification}
               setPropostaFile={page.setPropostaFile}
               onSalvar={page.handleCadastrarFornecedor}
               onCancelarEdicao={page.clearFornecedorForm}

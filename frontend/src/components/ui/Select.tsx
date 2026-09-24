@@ -48,7 +48,10 @@ function SelectContent({ className, children, position = 'popper', ...props }: R
         {...props}
       >
         <SelectPrimitive.Viewport
-          className={cn('p-1', position === 'popper' && 'h-[var(--radix-select-content-available-height)]')}
+          className={cn(
+            'p-1',
+            position === 'popper' && 'min-w-[var(--radix-select-trigger-width)]',
+          )}
         >
           {children}
         </SelectPrimitive.Viewport>
