@@ -236,7 +236,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `item_analysis.py`: Análise individual de um item (extraído de `engine.py` em 13/08).
   - `scoring.py`: Pontuação global e por severidade (extraído de `engine.py` em 13/08); recalculado após review humana via API.
   - `review.py`: Revisão cruzada das correções pelo LLM (aprova/rejeita/ajusta) — Fase 2.2.
-  - `report.py`: Gerador de relatórios em Markdown formatado.
+  - `report.py`: Relatório Markdown com evidência DE→PARA quando houver.
+  - `parecer_origins.py`: rodapé do parecer com IDs, retrieval runs e rastro por correção.
 - `app/services/rules/` (Auditoria RF02):
   - `loader.py`: Schema Pydantic do `config_json` (tipos: numero_inteiro, numero_extenso, booleano, legal, data, percentual, monetario) + validação.
   - `extractor.py`: Extração determinística de valores por âncora (numérica, extensa, booleana, legal, data ISO, percentual, monetária).
