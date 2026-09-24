@@ -14,8 +14,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-# Criar diretório de uploads fora do web root
-RUN mkdir -p /app/uploads && chmod 700 /app/uploads
+# Criar diretório de uploads fora do web root e usuário não-root
+RUN mkdir -p /app/uploads \
+    && adduser --system --uid 10001 --group licitai \
+    && chown -R licitai:licitai /app
+
+USER licitai
 
 EXPOSE 8000
 
