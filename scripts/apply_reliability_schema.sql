@@ -119,7 +119,28 @@ CREATE TABLE IF NOT EXISTS legal_id_map (
     legal_document_id UUID NOT NULL REFERENCES legal_documents(id) ON DELETE CASCADE
 );
 
-INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_003')
+CREATE EXTENSION IF NOT EXISTS unaccent;
+CREATE OR REPLACE FUNCTION licitai_unaccent(t text)
+RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+SELECT public.unaccent('public.unaccent', coalesce(t, ''))
+$$;
+ALTER TABLE legal_chunks ADD COLUMN IF NOT EXISTS search_tsv tsvector;
+UPDATE legal_chunks SET search_tsv = to_tsvector('portuguese', licitai_unaccent(chunk_text))
+WHERE search_tsv IS NULL;
+CREATE INDEX IF NOT EXISTS ix_legal_chunks_search_tsv ON legal_chunks USING GIN (search_tsv);
+CREATE OR REPLACE FUNCTION legal_chunks_tsv_update()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.search_tsv := to_tsvector('portuguese', licitai_unaccent(NEW.chunk_text));
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_legal_chunks_search_tsv ON legal_chunks;
+CREATE TRIGGER trg_legal_chunks_search_tsv
+    BEFORE INSERT OR UPDATE OF chunk_text ON legal_chunks
+    FOR EACH ROW EXECUTE FUNCTION legal_chunks_tsv_update();
+
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_004')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 CREATE TABLE IF NOT EXISTS retrieval_runs (
@@ -147,7 +168,7 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL
 );
 DELETE FROM alembic_version;
-INSERT INTO alembic_version (version_num) VALUES ('20260924_003');
+INSERT INTO alembic_version (version_num) VALUES ('20260924_004');
 
 -- CHECKs alinhados ao ORM (idempotente em Postgres legado)
 DO $$

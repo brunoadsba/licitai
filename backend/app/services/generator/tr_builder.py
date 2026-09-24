@@ -47,6 +47,7 @@ async def generate_tr_document(
         db, query_rag, top_k=3,
         allow_semantic=policy.cloud_embeddings,
         allow_llm_rerank=policy.llm_rerank,
+        classification=getattr(request, "classification", None),
     )
     rag_context = "\n\n".join([f"[{c.law_number} - {c.article}]\n{c.text}" for c in chunks])
 

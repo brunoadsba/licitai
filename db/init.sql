@@ -175,7 +175,8 @@ CREATE TABLE IF NOT EXISTS legal_chunks (
     embedding_dim INTEGER,
     embedding_vector vector(3072),
     doc_metadata JSONB,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    search_tsv tsvector
 );
 
 -- -----------------------------------------------------------
@@ -408,8 +409,27 @@ CREATE TABLE IF NOT EXISTS schema_meta (
     value VARCHAR(255) NOT NULL
 );
 
-INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_003')
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_004')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+CREATE EXTENSION IF NOT EXISTS unaccent;
+CREATE OR REPLACE FUNCTION licitai_unaccent(t text)
+RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE AS $$
+SELECT public.unaccent('public.unaccent', coalesce(t, ''))
+$$;
+CREATE OR REPLACE FUNCTION legal_chunks_tsv_update()
+RETURNS trigger LANGUAGE plpgsql AS $$
+BEGIN
+    NEW.search_tsv := to_tsvector('portuguese', licitai_unaccent(NEW.chunk_text));
+    RETURN NEW;
+END;
+$$;
+DROP TRIGGER IF EXISTS trg_legal_chunks_search_tsv ON legal_chunks;
+CREATE TRIGGER trg_legal_chunks_search_tsv
+    BEFORE INSERT OR UPDATE OF chunk_text ON legal_chunks
+    FOR EACH ROW EXECUTE FUNCTION legal_chunks_tsv_update();
+CREATE INDEX IF NOT EXISTS ix_legal_chunks_search_tsv
+    ON legal_chunks USING GIN (search_tsv);
 
 CREATE INDEX IF NOT EXISTS idx_legal_chunks_embedding_hnsw
     ON legal_chunks USING hnsw (embedding_vector vector_cosine_ops);

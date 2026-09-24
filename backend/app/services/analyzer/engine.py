@@ -136,6 +136,7 @@ async def run_analysis(
             llm,
             allow_semantic=policy.cloud_embeddings,
             allow_llm_rerank=policy.llm_rerank,
+            classification=getattr(document, "classification", None),
         )
         items_context.append((item, legal_ctx.text))
         retrieval_by_item[str(item.id)] = {

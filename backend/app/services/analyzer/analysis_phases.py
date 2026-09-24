@@ -75,6 +75,7 @@ async def _retrieve_legal_context(
     *,
     allow_semantic: bool | None = None,
     allow_llm_rerank: bool | None = None,
+    classification: str | None = None,
 ) -> LegalContext:
     """Busca artigos relevantes no corpus jurídico e formata para o prompt.
 
@@ -100,6 +101,7 @@ async def _retrieve_legal_context(
             llm=llm,
             allow_semantic=allow_semantic,
             allow_llm_rerank=allow_llm_rerank,
+            classification=classification,
         )
     except Exception:
         logger.exception("Falha ao recuperar contexto jurídico")
@@ -112,12 +114,11 @@ async def _retrieve_legal_context(
         chunks=chunks,
         params={"top_k": 4, "allow_semantic": allow_semantic},
         filters={"law_numbers": law_numbers} if law_numbers else {},
+        classification=classification,
     )
     text = ""
     if chunks:
-        parts = [
-            f"### {c.law_number} — {c.article}\n{c.text[:2500]}" for c in chunks
-        ]
+        parts = [f"### {c.law_number} — {c.article}\n{c.text}" for c in chunks]
         text = "\n\n".join(parts)
     return LegalContext(
         text=text,

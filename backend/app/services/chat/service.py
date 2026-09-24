@@ -148,6 +148,7 @@ async def send_message(
             conversation.context_json or {},
             allow_semantic=policy.cloud_embeddings,
             allow_llm_rerank=policy.llm_rerank,
+            classification=policy.classification,
         )
         if isinstance(montadas, tuple):
             fontes, retrieval_run_id = montadas
@@ -189,6 +190,11 @@ async def send_message(
         )
         raw = await provider.generate(system_prompt, user_prompt)
         latency_ms = int((time.monotonic() - inicio) * 1000)
+        from app.services.cost import estimate_tokens, record_operation_cost
+        from app.utils.metrics import metrics
+
+        metrics.observe_latency_ms(latency_ms)
+        record_operation_cost("chat", estimate_tokens(system_prompt) + estimate_tokens(raw))
         resposta: ValidatedAnswer = validate_llm_answer(
             raw,
             require_grounding=settings.chat_require_grounding,
