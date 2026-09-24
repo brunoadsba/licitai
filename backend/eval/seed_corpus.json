@@ -1,0 +1,65 @@
+{
+  "documents": [
+    {
+      "law_number": "Lei 14.133/2021",
+      "law_title": "Lei de Licitações e Contratos Administrativos",
+      "version": "texto consolidado",
+      "chunks": [
+        {
+          "article": "Art. 5º",
+          "text": "Art. 5º Na aplicação desta Lei, serão observados os princípios da legalidade, da impessoalidade, da moralidade, da publicidade, da eficiência, do interesse público e da impessoalidade."
+        },
+        {
+          "article": "Art. 6º",
+          "text": "Art. 6º Para os fins desta Lei, consideram-se: I - órgão: unidade de atuação integrante da estrutura da Administração Pública; II - entidade: unidade de atuação com personalidade jurídica."
+        },
+        {
+          "article": "Art. 75",
+          "text": "Art. 75. É dispensável a licitação: I - para contratação que envolva valores inferiores a R$ 100.000,00 (cem mil reais), no caso de obras e serviços de engenharia."
+        },
+        {
+          "article": "Art. 105",
+          "text": "Art. 105. A duração dos contratos regidos por esta Lei será a prevista em edital, e deverão ser observadas, no momento da contratação e a cada exercício financeiro, a disponibilidade de créditos orçamentários."
+        },
+        {
+          "article": "Art. 187",
+          "text": "Art. 187. Os Estados, o Distrito Federal e os Municípios poderão aplicar os regulamentos editados pela União para execução desta Lei."
+        },
+        {
+          "article": "Art. 193",
+          "text": "Art. 193. Revogam-se: I - os arts. 89 a 108 da Lei nº 8.666, de 21 de junho de 1993, na data de publicação desta Lei; II - a Lei nº 8.666, de 21 de junho de 1993."
+        }
+      ]
+    },
+    {
+      "law_number": "Lei 13.303/2016",
+      "law_title": "Estatuto Jurídico das Empresas Estatais",
+      "version": "texto consolidado",
+      "chunks": [
+        {
+          "article": "Art. 6º",
+          "text": "Art. 6º O estatuto da empresa pública, da sociedade de economia mista e de suas subsidiárias deverá observar regras de governança corporativa."
+        },
+        {
+          "article": "Art. 29",
+          "text": "Art. 29. É dispensável a realização de licitação por empresas públicas e sociedades de economia mista: I - para obras e serviços de engenharia de valor até o limite legal."
+        },
+        {
+          "article": "Art. 71",
+          "text": "Art. 71. A duração dos contratos regidos por esta Lei não excederá a 5 (cinco) anos, contados a partir de sua celebração, exceto nas hipóteses legais."
+        }
+      ]
+    },
+    {
+      "law_number": "Súmula 247/TCU",
+      "law_title": "Súmula 247 TCU (quarentena)",
+      "version": "quarantine-0B",
+      "chunks": [
+        {
+          "article": "Súmula 247",
+          "text": "É obrigatória a admissão da adjudicação por item e não por preço global, nos termos da Súmula 247 do TCU sobre parcelamento do objeto e competitividade."
+        }
+      ]
+    }
+  ]
+}

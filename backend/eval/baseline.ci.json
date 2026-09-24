@@ -1,0 +1,420 @@
+{
+  "dataset_version": "fase2-v1",
+  "corpus_version": "b16124ab1c5a6e86aa4c2c013eaeb1f8e2520b8dc182a8d7019c8562b5f23358",
+  "curator": "técnico-piloto",
+  "legal_review": "pendente",
+  "n_cases": 14,
+  "recall@1": 0.714,
+  "recall@5": 1.0,
+  "mrr": 0.806,
+  "ndcg@5": 0.854,
+  "citation_rate": 1.0,
+  "recall@5_por_categoria": {
+    "alteracao_revogacao": 1.0,
+    "ambigua": 1.0,
+    "anexos_tabelas": 1.0,
+    "comparacao_regimes": 1.0,
+    "definicoes": 1.0,
+    "documentos_longos": 1.0,
+    "excecoes": 1.0,
+    "jurisdicao": 1.0,
+    "localizacao": 1.0,
+    "multi_hop": 1.0,
+    "nao_autorizado": 1.0,
+    "prompt_injection": 1.0,
+    "sem_resposta": 1.0,
+    "vigencia": 1.0
+  },
+  "latency_ms_p50": 0.7,
+  "latency_ms_p95": 1.5,
+  "cost_usd": 0.0,
+  "provider_errors": 0,
+  "cases": [
+    {
+      "id": "loc-001",
+      "category": "localizacao",
+      "recall@1": 0.0,
+      "recall@5": 1.0,
+      "rr": 0.2,
+      "ndcg@5": 0.387,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 193"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 187"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 5º"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 5º"
+        ]
+      ]
+    },
+    {
+      "id": "def-001",
+      "category": "definicoes",
+      "recall@1": 0.0,
+      "recall@5": 1.0,
+      "rr": 0.25,
+      "ndcg@5": 0.431,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 193"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 187"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 5º"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ]
+      ]
+    },
+    {
+      "id": "exc-001",
+      "category": "excecoes",
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 75"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 75"
+        ]
+      ]
+    },
+    {
+      "id": "hop-001",
+      "category": "multi_hop",
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 75"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 75"
+        ]
+      ]
+    },
+    {
+      "id": "reg-001",
+      "category": "comparacao_regimes",
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 71"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 71"
+        ]
+      ]
+    },
+    {
+      "id": "vig-001",
+      "category": "vigencia",
+      "recall@1": 0.0,
+      "recall@5": 1.0,
+      "rr": 0.333,
+      "ndcg@5": 0.5,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 193"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 187"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 5º"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ]
+      ]
+    },
+    {
+      "id": "rev-001",
+      "category": "alteracao_revogacao",
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 193"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 187"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 5º"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 193"
+        ]
+      ]
+    },
+    {
+      "id": "jur-001",
+      "category": "jurisdicao",
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 187"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 187"
+        ]
+      ]
+    },
+    {
+      "id": "none-001",
+      "category": "sem_resposta",
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
+      "ranked": [],
+      "found": []
+    },
+    {
+      "id": "amb-001",
+      "category": "ambigua",
+      "recall@1": 0.0,
+      "recall@5": 1.0,
+      "rr": 0.5,
+      "ndcg@5": 0.631,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 5º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 75"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 105"
+        ],
+        [
+          "Lei 14.133/2021",
+          "Art. 187"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ]
+      ]
+    },
+    {
+      "id": "long-001",
+      "category": "documentos_longos",
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 6º"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 6º"
+        ]
+      ]
+    },
+    {
+      "id": "tab-001",
+      "category": "anexos_tabelas",
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 75"
+        ],
+        [
+          "Lei 13.303/2016",
+          "Art. 29"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 75"
+        ]
+      ]
+    },
+    {
+      "id": "inj-001",
+      "category": "prompt_injection",
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
+      "ranked": [
+        [
+          "Lei 14.133/2021",
+          "Art. 5º"
+        ]
+      ],
+      "found": [
+        [
+          "Lei 14.133/2021",
+          "Art. 5º"
+        ]
+      ]
+    },
+    {
+      "id": "auth-001",
+      "category": "nao_autorizado",
+      "recall@1": 1.0,
+      "recall@5": 1.0,
+      "rr": 1.0,
+      "ndcg@5": 1.0,
+      "citation_ok": 1.0,
+      "ranked": [],
+      "found": []
+    }
+  ]
+}

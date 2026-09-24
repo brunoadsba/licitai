@@ -26,17 +26,53 @@ jobs:
           sudo apt-get install -y libmagic1 tesseract-ocr tesseract-ocr-por
 
       - name: Instalar dependências Python
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt -r requirements-dev.txt
 
       - name: Lint (ruff)
-        run: |
-          pip install ruff
-          ruff check app tests
+        run: ruff check app tests eval
 
       - name: Testes unitários
         run: python -m pytest tests -q
         env:
-          # Suíte não depende de chaves reais (providers fake/mocks)
+          LLM_PROVIDER: groq
+
+  eval-rag:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sei_user
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: sei_analise
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sei_user -d sei_analise"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências Python
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Avaliar corpus curado e barrar regressão
+        run: PYTHONPATH=. python scripts/eval_corpus_real.py --seed --check-baseline --baseline eval/baseline.ci.json
+        env:
+          DATABASE_URL: postgresql+asyncpg://sei_user:ci@localhost:5432/sei_analise
+          API_TOKEN: ci-eval-fase2
+          APP_ENV: development
           LLM_PROVIDER: groq
 
   frontend:

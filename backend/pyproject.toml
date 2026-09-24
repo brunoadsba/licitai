@@ -4,6 +4,9 @@ version = "0.1.0"
 description = "Backend do Sistema de Análise de Termos de Referência (FastAPI)"
 requires-python = ">=3.12"
 
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

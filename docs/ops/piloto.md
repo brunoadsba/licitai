@@ -8,6 +8,8 @@ Quarentena TCU (Fase 0B): [quarentena-tcu.md](quarentena-tcu.md).
 
 Auth operacional do piloto (Fase 0C): [auth-piloto.md](auth-piloto.md). O token compartilhado não é login de usuário.
 
+Avaliação curada (Fase 2): [eval-fase2.md](eval-fase2.md). Runner local; CI GitHub desligado.
+
 ## Status (código vs pendências humanas)
 
 | Item | Status |
@@ -25,6 +27,7 @@ Auth operacional do piloto (Fase 0C): [auth-piloto.md](auth-piloto.md). O token 
 | Branding MVP LicitAI | **Parcial 18/09** (`logo.svg` + header + `docs/branding/`; falta `icon.png` 512 + SEI/DOCX/guia) |
 | Rotação de secrets | **Pendente** (manual) |
 | Benchmark quinzenal com 5 TRs CODEBA | **Baseline Art.6** + **sessão ouro LLM** em [quinzena-2026-09-14.md](quinzena-2026-09-14.md) — [piloto-qualidade.md](piloto-qualidade.md) · fixtures em `fixtures/trs-codeba/` |
+| Avaliação RAG Fase 2 (conjunto + baseline) | **Feito** ([eval-fase2.md](eval-fase2.md)); visto jurídico pendente |
 | CI GitHub / K8s / fine-tune / multi-tenant | **Fora de escopo** (não fazer) |
 
 ## Secrets (manual Bruno)
