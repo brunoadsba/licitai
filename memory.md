@@ -452,7 +452,7 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 
 ## 8. Próximos Passos (Roadmap para Próximos Agentes)
 
-> Backlog histórico: [docs/archive/PLANO.md](docs/archive/PLANO.md). Plano técnico pós-auditoria (fonte da verdade das fases 0A–9): [docs/ops/plano-tecnico-ajustado.md](docs/ops/plano-tecnico-ajustado.md). Branch ativa: **`main`** (`e52b712`). CI **não** reabilitar sem pedido.
+> Backlog histórico: [docs/archive/PLANO.md](docs/archive/PLANO.md). Plano técnico pós-auditoria (fonte da verdade das fases 0A–9): [docs/ops/plano-tecnico-ajustado.md](docs/ops/plano-tecnico-ajustado.md). Branch ativa: **`main`**. CI **não** reabilitar sem pedido.
 
 ### Contenção pós-auditoria (ondas 0A–0C)
 
