@@ -30,11 +30,16 @@ export default function GuiaUsuarioPage() {
       <section className="space-y-2">
         <h2 className="text-base font-semibold text-content-primary">Fluxo</h2>
         <ol className="list-decimal space-y-1 pl-5 text-sm text-content-secondary">
-          <li>Enviar o TR (PDF ou DOCX, até 50 MB)</li>
+          <li>Enviar o TR (PDF, DOCX ou ODT, até 50 MB) e escolher a classificação</li>
           <li>Aguardar a análise</li>
           <li>Revisar (Aprovar / Rejeitar / Ajustar)</li>
           <li>Copiar pacote SEI e colar no processo</li>
         </ol>
+        <p className="text-sm text-content-muted">
+          Documento <strong className="font-medium text-content-primary">sigiloso</strong> só
+          roda em modelo local. Sem esse modelo, o envio é recusado — use Público ou Interno
+          no piloto.
+        </p>
       </section>
 
       <section className="space-y-3">
@@ -66,6 +71,12 @@ export default function GuiaUsuarioPage() {
           <ol className="list-decimal space-y-1 pl-5 text-sm text-content-secondary">
             <li>Arraste ou escolha o arquivo</li>
             <li>
+              Selecione a classificação:{' '}
+              <strong className="font-medium text-content-primary">Público</strong>,{' '}
+              <strong className="font-medium text-content-primary">Interno</strong> ou{' '}
+              <strong className="font-medium text-content-primary">Sigiloso</strong>
+            </li>
+            <li>
               Clique em{' '}
               <strong className="font-medium text-content-primary">Enviar e Analisar</strong>
             </li>
@@ -95,12 +106,18 @@ export default function GuiaUsuarioPage() {
               <strong className="font-medium text-content-primary">Ajustar</strong>
             </li>
             <li>
+              Cada card mostra a{' '}
+              <strong className="font-medium text-content-primary">evidência DE → PARA</strong> —
+              confira o texto original, o sugerido e a base jurídica
+            </li>
+            <li>
               Com aprovada/ajustada:{' '}
               <strong className="font-medium text-content-primary">Copiar pacote SEI</strong>
             </li>
             <li>
               <strong className="font-medium text-content-primary">Exportar</strong> — HTML, DOCX,
-              .md · <strong className="font-medium text-content-primary">Mais</strong> — relatório,
+              .md e pacote de auditoria (.json) ·{' '}
+              <strong className="font-medium text-content-primary">Mais</strong> — relatório,
               histórico · <strong className="font-medium text-content-primary">Perguntar</strong>
             </li>
           </ul>
@@ -121,20 +138,24 @@ export default function GuiaUsuarioPage() {
           <li>Colar na minuta/processo</li>
           <li>Conferir o texto antes de concluir</li>
         </ol>
+        <p className="text-sm text-content-muted">
+          O pacote de auditoria (JSON) não vai para o SEI: guarda o rastro da revisão.
+        </p>
       </section>
 
       <section className="space-y-2">
         <h2 className="text-base font-semibold text-content-primary">Problemas comuns</h2>
         <ul className="list-disc space-y-1 pl-5 text-sm text-content-secondary">
           <li>Pacote SEI desabilitado → aprove ou ajuste ao menos uma correção</li>
-          <li>Arquivo rejeitado → PDF ou DOCX, até 50 MB</li>
+          <li>Arquivo rejeitado → PDF, DOCX ou ODT, até 50 MB</li>
+          <li>Sigiloso recusado → sem modelo local, use Público ou Interno</li>
           <li>Sistema indisponível → suporte / equipe do piloto</li>
         </ul>
       </section>
 
       <p className="text-xs text-content-subtle">
         Tema claro/escuro: interruptor no cabeçalho. Gerar TR e auditoria: Mais ferramentas
-        (opcional).
+        (opcional). Dispositivo jurídico: /legal.
       </p>
 
       <div className="flex flex-wrap gap-2">

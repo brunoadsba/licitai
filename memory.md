@@ -20,10 +20,12 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - **📐 Agente Estrutural**: Organização e checklist do Art. 6º, XXIII da Lei 14.133/2021.
   - **👑 Orquestrador Multi-Agente**: Execução concorrente assíncrona (`asyncio.gather`) + deduplicação de achados + etiquetagem com `agent_origin`.
 - Sugestões de melhoria fundamentadas no formato **DE → PARA** (com gravidade, risco, justificativa e embasamento legal).
-- **RAG v1.0 & Busca Semântica por Embeddings**:
-  - Embeddings semânticos com `get_embeddings_provider()` (Gemini / Ollama `bge-m3`).
-  - Base jurídica expandida com **Jurisprudência do TCU** (Súmulas 247, 272, Acórdão 1214/2013) e **RILC CODEBA** completo (fonte atos_normativos; ingestão `ingest_rilc_codeba.py`).
-  - **Comparador Visual de Versões de TR** (`/comparacao/versoes`): Alinhamento inteligente por `item_number` classificando itens em `inalterado`, `alterado`, `adicionado`, `removido`.
+- **RAG híbrido (Fases 1–6, 24/09/2026)**:
+  - Texto: FTS Postgres (`unaccent` + `portuguese` + GIN) ou FTS5 no SQLite; lookup direto de artigo; expansão hierárquica com orçamento de tokens.
+  - Semântico: embeddings Gemini / Ollama `bge-m3` em `legal_chunks.embedding` (JSON). `pgvector` instalado; coluna `embedding_vector` ainda vazia — sem HNSW até medir recall.
+  - Índice vivo: `legal_documents`/`legal_chunks`. Sidecar versionado: `legal_works`/`legal_versions`/`legal_provisions` (Fase 4). TCU sem URL oficial em quarentena (`version=quarantine-0B`).
+  - Cache de recuperação por `corpus_version` + `classification`. Grounding: claims com `evidence_ids`; LegalAgent não inventa base se o RAG vier vazio.
+  - **Comparador Visual de Versões de TR** (`/comparacao/versoes`): alinhamento por `item_number` (`inalterado`, `alterado`, `adicionado`, `removido`).
 - **Auditoria TR × Propostas** (módulo aditivo):
   - **Moldes de regras configuráveis** (RF02) com 10 tipos de âncoras (numéricas, por extenso, booleanas, legais, datas, percentuais, monetárias, **CNPJ**, **prazo relativo** e **CEP**).
   - **Editor visual de moldes** (`/moldes`) com botões de **Duplicar Molde** em 1-clique e **Validação Dry-Run** (modal interativo para testar regras contra qualquer TR em tempo real).
@@ -43,9 +45,11 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - **Arquitetura de Múltiplos Agentes Especializados (`services/agents/`)**:
   - `BaseSpecializedAgent`: Interface comum para os agentes `LegalAgent`, `TechnicalAgent`, `WritingAgent`, `StructuralAgent`.
   - `MultiAgentOrchestrator`: Dispara chamadas paralelas aos agentes especializados e deduplica os achados idênticos.
-- **RAG v1.0 & Corpus Jurídico (`services/rag/` + `services/embeddings/`)**:
-  - Embeddings vetoriais via `GeminiEmbeddingsProvider` / `OllamaEmbeddingsProvider` armazenados na coluna `legal_chunks.embedding`.
-  - Ingestão de acórdãos TCU (`ingest_juris_tcu.py`) e RILC CODEBA completo (`ingest_rilc_codeba.py`) com reconstrução de índice FTS5.
+- **RAG & Corpus Jurídico (`services/rag/` + `services/embeddings/`)**:
+  - Backends: `_search_postgres` (FTS `to_tsquery` OR + `ts_rank_cd`; fallback ILIKE se o índice faltar) e `_search_sqlite` (FTS5 + coluna `article`).
+  - Módulos: `article_query.py`, `hierarchy.py`, `legal_cache.py`, `rrf.py`, `embed_store.py` (cache persistente de embedding de query; não cacheia consulta restrita).
+  - Embeddings via `GeminiEmbeddingsProvider` / `OllamaEmbeddingsProvider` em `legal_chunks.embedding`.
+  - Ingestão: leis (`ingest_laws.py`), RILC (`ingest_rilc_codeba.py`), TCU (`ingest_juris_tcu.py` — fontes sem URL oficial ficam em quarentena e saem da busca padrão).
   - Diff entre versões do TR (`services/comparator/diff.py`) e endpoint `/documents/diff`.
 - **Módulo de Auditoria TR × Propostas & Polimentos**:
   - **Novos Extratores**: CNPJ (dígitos verificadores), Prazo Relativo (ex: "30 dias"), CEP (`#####-###`).
@@ -165,8 +169,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `golden/`: Régua de confiabilidade (≥10 TRs sintéticos + FakeLLM).
 
 ### Backend (`/backend`)
-- `Dockerfile`: Imagem Python 3.12-slim com `tesseract-ocr`, `tesseract-ocr-por` e `libmagic1`.
-- `alembic.ini` + `alembic/versions/`: Migrações de schema (head atual `20260924_003`).
+- `Dockerfile`: Imagem Python 3.12-slim com `tesseract-ocr`, `tesseract-ocr-por` e `libmagic1`; usuário não-root `licitai` + `.dockerignore`.
+- `alembic.ini` + `alembic/versions/`: Migrações de schema (head atual `20260924_004` — FTS `search_tsv`).
 - `requirements.txt` / `requirements-dev.txt`: Dependências runtime e teste (inclui Alembic).
 - `app/worker.py`: Worker da fila `jobs` (`python -m app.worker`); heartbeat de lease a cada 60s (`renew_lease`); default `job_lease_seconds=900`.
 - `scripts/seed_moldes.py`: Seed idempotente de moldes padrão (TR geral, serviços continuados, obras públicas).
@@ -189,9 +193,9 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `app/services/jobs/`: enqueue/claim/complete/fail/reclaim.
 - `app/schemas/`:
   - `document.py`: Schemas Pydantic de requisição e resposta de documentos.
-  - `analysis.py`: Schemas Pydantic de análises, correções e relatórios (`CorrectionResponse` expõe `review_status`/`review_note`/`reviewed_at`).
+  - `analysis.py`: Schemas Pydantic de análises, correções e relatórios (`CorrectionResponse` expõe `review_status`/`review_note`/`reviewed_at` + `evidence` DE→PARA).
   - `comparison.py`: Schemas de fornecedores, moldes, comparação e matriz de conformidade.
-  - `chat.py`: Schemas do Copiloto (`ChatConversationCreate`, `ChatMessageCreate` com limite de tamanho via settings, `ChatFeedbackCreate`, `ChatCitation`, `ChatConversationResponse`, `ChatMessageResponse`, `ChatHealthResponse`).
+  - `chat.py`: Schemas do Copiloto; `ChatCitation` com `version`, `status`, `article`, `official_url`, `page`, `is_interpretation`.
 - `app/api/`:
   - `router.py`: Router `/api/v1`.
   - `documents.py`: Endpoints `/documents/upload`, `/documents/`, `/documents/{id}` e DELETE (upload aceita `document_type` + `fornecedor_id`).
@@ -200,6 +204,8 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `fornecedores.py`: CRUD de fornecedores (`/fornecedores`) com delete protegido (409 se houver propostas).
   - `comparison.py`: `/comparison/start` **só enfileira**; lista/matrix; feedback SMTP.
   - `chat.py`: Endpoints `/chat/health`, `/chat/conversations`, `/chat/conversations/{id}/messages`, `/chat/messages/{id}/feedback`.
+  - `legal.py`: `GET /legal/provisions` e `GET /legal/provisions/{id}` (dispositivo vigente + ancestrais).
+  - `analysis_audit.py`: `GET /analysis/{id}/audit-pack` (correções + retrieval runs).
 - BFF (token): `frontend/src/app/api/proxy/[...path]/route.ts` — não existe proxy no backend.
 - `app/services/parser/`:
   - `pdf_parser.py`: PyMuPDF primário -> pdfplumber fallback (tabelas) -> Tesseract OCR.
@@ -210,9 +216,12 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `odt_parser.py`: Extração ODT com `defusedxml` + limite de `content.xml` (50 MB).
 - `app/services/upload_service.py`: Orquestração de upload de documentos (extraído de `api/documents.py` em 13/08).
 - `app/services/rag/`:
-  - `retriever.py`: Retrieval híbrido (semântico + FTS5 com RRF) e cache de embeddings (orquestra `backends.py` + `semantic.py` desde 13/08).
-  - `backends.py`: Backends de busca textual/semântica (extraído de `retriever.py` em 13/08).
-  - `semantic.py`: Busca semântica por embeddings (extraído de `retriever.py` em 13/08).
+  - `retriever.py`: Retrieval híbrido (semântico + FTS + artigo) com RRF; cache via `legal_cache.py` (`corpus_version` + `classification`).
+  - `backends.py`: FTS Postgres/SQLite + merge de hits de artigo.
+  - `article_query.py`: Extração de “art. N”, busca na coluna `article`, filtro de hits FTS fracos.
+  - `hierarchy.py`: Expansão caput/ancestrais a partir de `legal_provisions`.
+  - `semantic.py` + `embed_store.py`: embedding de query (memória + disco; respeita classificação).
+  - `rrf.py`: fusão por rank recíproco.
 - `app/services/llm/`:
   - `provider.py`: Classe abstrata `LLMProvider` e factory `get_llm_provider()`.
   - `factory.py`: `get_llm_provider_for(classification)` — singleton full-failover, singleton local-only ou `PrivacyPolicyError`.
@@ -257,6 +266,9 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 - `src/lib/utils.ts`: `cn()` (clsx + tailwind-merge).
 - `src/lib/api.ts`: Cliente HTTP via **BFF** `/api/proxy/...` (token só no servidor; proxy monta `/api/v1/...`); `skipCache` em polling.
 - `src/app/guia/page.tsx` + `docs/guia-usuario.md`: guia do elaborador (4 passos) espelhado app/docs.
+- `src/app/legal/page.tsx` + `src/lib/api/legal.ts`: consulta de dispositivo vigente (`/legal`).
+- `src/components/analysis/CorrectionEvidence.tsx`: evidência DE→PARA no card da correção.
+- Export **Pacote de auditoria (.json)** no menu Exportar da análise (`getAuditPack`).
 - `src/lib/polling.ts`: Polling com deadline, backoff, limite de falhas, pausa em aba oculta.
 - `src/lib/badges.tsx`: `getCategoryTone` / `getSeverityTone` + `AGENT_ORIGIN_CONFIG` (Lucide) — consome o primitivo `Badge` (`tone`).
 - `src/lib/useCopy.ts`: Hook `useCopy()` com feedback de cópia (2s).
@@ -310,10 +322,14 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (24/09/2026)**: `main` inclui 0A–4. CI GitHub permanece desabilitado (`ci.yml.disabled`).
+- **Branch ativa (24/09/2026)**: `main` inclui **0A–8**. CI GitHub permanece desabilitado (`ci.yml.disabled`). Schema esperado: `20260924_004`.
+- **Fase 8 — auditoria (24/09/2026, `76dfd2a`)**: `GET /legal/provisions`, UI `/legal`, `CorrectionResponse.evidence` (DE→PARA + corpus + retrieval_run), `GET /analysis/{id}/audit-pack` + download no menu Exportar. Testes `test_fase8_audit.py`.
+- **Fase 7 — ops (24/09/2026, `4eacf7f`)**: custo por operação (`services/cost.py` + `/metrics`), cache persistente de embedding de query (`embed_store.py`, sem consulta restrita), imagem backend não-root + `.dockerignore`, p50/p95 de latência. Testes `test_fase7_ops.py`.
+- **Fase 6 — grounding (24/09/2026, `53fd9b5`)**: claims com `evidence_ids`; LegalAgent recusa base legal se RAG vazio; `ChatCitation` com artigo/versão/URL/página/`is_interpretation`; bypass de saudação. Testes `test_fase6_grounding.py`.
+- **Fase 5 — recuperação (24/09/2026, `f81ca21`)**: FTS Postgres (`search_tsv`, unaccent, GIN); lookup de artigo; contexto hierárquico; cache por `corpus_version`+`classification`. Piloto r@5 **0.357** (antes 0.214 ILIKE). `pgvector` 0.8.6 instalado; vetores na coluna JSON, não na `embedding_vector`. Doc: [docs/ops/recuperacao-fase5.md](docs/ops/recuperacao-fase5.md).
 - **Fase 4 — modelo jurídico versionado (24/09/2026)**: `legal_works`/`legal_versions`/`legal_provisions` + `legal_id_map`. Amostra 14.133/13.303 mapeada (vetados históricos). Índice legado permanece. Visto jurídico da amostra pendente. Schema `20260924_003`. Doc: [docs/ops/modelo-juridico-fase4.md](docs/ops/modelo-juridico-fase4.md).
 - **Fase 3 — ingestão confiável (24/09/2026)**: pipeline idempotente (hash/origem/manifesto); parse/OCR no worker; timeout OCR com SIGKILL; tachado/VETADO fora do vigente. Schema `20260924_002`. Doc: [docs/ops/ingestao-fase3.md](docs/ops/ingestao-fase3.md).
-- **Fase 2 — avaliação real e linha de base (24/09/2026)**: conjunto `backend/eval/cases.json`; runner `scripts/eval_corpus_real.py`; baselines em `eval/baseline.ci.json` (r@5 1.0) e `eval/baseline.piloto.json` (r@5 0.214). Doc: [docs/ops/eval-fase2.md](docs/ops/eval-fase2.md). Visto jurídico pendente. CI GitHub desligado.
+- **Fase 2 — avaliação real e linha de base (24/09/2026)**: conjunto `backend/eval/cases.json`; runner `scripts/eval_corpus_real.py`; baselines em `eval/baseline.ci.json` (r@5 1.0) e `eval/baseline.piloto.json` (r@5 **0.357** após FTS). Doc: [docs/ops/eval-fase2.md](docs/ops/eval-fase2.md). Visto jurídico pendente. CI GitHub desligado.
 - **Fase 1 — retrieval_run + citações no servidor (24/09/2026, `9b25fb1`)**: tabela `retrieval_runs`; hash SHA-256 do manifesto; análise e chat gravam a recuperação; citações montadas no servidor. Piloto: `schema_meta=20260924_001`, `/readyz` ready, 4 containers healthy.
 - **Fase 0C — auth operacional + extensão SEI (24/09/2026)**: `API_TOKEN` obrigatório com PostgreSQL (boot falha se vazio); Compose exige a variável; `/api/docs` só em development; extensão usa BFF `:3000/api/proxy` e sanitiza HTML. Token compartilhado ≠ login. Doc: [docs/ops/auth-piloto.md](docs/ops/auth-piloto.md). Validado: API sem header 401, com token 200, BFF 200.
 - **Fase 0B — quarentena TCU (24/09/2026)**: fontes sem URL oficial (`Súmula 247/TCU`, `Súmula 272/TCU`, `Acórdão 1214/2013-TCU-Plenário`) saem da busca padrão, de `legal_basis` e do parecer; dados preservados com `version=quarantine-0B`. Lista em [docs/ops/quarentena-tcu.md](docs/ops/quarentena-tcu.md). Validado no Postgres piloto.
@@ -465,9 +481,16 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 | **0B** Quarentena corpus TCU | **Feito (24/09)** | TCU sem fonte oficial fora da busca; dados preservados; validado no piloto |
 | **0C** Auth operacional + extensão SEI | **Feito (24/09)** | Token obrigatório com Postgres; BFF; sanitização da extensão |
 | **1** Retrieval run + claims | **Feito (24/09)** | Persistência da recuperação; citações montadas no servidor; parecer com origens |
-| **2** Avaliação e baseline | **Código nesta branch (24/09)** | Conjunto curado + runner local; CI GitHub desligado; visto jurídico pendente |
+| **2** Avaliação e baseline | **Feito (24/09)** | Conjunto curado + runner local; piloto r@5 0.357; CI GitHub desligado; visto jurídico pendente |
+| **3** Ingestão confiável | **Feito (24/09)** | Hash/origem/manifesto; parse/OCR no worker; SIGKILL no OCR |
+| **4** Modelo jurídico | **Feito (24/09)** | Sidecar works/versions/provisions; índice legado ativo; visto da amostra pendente |
+| **5** Recuperação Postgres | **Feito (24/09)** | FTS GIN + artigo + hierarquia + cache; [recuperacao-fase5.md](docs/ops/recuperacao-fase5.md) |
+| **6** Grounding e citações | **Feito (24/09)** | Claims por evidência; LegalAgent vazio; UI de citação |
+| **7** Custo e ops | **Feito (24/09)** | Tokens/USD, embed cache, imagem não-root, p50/p95 |
+| **8** UX auditoria | **Feito (24/09)** | `/legal`, evidência DE→PARA, pacote JSON |
+| **9** Multiusuário / OIDC | **Fora de escopo** | Não fazer sem pedido |
 
-Fases 2–9 (avaliação/CI, ingestão, modelo jurídico, recuperação, grounding, custo, UX auditoria, multiusuário) depois. Não enviar documento `sigiloso` ao piloto até existir Ollama configurado.
+Não enviar documento `sigiloso` ao piloto até existir Ollama configurado.
 
 ### Valor elaborador (Fases 0–4 — implementado, em `main`)
 - Fila Prioridade (alto/crítico + estrutural), pacote SEI, TR HTML corrigido, fluxo Atualizar TR (`?diffFrom=`), ops piloto (`docs/ops/piloto.md`, `scripts/backup_daily.sh`, `scripts/ops_alerts.sh`).
@@ -495,6 +518,9 @@ Fases 2–9 (avaliação/CI, ingestão, modelo jurídico, recuperação, groundi
 | 6 | Subir **`art6_coverage`** nos TRs reais (~71% → ≥90%) | Uso + curadoria | Já medível na UI/API; lacunas típicas: solução como um todo + adequação orçamentária |
 | 7 | ~~**RILC CODEBA completo** no RAG~~ | Feito (14/09/2026) | Fonte `backend/data/rilc/source/` + `provenance.json`; ingestão `python scripts/ingest_rilc_codeba.py` (287 arts., page em metadata) |
 | 8 | **Fine-tune / treino ML** | Bloqueado | Só após gate + dataset de aprovar/rejeitar/thumbs-down (`promote_feedback.py`). Treinar agora sem rótulos estáveis não é o próximo passo |
+| 9 | **Visto jurídico** do conjunto Fase 2 e da amostra Fase 4 | Humano | `legal_review` ainda `pendente` em `eval/baseline.piloto.json` |
+| 10 | **URLs oficiais TCU** (sair da quarentena 0B) | Humano | Sem URL oficial as súmulas 247/272 e o Acórdão 1214/2013 ficam fora da busca |
+| 11 | **Ollama** para TR `sigiloso` | Ops | Sem modelo local o fluxo sigiloso retorna 422 (fail-closed, esperado) |
 
 **Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`, exclusão de sumário/títulos na análise + UX análise (14/09/2026), **hardening backend** (TOC/reanálise/lease/pagemap/scores/ODT — 14/09/2026), contraste modo claro na UI.
 
@@ -581,11 +607,11 @@ Tokens claros endurecidos (`--text-muted` `#475569`, borders mais fortes); `Badg
 Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh --build` (ou `docker compose up -d --build frontend`).
 
 ### Agora (ops / Bruno) — ordem sugerida
-1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build` (worker precisa de `defusedxml`). Upload/chat/gerar-tr **exigem classificação**; não enviar `sigiloso` sem Ollama (422 esperado).
-2. **Próxima sessão técnica:** Fase **3** em `feat/fase-3-ingestao-confiavel` (pipeline de ingestão). Visto jurídico do conjunto Fase 2 permanece pendente.
+1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build`. Upload/chat/gerar-tr **exigem classificação**; não enviar `sigiloso` sem Ollama (422 esperado).
+2. Código agent-implementável das Fases **0A–8** está em **`main`**. Não reabrir 5–8 sem regressão. Fase 9 / CI / K8s / fine-tune / OIDC: fora de escopo.
 3. Continuar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md), aberto até 28/09): revisar alto/crítico, anotar rejeição, validar pacote SEI/DOCX.
-4. Em paralelo quando houver cota: demais TRs da quinzena (`07` → `11` → `01` → `05`) + colar export no SEI real.
-5. Rotacionar secrets quando conveniente. Emergência já anonimizada (15/09).
+4. Pendências humanas: visto jurídico do conjunto Fase 2 e da amostra Fase 4; URLs oficiais TCU (sair da quarentena); colar export no SEI real; rotacionar secrets; Ollama se for usar `sigiloso`.
+5. Em paralelo quando houver cota: demais TRs da quinzena (`07` → `11` → `01` → `05`).
 6. **Não** abrir fine-tune até existir volume de feedback humano curado.
 
 > **Benchmark (05/08/2026)**: recall médio **0,81** · precisão média **0,86** · F1 médio **0,83**. Golden FakeLLM (08/09): meta precision ≥ 0.88.  
@@ -628,4 +654,5 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Fase 0A sigilo fail-closed (23/09/2026, `fix/seguranca-sigilo-auth` → `main` `e52b712`):** `NULL`=sigiloso; cloud bloqueada; 422/job não-retriável sem Ollama; UI com seletor obrigatório (upload/chat/gerar-tr); E2E `test_e2e_privacy.py` + `privacy-classification.spec.ts`; backfill `NULL`→`publico` no Postgres piloto; redirect pós-upload corrigido (`window.setTimeout`); plano completo em `docs/ops/plano-tecnico-ajustado.md`.
 > **Fase 0B quarentena TCU (24/09/2026, `fix/quarentena-tcu`):** súmulas 247/272 e Acórdão 1214/2013 fora da busca/`legal_basis`/parecer; `version=quarantine-0B` no Postgres piloto; retrieve validado (só lei/RILC).
 > **Fase 0C auth + extensão (24/09/2026, `fix/quarentena-tcu`):** Postgres exige `API_TOKEN`; Compose fail-closed; docs só em development; extensão via BFF + sanitize.
-> **Fase 2 avaliação (24/09/2026, `feat/fase-2-avaliacao-ci`):** `eval/cases.json` + runner Postgres. Baseline semente r@5=1.0; piloto r@5=0.214. CI GitHub permanece `ci.yml.disabled`. Revisão jurídica pendente.
+> **Fase 2 avaliação (24/09/2026, `feat/fase-2-avaliacao-ci`):** `eval/cases.json` + runner Postgres. Baseline semente r@5=1.0; piloto r@5=0.214 (ILIKE) → **0.357** após FTS (Fase 5). CI GitHub permanece `ci.yml.disabled`. Revisão jurídica pendente.
+> **Fases 5–8 (24/09/2026, merges em `main`)**: FTS Postgres + hierarquia + cache (`f81ca21`); grounding/citações (`53fd9b5`); custo/embed cache/non-root (`4eacf7f`); dispositivo + evidência + audit-pack (`76dfd2a`). Docs: [recuperacao-fase5.md](docs/ops/recuperacao-fase5.md), [piloto.md](docs/ops/piloto.md). Pendente só humano (visto jurídico, TCU oficial, gate, SEI, secrets, Ollama).

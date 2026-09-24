@@ -6,15 +6,15 @@ Na aplicação: **Mais ferramentas → Guia do usuário** ou `/guia`.
 
 **Regra:** só vai para o SEI o que você **aprovou** ou **ajustou**.
 
-> **Filtro automático (18/09):** antes de mostrar, o sistema descarta sugestões com trecho fora do item, número inventado, lei do regime errado ou "falta X" que existe em outro item. Mesmo assim, **confira tudo** — a IA ainda erra e a decisão final é sempre sua.
+Antes de mostrar, o sistema descarta sugestões com trecho fora do item, número inventado, lei do regime errado ou “falta X” que existe em outro item. Mesmo assim, **confira tudo** — a IA ainda erra e a decisão final é sempre sua.
 
 ---
 
 ## Fluxo (4 passos)
 
-1. **Enviar** o TR (PDF ou DOCX, até 50 MB)
+1. **Enviar** o TR (PDF, DOCX ou ODT, até 50 MB) e escolher a **classificação**
 2. **Aguardar** a análise (fila Prioridade: alto/crítico + Art. 6º primeiro)
-3. **Revisar** — modo guiado 1 por vez ou "Ver todas"
+3. **Revisar** — modo guiado 1 por vez ou “Ver todas”
 4. **Copiar pacote SEI** e colar no processo
 
 ---
@@ -30,8 +30,11 @@ Na aplicação: **Mais ferramentas → Guia do usuário** ou `/guia`.
 
 ### Enviar TR
 1. Arraste ou escolha o arquivo.
-2. Clique em **Enviar e Analisar**.
-3. Acompanhe o progresso na tela.
+2. Selecione a classificação: **Público**, **Interno** ou **Sigiloso**.
+3. Clique em **Enviar e Analisar**.
+4. Acompanhe o progresso na tela.
+
+**Sigiloso** só roda em modelo local. Sem esse modelo configurado, o envio é recusado — use Público ou Interno no piloto.
 
 **Opções avançadas** (recolhidas): revisão completa, proposta, comparação de versões. Abra só se precisar.
 
@@ -43,14 +46,15 @@ Na aplicação: **Mais ferramentas → Guia do usuário** ou `/guia`.
 - Em cada sugestão: **Sugestão: aprovar 84% · motivo** + botão **Aceitar sugestão** (1 clique) ou **Aprovar / Rejeitar / Ajustar** manual.
 - Se o texto tiver `[inserir]` ou `___`, o botão de aceitar fica desabilitado — use **Ajustar** e preencha.
 - Ao aceitar/aprovar, a nota e o risco recalculam na hora.
+- O card mostra o bloco **Evidência DE → PARA** (texto original, texto sugerido e rastro da busca jurídica). Use para conferir se a troca faz sentido.
 
 **Ver todas:**
 - Grid por item (lista à esquerda, detalhe à direita).
 - Cada card mostra selo discreto **Sugestão: ...** quando pendente.
 - Mesmo fluxo de Aprovar/Rejeitar/Ajustar; com pelo menos uma aprovada/ajustada: **Copiar pacote SEI**.
-- **Exportar:** HTML, DOCX ou pacote `.md` (menu Exportar).
+- **Exportar:** HTML, DOCX, pacote `.md` ou **pacote de auditoria** (`.json` com correções e rastro da busca).
 - **Mais:** relatório, histórico, reanalisar faltantes.
-- **Perguntar:** dúvidas sobre o documento (copiloto).
+- **Perguntar:** dúvidas sobre o documento (copiloto). As fontes citadas mostram artigo, versão e, quando houver, o link oficial. Trecho marcado como interpretação da IA **não** é texto da lei.
 
 ### Painel Art. 6º
 - Quanto do TR está completo nas 10 partes obrigatórias (meta sugerida ~90%).
@@ -60,6 +64,10 @@ Na aplicação: **Mais ferramentas → Guia do usuário** ou `/guia`.
 - Resumo, pontuação (0-10), risco, parecer e **métrica do revisor** (aceitas/sobrepostas).
 - **Exportar PDF** (impressão do navegador). O pacote SEI fica na Análise.
 
+### Dispositivo jurídico
+- Consulta de artigo vigente em `/legal` (lei, artigo ou caminho).
+- Útil para ler o texto canônico com o contexto do caput, sem passar pelo chat.
+
 ---
 
 ## Colar no SEI
@@ -67,6 +75,8 @@ Na aplicação: **Mais ferramentas → Guia do usuário** ou `/guia`.
 1. Na Análise, **Copiar pacote SEI** (só habilita após aprovar/ajustar ao menos uma).
 2. Cole na minuta/processo no SEI.
 3. Confira o texto antes de concluir.
+
+O **pacote de auditoria** (JSON) não vai para o SEI. Serve para guardar o rastro da revisão (quem aprovou o quê e com qual base).
 
 ---
 
@@ -76,6 +86,7 @@ Na aplicação: **Mais ferramentas → Guia do usuário** ou `/guia`.
 |------|------|
 | Tema claro/escuro | Interruptor no cabeçalho |
 | Gerar TR, Comparações, Versões, Moldes | Mais ferramentas (opcional) |
+| Dispositivo jurídico | `/legal` |
 | 2ª opinião local | Env `REVIEWER_SECOND_OPINION=1` (Ollama local, opt-in) |
 
 ---
@@ -85,9 +96,11 @@ Na aplicação: **Mais ferramentas → Guia do usuário** ou `/guia`.
 | Situação | O que fazer |
 |----------|-------------|
 | Pacote SEI desabilitado | Aprove ou ajuste ao menos uma correção |
-| Arquivo rejeitado | Use PDF ou DOCX, até 50 MB |
+| Arquivo rejeitado | Use PDF, DOCX ou ODT, até 50 MB |
+| Pediu classificação | Obrigatório em todo envio, chat e geração de TR |
+| Sigiloso recusado | Sem modelo local o sistema bloqueia — escolha Público/Interno ou peça o modelo local |
 | Painel / Comparações / Moldes vazios | Normal no início: envie um TR no Painel |
-| Sugestão com baixa confiança | Confira o motivo e a fundamentação antes de aceitar |
+| Sugestão com baixa confiança | Confira o motivo, a evidência DE→PARA e a fundamentação antes de aceitar |
 | Sistema indisponível | Avise o suporte / equipe do piloto |
 
 ---
