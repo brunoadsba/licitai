@@ -90,6 +90,7 @@ async def lifespan(app: FastAPI):
     logger.info("Sistema de Análise de TR encerrado")
 
 
+_docs_on = settings.is_development
 app = FastAPI(
     title="Sistema de Análise de Termos de Referência",
     description=(
@@ -97,8 +98,9 @@ app = FastAPI(
         "de licitações públicas usando Inteligência Artificial."
     ),
     version="0.1.0",
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
+    docs_url="/api/docs" if _docs_on else None,
+    redoc_url="/api/redoc" if _docs_on else None,
+    openapi_url="/openapi.json" if _docs_on else None,
     lifespan=lifespan,
 )
 

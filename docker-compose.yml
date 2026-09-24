@@ -45,7 +45,8 @@ services:
       LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-false}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
-      API_TOKEN: ${API_TOKEN:-}
+      API_TOKEN: ${API_TOKEN:?Defina API_TOKEN no .env}
+      APP_ENV: ${APP_ENV:-development}
       ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-1}
       # Piloto free tier: limita itens (~2 calls/item no economic)
       ANALYSIS_MAX_LLM_CALLS: ${ANALYSIS_MAX_LLM_CALLS:-24}
@@ -85,7 +86,7 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
-      API_TOKEN: ${API_TOKEN:-}
+      API_TOKEN: ${API_TOKEN:?Defina API_TOKEN no .env}
       APP_ENV: ${APP_ENV:-development}
       LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-false}
       # Free tier: concorrência 1 reduz 429 TPM no Groq durante E2E/uso local
@@ -126,7 +127,7 @@ services:
       # Vazio = browser usa caminhos relativos via BFF /api/proxy.
       NEXT_PUBLIC_API_URL: ""
       # Token apenas server-side (BFF). Nunca NEXT_PUBLIC_API_TOKEN.
-      API_TOKEN: ${API_TOKEN:-}
+      API_TOKEN: ${API_TOKEN:?Defina API_TOKEN no .env}
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:

@@ -274,7 +274,7 @@ licitacao/
 - Renomeação de arquivos para UUID (nunca usa nome original)
 - Prevenção de path traversal
 - CSP strict + X-Frame-Options DENY (API **e** páginas do frontend)
-- Token opcional de API: defina `API_TOKEN` (backend e BFF Next.js server-side) para exigir o header `X-API-Token` em `/api/v1`; o browser nunca recebe o token. Vazio = sem autenticação (piloto local)
+- Token de API: com PostgreSQL o `API_TOKEN` é obrigatório (Compose/piloto). O BFF Next injeta `X-API-Token`; o browser nunca recebe o token. Vazio só no SQLite de development. Não é login de usuário — ver [docs/ops/auth-piloto.md](docs/ops/auth-piloto.md).
 - Rate limiting configurável via env `RATE_LIMIT_MAX` (padrão 600 req/min)
 - CORS com allowlist de origens
 - SQL via ORM (sem string concatenation)

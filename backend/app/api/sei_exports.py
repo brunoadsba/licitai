@@ -24,6 +24,7 @@ from app.services.analyzer.corrected_document import (
     build_corrected_html,
     build_sei_pack_text,
 )
+from app.services.analyzer.html_sanitize import sanitize_html
 from app.services.rag.quarantine import sanitize_legal_basis
 
 router = APIRouter(prefix="/analysis", tags=["Análise"])
@@ -156,7 +157,7 @@ async def get_corrected_html(
             for s in skipped
             if s.get("correction_id") is not None
         ],
-        html=html_doc,
+        html=sanitize_html(html_doc),
     )
 
 

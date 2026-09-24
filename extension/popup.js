@@ -1,90 +1,110 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const listContainer = document.getElementById('documents-list');
   const statusDiv = document.getElementById('status');
-  const API = 'http://localhost:8000';
+  const BFF = 'http://127.0.0.1:3000/api/proxy';
+  const escapeText = (window.LicitAISanitize || { escapeText: String }).escapeText;
+  const sanitizeHtml = (window.LicitAISanitize || { sanitizeHtml: (s) => s }).sanitizeHtml;
+
+  function showError(message) {
+    listContainer.replaceChildren();
+    const el = document.createElement('div');
+    el.style.cssText = 'font-size:11px;color:#f87171;text-align:center;';
+    el.textContent = message;
+    listContainer.appendChild(el);
+  }
 
   try {
-    const response = await fetch(`${API}/api/v1/documents/`);
-    if (!response.ok) throw new Error('Servidor LicitAI não acessível na porta 8000.');
+    const response = await fetch(`${BFF}/documents`);
+    if (!response.ok) {
+      throw new Error('Abra o LicitAI em http://127.0.0.1:3000 (BFF).');
+    }
 
     const data = await response.json();
     const trDocs = (data.documents || []).filter((d) => d.document_type === 'tr');
 
     if (trDocs.length === 0) {
-      listContainer.innerHTML =
-        '<div style="font-size:11px; color:#94a3b8; text-align:center;">Nenhum TR encontrado. Gere ou analise um no LicitAI.</div>';
+      listContainer.replaceChildren();
+      const empty = document.createElement('div');
+      empty.style.cssText = 'font-size:11px;color:#94a3b8;text-align:center;';
+      empty.textContent = 'Nenhum TR encontrado. Gere ou analise um no LicitAI.';
+      listContainer.appendChild(empty);
       return;
     }
 
-    listContainer.innerHTML = '';
+    listContainer.replaceChildren();
 
     trDocs.slice(0, 5).forEach((doc) => {
       const card = document.createElement('div');
       card.className = 'card';
-      card.innerHTML = `
-        <div class="card-title">${doc.filename_original}</div>
-        <div class="card-meta">${doc.total_items} itens — ${new Date(doc.created_at).toLocaleDateString('pt-BR')}</div>
-        <div class="card-meta" style="margin-top:4px;color:#2AAFA0;">Prefere TR corrigido (pós-revisão) quando existir</div>
-      `;
+
+      const title = document.createElement('div');
+      title.className = 'card-title';
+      title.textContent = doc.filename_original || 'TR';
+
+      const meta = document.createElement('div');
+      meta.className = 'card-meta';
+      meta.textContent = `${doc.total_items || 0} itens`;
+
+      const hint = document.createElement('div');
+      hint.className = 'card-meta';
+      hint.style.marginTop = '4px';
+      hint.style.color = '#2AAFA0';
+      hint.textContent = 'Usa TR corrigido (corrected-html) quando existir';
+
+      card.appendChild(title);
+      card.appendChild(meta);
+      card.appendChild(hint);
 
       card.addEventListener('click', async () => {
-        statusDiv.innerText = 'Buscando TR corrigido…';
-
+        statusDiv.textContent = 'Buscando TR corrigido…';
         try {
-          const analysesRes = await fetch(`${API}/api/v1/analysis/document/${doc.id}`);
+          const analysesRes = await fetch(`${BFF}/analysis/document/${doc.id}`);
           const analyses = await analysesRes.json();
           const completed = (analyses || []).find((a) =>
             ['completed', 'completed_with_errors'].includes(a.status),
           );
 
           let fullHtml = '';
-
           if (completed) {
-            try {
-              const corrRes = await fetch(
-                `${API}/api/v1/analysis/${completed.id}/corrected-html`,
-              );
-              if (corrRes.ok) {
-                const corrData = await corrRes.json();
-                fullHtml = corrData.html;
-                statusDiv.innerText = 'Injetando TR corrigido (pós-revisão)…';
-              }
-            } catch (_) {
-              /* fallback abaixo */
+            const corrRes = await fetch(`${BFF}/analysis/${completed.id}/corrected-html`);
+            if (corrRes.ok) {
+              const corrData = await corrRes.json();
+              fullHtml = sanitizeHtml(corrData.html || '');
+              statusDiv.textContent = 'Injetando TR corrigido (pós-revisão)…';
             }
           }
 
           if (!fullHtml) {
-            statusDiv.innerText = 'Sem correções aprovadas — usando texto original…';
-            const detailRes = await fetch(`${API}/api/v1/documents/${doc.id}`);
+            statusDiv.textContent = 'Sem correções aprovadas — usando texto original…';
+            const detailRes = await fetch(`${BFF}/documents/${doc.id}`);
             const detailData = await detailRes.json();
-            const htmlParts = [`<h1>${detailData.filename_original.toUpperCase()}</h1>\n`];
+            const parts = [`<h1>${escapeText((detailData.filename_original || 'TR').toUpperCase())}</h1>`];
             (detailData.items || []).forEach((item) => {
-              htmlParts.push(
-                `<h2>${item.item_number} ${item.title || ''}</h2>\n<p>${(item.content || '').replace(/\n/g, '<br/>')}</p>\n`,
-              );
+              const heading = `${escapeText(item.item_number || '')} ${escapeText(item.title || '')}`.trim();
+              const body = escapeText(item.content || '').replace(/\n/g, '<br>');
+              parts.push(`<h2>${heading}</h2><p>${body}</p>`);
             });
-            fullHtml = htmlParts.join('');
+            fullHtml = sanitizeHtml(parts.join(''));
           }
 
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
           if (tab) {
             chrome.tabs.sendMessage(tab.id, { action: 'INJECT_TR', html: fullHtml }, () => {
               if (chrome.runtime.lastError) {
-                statusDiv.innerText = 'Abra a aba do SEI e clique novamente.';
+                statusDiv.textContent = 'Abra a aba do SEI e clique novamente.';
               } else {
-                statusDiv.innerText = 'TR injetado com sucesso!';
+                statusDiv.textContent = 'TR sanitizado enviado ao editor.';
               }
             });
           }
         } catch (e) {
-          statusDiv.innerText = 'Erro ao buscar conteúdo do TR.';
+          statusDiv.textContent = 'Erro ao buscar conteúdo do TR.';
         }
       });
 
       listContainer.appendChild(card);
     });
   } catch (err) {
-    listContainer.innerHTML = `<div style="font-size:11px; color:#f87171; text-align:center;">Erro: ${err.message}</div>`;
+    showError(err.message || 'Falha ao falar com o LicitAI.');
   }
 });

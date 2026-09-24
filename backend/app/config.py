@@ -111,7 +111,8 @@ class Settings(BaseSettings):
     smtp_require_tls: bool = True
 
     # --- Segurança ---
-    # Vazio desabilita o token apenas em development.
+    # Vazio só é permitido com SQLite em development.
+    # PostgreSQL (Compose/piloto) exige token — não fica aberto por env ausente.
     api_token: str = ""
 
     # --- Jobs / Worker ---
@@ -130,8 +131,15 @@ class Settings(BaseSettings):
             return v.strip()
         return v
 
+    def uses_postgres(self) -> bool:
+        return "postgres" in (self.database_url or "")
+
     @model_validator(mode="after")
     def _enforce_production_secrets(self) -> "Settings":
+        if self.uses_postgres() and not self.api_token:
+            raise ValueError(
+                "API_TOKEN é obrigatório quando o banco é PostgreSQL."
+            )
         if self.app_env == "development":
             return self
         if self.llm_allow_cloud:

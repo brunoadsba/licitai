@@ -1,32 +1,18 @@
-# Extensão LicitAI para o SEI (Sistema Eletrônico de Informações)
+# Extensão LicitAI para o SEI
 
-Esta extensão conecta o **LicitAI** diretamente ao editor de documentos do **SEI**, permitindo a geração, auditoria e injeção direta de Termos de Referência em 1-clique.
+Injeta o Termo de Referência no editor do SEI. O HTML passa por sanitização (sem script, sem atributos) e o conteúdo vem do BFF do LicitAI (`http://127.0.0.1:3000/api/proxy`), que injeta o `API_TOKEN`. A extensão não guarda o token.
 
----
+Prefere o endpoint `corrected-html` (já escapado no servidor). Se não houver correção aprovada, monta o texto original com escape.
 
-## 🚀 Como Instalar a Extensão no Navegador (Chrome / Edge / Brave)
+## Instalar (Chrome / Edge / Brave)
 
-1. **Abra a página de extensões no seu navegador**:
-   * **Google Chrome**: acesse `chrome://extensions`
-   * **Microsoft Edge**: acesse `edge://extensions`
-   * **Brave**: acesse `brave://extensions`
+1. Abra `chrome://extensions` (ou equivalente).
+2. Ative o modo do desenvolvedor.
+3. Carregar sem compactação: pasta `extension` deste repositório.
 
-2. **Ative o Modo do Desenvolvedor**:
-   * Alterne a chave **"Modo do desenvolvedor"** (Developer mode) no canto superior direito da página.
+## Usar
 
-3. **Carregar Extensão sem Compactação**:
-   * Clique no botão **"Carregar sem compactação"** (Load unpacked).
-   * Selecione a pasta `extension` dentro do repositório do LicitAI (`licitacao/extension`).
-
-4. **Pronto!**:
-   * O ícone do **LicitAI** 🪄 aparecerá na barra de ferramentas do seu navegador.
-
----
-
-## 💡 Como Usar no SEI
-
-1. Certifique-se de que o backend do LicitAI está rodando (`http://localhost:8000`).
-2. Acesse o SEI no seu navegador e abra a tela de edição do documento TR (CKEditor).
-3. Clique no ícone da Extensão **LicitAI** no canto do navegador.
-4. Selecione o TR que deseja inserir e clique nele.
-5. O conteúdo completo formatado será injetado diretamente no editor do SEI!
+1. Suba o LicitAI (`./scripts/up.sh`). A UI precisa estar em `http://127.0.0.1:3000`.
+2. Abra o editor do SEI.
+3. Clique no ícone da extensão e escolha o TR.
+4. Recarregue a extensão depois de atualizar os arquivos desta pasta.

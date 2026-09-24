@@ -6,6 +6,8 @@ Plano técnico pós-auditoria (ondas 0A–0C e fases 1–9): [plano-tecnico-ajus
 
 Quarentena TCU (Fase 0B): [quarentena-tcu.md](quarentena-tcu.md).
 
+Auth operacional do piloto (Fase 0C): [auth-piloto.md](auth-piloto.md). O token compartilhado não é login de usuário.
+
 ## Status (código vs pendências humanas)
 
 | Item | Status |

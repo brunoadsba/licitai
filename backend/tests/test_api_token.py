@@ -38,6 +38,25 @@ def test_sem_token_configurado_requisicoes_passam():
     assert _status_com_token("", None) == 200
 
 
+def test_postgres_sem_token_bloqueia():
+    original_url = settings.database_url
+    original_token = settings.api_token
+
+    async def _cenario():
+        settings.database_url = "postgresql+asyncpg://sei_user:x@db:5432/sei"
+        settings.api_token = ""
+        try:
+            async with AsyncClient(
+                transport=ASGITransport(app=app), base_url="http://test"
+            ) as ac:
+                return (await ac.get("/api/v1/chat/health")).status_code
+        finally:
+            settings.database_url = original_url
+            settings.api_token = original_token
+
+    assert _run(_cenario()) == 401
+
+
 def test_token_configurado_exige_header():
     assert _status_com_token("segredo", None) == 401
 

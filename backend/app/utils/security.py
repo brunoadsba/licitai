@@ -21,9 +21,14 @@ logger = logging.getLogger(__name__)
 
 
 async def require_api_token(request: Request) -> None:
-    """Dependency de autenticação opcional para todas as rotas /api/v1."""
+    """Exige X-API-Token quando há token configurado ou o banco é Postgres."""
     expected = settings.api_token
     if not expected:
+        if settings.uses_postgres():
+            raise HTTPException(
+                status_code=401,
+                detail="Token de API ausente ou inválido.",
+            )
         return
     provided = request.headers.get("X-API-Token", "")
     if not secrets.compare_digest(provided.encode(), expected.encode()):
