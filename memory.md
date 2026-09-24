@@ -310,7 +310,7 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (24/09/2026)**: `feat/fase-2-avaliacao-ci`. `main` com 0A–0C e Fase 1. CI GitHub permanece desabilitado (`ci.yml.disabled`).
+- **Branch ativa (24/09/2026)**: `feat/fase-3-ingestao-confiavel`. `main` inclui 0A–2. CI GitHub permanece desabilitado (`ci.yml.disabled`).
 - **Fase 2 — avaliação real e linha de base (24/09/2026)**: conjunto `backend/eval/cases.json`; runner `scripts/eval_corpus_real.py`; baselines em `eval/baseline.ci.json` (r@5 1.0) e `eval/baseline.piloto.json` (r@5 0.214). Doc: [docs/ops/eval-fase2.md](docs/ops/eval-fase2.md). Visto jurídico pendente. CI GitHub desligado.
 - **Fase 1 — retrieval_run + citações no servidor (24/09/2026, `9b25fb1`)**: tabela `retrieval_runs`; hash SHA-256 do manifesto; análise e chat gravam a recuperação; citações montadas no servidor. Piloto: `schema_meta=20260924_001`, `/readyz` ready, 4 containers healthy.
 - **Fase 0C — auth operacional + extensão SEI (24/09/2026)**: `API_TOKEN` obrigatório com PostgreSQL (boot falha se vazio); Compose exige a variável; `/api/docs` só em development; extensão usa BFF `:3000/api/proxy` e sanitiza HTML. Token compartilhado ≠ login. Doc: [docs/ops/auth-piloto.md](docs/ops/auth-piloto.md). Validado: API sem header 401, com token 200, BFF 200.
@@ -580,7 +580,7 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 
 ### Agora (ops / Bruno) — ordem sugerida
 1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build` (worker precisa de `defusedxml`). Upload/chat/gerar-tr **exigem classificação**; não enviar `sigiloso` sem Ollama (422 esperado).
-2. **Próxima sessão técnica:** visto jurídico do conjunto Fase 2; depois Fase **3** (pipeline de ingestão).
+2. **Próxima sessão técnica:** Fase **3** em `feat/fase-3-ingestao-confiavel` (pipeline de ingestão). Visto jurídico do conjunto Fase 2 permanece pendente.
 3. Continuar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md), aberto até 28/09): revisar alto/crítico, anotar rejeição, validar pacote SEI/DOCX.
 4. Em paralelo quando houver cota: demais TRs da quinzena (`07` → `11` → `01` → `05`) + colar export no SEI real.
 5. Rotacionar secrets quando conveniente. Emergência já anonimizada (15/09).
