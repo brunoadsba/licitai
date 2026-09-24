@@ -40,14 +40,30 @@ def _clear_query_embedding_cache() -> None:
     _QUERY_EMBEDDING_CACHE.clear()
 
 
-async def _query_embedding_cached(query: str, provider_name: str) -> list[float]:
-    """Retorna embedding da query com cache limitado (LRU simples)."""
-    key = (query, provider_name)
+async def _query_embedding_cached(
+    query: str,
+    provider_name: str,
+    *,
+    classification: str | None = None,
+    corpus_version: str = "",
+) -> list[float]:
+    """Cache de embedding: LRU + disco. Não persiste consulta restrita."""
+    from app.services.privacy import is_restricted, normalize_classification
+    from app.services.rag.embed_store import load_vector, store_vector
+
+    classif = normalize_classification(classification) or "unclassified"
+    persist = not is_restricted(classif)
+    key = (query, provider_name, corpus_version, classif)
 
     cached = _QUERY_EMBEDDING_CACHE.get(key)
     if cached is not None:
         _QUERY_EMBEDDING_CACHE.move_to_end(key)
         return list(cached)
+    if persist:
+        disk = load_vector(query, provider_name, corpus_version, classif)
+        if disk is not None:
+            _QUERY_EMBEDDING_CACHE[key] = tuple(disk)
+            return list(disk)
 
     import app.services.rag.retriever as retriever_module
 
@@ -58,7 +74,8 @@ async def _query_embedding_cached(query: str, provider_name: str) -> list[float]
     _QUERY_EMBEDDING_CACHE.move_to_end(key)
     while len(_QUERY_EMBEDDING_CACHE) > _QUERY_EMBEDDING_CACHE_MAX:
         _QUERY_EMBEDDING_CACHE.popitem(last=False)
-
+    if persist:
+        store_vector(query, provider_name, corpus_version, classif, vector)
     return list(vector)
 
 
@@ -194,13 +211,21 @@ async def _search_semantic(
     query: str,
     top_k: int,
     law_numbers: list[str] | None,
+    *,
+    classification: str | None = None,
+    corpus_version: str = "",
 ) -> list[dict]:
     """Busca por similaridade de cosseno sobre os embeddings armazenados."""
     try:
         import app.services.rag.retriever as retriever_module
 
         provider = retriever_module.get_embeddings_provider()
-        query_vector = await _query_embedding_cached(query, provider.provider_name)
+        query_vector = await _query_embedding_cached(
+            query,
+            provider.provider_name,
+            classification=classification,
+            corpus_version=corpus_version,
+        )
     except Exception:
         logger.warning(
             "Embeddings indisponíveis para a consulta; usando fallback textual"
