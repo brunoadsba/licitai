@@ -169,3 +169,31 @@ export async function downloadCorrectedDocx(analysisId: string): Promise<{
 export async function getDocumentAnalyses(documentId: string): Promise<AnalysisDetailResponse[]> {
   return fetchAPI<AnalysisDetailResponse[]>(`/analysis/document/${encodeURIComponent(documentId)}`);
 }
+
+export type AuditPackResponse = {
+  analysis_id: string;
+  document_id: string;
+  document_name: string;
+  analyzed_at: string | null;
+  corpus_version: string | null;
+  final_opinion: string | null;
+  corrections: Array<{
+    id: string;
+    item_number: string | null;
+    de: string;
+    para: string;
+    justification: string;
+    legal_basis: string | null;
+    corpus_version: string | null;
+    retrieval_run_id: string | null;
+    review_status: string;
+    review_note: string | null;
+    reviewed_at: string | null;
+    grounded: boolean | null;
+  }>;
+  retrieval_runs: Array<Record<string, unknown>>;
+};
+
+export async function getAuditPack(analysisId: string): Promise<AuditPackResponse> {
+  return fetchAPI<AuditPackResponse>(`/analysis/${encodeURIComponent(analysisId)}/audit-pack`);
+}

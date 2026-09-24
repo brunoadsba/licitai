@@ -33,12 +33,13 @@ interface AnalysisHeaderProps {
   approvedCount: number;
   analysisDone: boolean;
   analyzing: boolean;
-  exporting: 'pack' | 'html' | 'docx' | null;
+  exporting: 'pack' | 'html' | 'docx' | 'audit' | null;
   isCopied: (key: string) => boolean;
   onCopySeiPack: () => void;
   onCopyCorrectedHtml: () => void;
   onDownloadDocx: () => void;
   onDownloadSeiPack: () => void;
+  onDownloadAuditPack: () => void;
   onStartAnalysis: () => void;
   onOpenRevisions: () => void;
 }
@@ -57,6 +58,7 @@ export default function AnalysisHeader({
   onCopyCorrectedHtml,
   onDownloadDocx,
   onDownloadSeiPack,
+  onDownloadAuditPack,
   onStartAnalysis,
   onOpenRevisions,
 }: AnalysisHeaderProps) {
@@ -138,6 +140,13 @@ export default function AnalysisHeader({
                 >
                   <FileDown className="h-4 w-4" aria-hidden />
                   Baixar pacote (.md)
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={exporting !== null}
+                  onSelect={onDownloadAuditPack}
+                >
+                  <FileBarChart className="h-4 w-4" aria-hidden />
+                  Pacote de auditoria (.json)
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

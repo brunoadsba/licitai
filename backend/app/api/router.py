@@ -11,7 +11,9 @@ from app.api.analysis_report import router as analysis_report_router
 from app.api.analysis_review import router as analysis_review_router
 from app.api.reviewer import router as reviewer_router
 from app.api.sei_exports import router as sei_exports_router
+from app.api.analysis_audit import router as analysis_audit_router
 from app.api.chat import router as chat_router
+from app.api.legal import router as legal_router
 from app.api.comparison import router as comparison_router
 from app.api.comparison_matrix import router as comparison_matrix_router
 from app.api.document_diff import router as document_diff_router
@@ -33,6 +35,8 @@ router.include_router(reviewer_router)
 router.include_router(analysis_details_router)
 router.include_router(analysis_reanalyze_router)
 router.include_router(analysis_report_router)
+router.include_router(analysis_audit_router)
+router.include_router(legal_router)
 router.include_router(sei_exports_router)
 router.include_router(jobs_router)
 router.include_router(rules_router)

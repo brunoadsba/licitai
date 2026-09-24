@@ -7,6 +7,7 @@ import {
   downloadCorrectedDocx,
   extractErrorMessage,
   getAnalysis,
+  getAuditPack,
   getCorrectedHtml,
   getDocument,
   getDocumentAnalyses,
@@ -44,7 +45,7 @@ export function useAnalysisPage() {
   const [error, setError] = useState<string | null>(null);
   const [revisionsModalOpen, setRevisionsModalOpen] = useState(false);
   const [priorityMode, setPriorityMode] = useState<PriorityMode>('priority');
-  const [exporting, setExporting] = useState<'pack' | 'html' | 'docx' | null>(null);
+  const [exporting, setExporting] = useState<'pack' | 'html' | 'docx' | 'audit' | null>(null);
   const { copy, isCopied } = useCopy();
 
   useEffect(() => {
@@ -212,6 +213,23 @@ export function useAnalysisPage() {
     }
   }
 
+  async function handleDownloadAuditPack() {
+    if (!analysis) return;
+    try {
+      setExporting('audit');
+      const pack = await getAuditPack(analysis.id);
+      downloadText(
+        `auditoria-${analysis.id.slice(0, 8)}.json`,
+        JSON.stringify(pack, null, 2),
+      );
+      toast.success('Pacote de auditoria baixado');
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Não foi possível exportar a auditoria.'));
+    } finally {
+      setExporting(null);
+    }
+  }
+
   async function handleDownloadDocx() {
     if (!analysis) return;
     try {
@@ -284,6 +302,7 @@ export function useAnalysisPage() {
     handleDownloadSeiPack,
     handleCopyCorrectedHtml,
     handleDownloadDocx,
+    handleDownloadAuditPack,
     getItemCorrections,
     getUpdatedItemText,
     handleReviewUpdated,
