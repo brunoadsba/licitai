@@ -31,7 +31,19 @@ async def upsert_versioned_work(
 
     work = await _get_or_create_work(db, law_number, law_title)
     existing = await _latest_version(db, work.id)
-    if existing and existing.content_hash == content_hash:
+    if existing and (
+        existing.content_hash == content_hash or not existing.content_hash
+    ):
+        if content_hash and existing.content_hash != content_hash:
+            existing.content_hash = content_hash
+        await _ensure_missing_provisions(
+            db,
+            work.id,
+            existing.id,
+            drafts,
+            published=existing.status == "published",
+        )
+        await db.flush()
         return existing
 
     if existing and existing.status == "published":
@@ -98,6 +110,29 @@ async def _mark_provisions_historical(db: AsyncSession, version_id) -> None:
     for provision in result.scalars():
         if provision.status == "vigente":
             provision.status = "historical"
+
+
+async def _ensure_missing_provisions(
+    db: AsyncSession,
+    work_id,
+    version_id,
+    drafts: list[ProvisionDraft],
+    *,
+    published: bool,
+) -> None:
+    existing = {
+        row.path
+        for row in (
+            await db.execute(
+                select(LegalProvision).where(LegalProvision.version_id == version_id)
+            )
+        ).scalars()
+    }
+    missing = [d for d in drafts if d.path not in existing]
+    if missing:
+        await _insert_provisions(
+            db, work_id, version_id, missing, published=published
+        )
 
 
 async def _insert_provisions(

@@ -32,6 +32,7 @@ async def list_provisions(
         stmt = stmt.where(LegalProvision.article == article)
     if include_historical:
         stmt = stmt.where(LegalVersion.status.in_(("published", "superseded")))
+        stmt = stmt.where(LegalProvision.status.in_(("vigente", "historical", "vetado")))
     else:
         stmt = stmt.where(LegalVersion.status == "published")
         stmt = stmt.where(LegalProvision.status == "vigente")

@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.legal import LegalChunk, LegalDocument
 from app.models.legal_versioned import LegalIdMap, LegalProvision
+from app.services.ingest.hashing import sha256_text
 from app.services.legal_model.persist import upsert_versioned_work
 
 
@@ -59,6 +60,9 @@ async def migrate_sample(
             ).scalars().all()
         )
         content = "\n".join(chunk.chunk_text for chunk in chunks)
+        content_hash = doc.content_hash or sha256_text(content)
+        if not doc.content_hash:
+            doc.content_hash = content_hash
         version = await upsert_versioned_work(
             db,
             content=content,
@@ -66,7 +70,7 @@ async def migrate_sample(
             law_title=doc.law_title,
             source_url=doc.source_url,
             collected_at=doc.collected_at,
-            content_hash=doc.content_hash or "",
+            content_hash=content_hash,
             source_version=doc.version,
             validation_source=doc.origin,
         )

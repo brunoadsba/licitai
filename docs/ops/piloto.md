@@ -33,7 +33,7 @@ Modelo jurídico versionado (Fase 4): [modelo-juridico-fase4.md](modelo-juridico
 | Benchmark quinzenal com 5 TRs CODEBA | **Baseline Art.6** + **sessão ouro LLM** em [quinzena-2026-09-14.md](quinzena-2026-09-14.md) — [piloto-qualidade.md](piloto-qualidade.md) · fixtures em `fixtures/trs-codeba/` |
 | Avaliação RAG Fase 2 (conjunto + baseline) | **Feito** ([eval-fase2.md](eval-fase2.md)); visto jurídico pendente |
 | Ingestão Fase 3 (hash, worker, OCR kill) | **Feito** ([ingestao-fase3.md](ingestao-fase3.md)); schema `20260924_002` |
-| Modelo jurídico Fase 4 | **Em branch** `feat/fase-4-modelo-juridico`; índice legado ativo; visto jurídico da amostra pendente |
+| Modelo jurídico Fase 4 | **Feito** ([modelo-juridico-fase4.md](modelo-juridico-fase4.md)); índice legado ativo; visto jurídico da amostra pendente |
 | CI GitHub / K8s / fine-tune / multi-tenant | **Fora de escopo** (não fazer) |
 
 ## Secrets (manual Bruno)

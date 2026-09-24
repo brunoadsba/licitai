@@ -53,7 +53,8 @@ def test_parser_hierarquico_e_vetado():
     assert "art.1/par.1" in paths
     assert any(p.endswith("/inc.I") for p in paths)
     assert any(p.endswith("/inc.II") for p in paths)
-    assert "art.2" not in paths
+    art2 = next(d for d in drafts if d.path == "art.2")
+    assert art2.status == "vetado"
     art3 = next(d for d in drafts if d.path == "art.3")
     assert "antigo" not in art3.canonical_text
     assert "final" in art3.canonical_text
@@ -192,6 +193,56 @@ def test_migracao_amostra_mapeia_chunk():
     assert report.mapped == 2
     assert report.missing_articles == []
     assert len(maps) == 2
+
+
+def test_artigo_vetado_e_mapeado():
+    async def _run():
+        from app.models.legal import LegalChunk, LegalDocument
+        from app.services.ingest.hashing import sha256_text
+
+        engine = _engine()
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        Session = async_sessionmaker(engine, expire_on_commit=False)
+        async with Session() as db:
+            text = "Art. 20. Vale.\nArt. 21. (VETADO).\n"
+            doc = LegalDocument(
+                law_number="Lei 13.303/2016",
+                law_title="Estatais",
+                total_chunks=2,
+                content_hash=sha256_text(text),
+                ingest_status="published",
+            )
+            db.add(doc)
+            await db.flush()
+            db.add_all(
+                [
+                    LegalChunk(
+                        legal_document_id=doc.id,
+                        chunk_index=0,
+                        article="Art. 20",
+                        chunk_text="Art. 20. Vale.",
+                    ),
+                    LegalChunk(
+                        legal_document_id=doc.id,
+                        chunk_index=1,
+                        article="Art. 21",
+                        chunk_text="Art. 21. (VETADO).",
+                    ),
+                ]
+            )
+            await db.flush()
+            reports = await migrate_sample(db, ("Lei 13.303/2016",))
+            from app.services.legal_model.compare import compare_sample
+
+            compare = await compare_sample(db, ("Lei 13.303/2016",))
+            return reports[0], compare[0]
+
+    report, compare = asyncio.run(_run())
+    assert report.missing_articles == []
+    assert compare.unmapped_vigente == []
+    assert compare.vetado_mapped >= 1
+    assert compare.hashes_filled is True
 
 
 def test_dois_vigentes_no_mesmo_path_falham():

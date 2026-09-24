@@ -42,6 +42,36 @@ def _norm_para(raw: str) -> str:
     return digits or raw.lower()
 
 
+def _vetado_drafts(content: str) -> list[ProvisionDraft]:
+    """Artigos só (VETADO) viram dispositivo histórico, não vigente."""
+    from app.services.parser.legal_marks import normalize_legal_text as _norm
+
+    drafts: list[ProvisionDraft] = []
+    for mark in _norm(content).marks:
+        if mark.kind != "vetado":
+            continue
+        match = _ARTICLE_RE.search(mark.text)
+        if not match:
+            continue
+        art = match.group(1)
+        path = f"art.{_norm_art(art)}"
+        drafts.append(
+            ProvisionDraft(
+                path=path,
+                parent_path=None,
+                article=f"Art. {art}",
+                paragraph=None,
+                inciso=None,
+                alinea=None,
+                item=None,
+                canonical_text=mark.text,
+                status="vetado",
+                provision_hash=sha256_text(mark.text),
+            )
+        )
+    return drafts
+
+
 def parse_provisions(content: str) -> list[ProvisionDraft]:
     """Extrai dispositivos do texto vigente, com caminho e ancestral."""
     vigente = normalize_legal_text(content).vigente
@@ -145,4 +175,9 @@ def parse_provisions(content: str) -> list[ProvisionDraft]:
             buffers.setdefault(current, []).append(line)
 
     _flush(current)
+    seen = {d.path for d in drafts}
+    for extra in _vetado_drafts(content):
+        if extra.path not in seen:
+            drafts.append(extra)
+            seen.add(extra.path)
     return drafts
