@@ -310,7 +310,7 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (24/09/2026)**: `feat/fase-1-retrieval-run` (a partir de `fix/quarentena-tcu`). `main` em `ddcbe58`. CI permanece desabilitado.
+- **Branch ativa (24/09/2026)**: `main` (`0d32143`) com 0A–0C e Fase 1. Trabalho da Fase 2 em `feat/fase-2-avaliacao-ci`. CI permanece desabilitado.
 - **Fase 1 — retrieval_run + citações no servidor (24/09/2026, `9b25fb1`)**: tabela `retrieval_runs`; hash SHA-256 do manifesto; análise e chat gravam a recuperação; citações montadas no servidor. Piloto: `schema_meta=20260924_001`, `/readyz` ready, 4 containers healthy.
 - **Fase 0C — auth operacional + extensão SEI (24/09/2026)**: `API_TOKEN` obrigatório com PostgreSQL (boot falha se vazio); Compose exige a variável; `/api/docs` só em development; extensão usa BFF `:3000/api/proxy` e sanitiza HTML. Token compartilhado ≠ login. Doc: [docs/ops/auth-piloto.md](docs/ops/auth-piloto.md). Validado: API sem header 401, com token 200, BFF 200.
 - **Fase 0B — quarentena TCU (24/09/2026)**: fontes sem URL oficial (`Súmula 247/TCU`, `Súmula 272/TCU`, `Acórdão 1214/2013-TCU-Plenário`) saem da busca padrão, de `legal_basis` e do parecer; dados preservados com `version=quarantine-0B`. Lista em [docs/ops/quarentena-tcu.md](docs/ops/quarentena-tcu.md). Validado no Postgres piloto.
@@ -578,7 +578,7 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 
 ### Agora (ops / Bruno) — ordem sugerida
 1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build` (worker precisa de `defusedxml`). Upload/chat/gerar-tr **exigem classificação**; não enviar `sigiloso` sem Ollama (422 esperado).
-2. **Próxima sessão técnica:** Fase **2** (avaliação real, CI, linha de base). Merge/push de 0B+0C+Fase 1 na `main` só com pedido explícito.
+2. **Próxima sessão técnica:** Fase **2** em `feat/fase-2-avaliacao-ci` (avaliação real, CI, linha de base).
 3. Continuar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md), aberto até 28/09): revisar alto/crítico, anotar rejeição, validar pacote SEI/DOCX.
 4. Em paralelo quando houver cota: demais TRs da quinzena (`07` → `11` → `01` → `05`) + colar export no SEI real.
 5. Rotacionar secrets quando conveniente. Emergência já anonimizada (15/09).
@@ -624,4 +624,4 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Fase 0A sigilo fail-closed (23/09/2026, `fix/seguranca-sigilo-auth` → `main` `e52b712`):** `NULL`=sigiloso; cloud bloqueada; 422/job não-retriável sem Ollama; UI com seletor obrigatório (upload/chat/gerar-tr); E2E `test_e2e_privacy.py` + `privacy-classification.spec.ts`; backfill `NULL`→`publico` no Postgres piloto; redirect pós-upload corrigido (`window.setTimeout`); plano completo em `docs/ops/plano-tecnico-ajustado.md`.
 > **Fase 0B quarentena TCU (24/09/2026, `fix/quarentena-tcu`):** súmulas 247/272 e Acórdão 1214/2013 fora da busca/`legal_basis`/parecer; `version=quarantine-0B` no Postgres piloto; retrieve validado (só lei/RILC).
 > **Fase 0C auth + extensão (24/09/2026, `fix/quarentena-tcu`):** Postgres exige `API_TOKEN`; Compose fail-closed; docs só em development; extensão via BFF + sanitize.
-> **Fase 1 retrieval_run (24/09/2026, `feat/fase-1-retrieval-run` `9b25fb1`):** `retrieval_runs` + `chat_messages.retrieval_run_id`; `corpus_version` SHA-256; citações no servidor; parecer com origens. Piloto alinhado (`schema_meta=20260924_001`, smoke `/readyz` OK). **Próximo: Fase 2.** Sem merge/push na `main`.
+> **Fase 1 retrieval_run (24/09/2026, `main`):** `retrieval_runs` + `chat_messages.retrieval_run_id`; `corpus_version` SHA-256; citações no servidor; parecer com origens. Piloto alinhado (`schema_meta=20260924_001`). Branches extras locais/remotas removidas; próxima fase em `feat/fase-2-avaliacao-ci`.
