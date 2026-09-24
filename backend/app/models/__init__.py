@@ -12,6 +12,12 @@ from app.models.document import Document, DocumentItem
 from app.models.document_revision import DocumentRevision
 from app.models.job import Job
 from app.models.legal import LegalChunk, LegalDocument
+from app.models.legal_versioned import (
+    LegalIdMap,
+    LegalProvision,
+    LegalVersion,
+    LegalWork,
+)
 from app.models.retrieval import RetrievalRun
 
 __all__ = [
@@ -22,6 +28,10 @@ __all__ = [
     "Correction",
     "LegalDocument",
     "LegalChunk",
+    "LegalWork",
+    "LegalVersion",
+    "LegalProvision",
+    "LegalIdMap",
     "Fornecedor",
     "Molde",
     "Comparacao",

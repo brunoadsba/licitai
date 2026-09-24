@@ -96,6 +96,19 @@ async def ingest_legal_source(
     )
     if not unchanged:
         await build_fts_index(db)
+        from app.services.legal_model.persist import upsert_versioned_work
+
+        await upsert_versioned_work(
+            db,
+            content=normalized.vigente,
+            law_number=law_number,
+            law_title=law_title,
+            source_url=source_url,
+            collected_at=collected,
+            content_hash=source_hash,
+            source_version=version,
+            validation_source=origin,
+        )
     return IngestResult(
         success=True,
         unchanged=unchanged,
