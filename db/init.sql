@@ -252,6 +252,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     model VARCHAR(100),
     latency_ms BIGINT,
     warning TEXT,
+    retrieval_run_id VARCHAR(36),
     feedback_rating VARCHAR(10),
     feedback_comment TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -307,6 +308,31 @@ CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status);
 CREATE INDEX IF NOT EXISTS idx_jobs_type_status ON jobs(type, status);
 
 -- -----------------------------------------------------------
+-- Tabela: retrieval_runs
+-- Uma execução de retrieve() (análise, chat ou avaliação)
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS retrieval_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    request_id VARCHAR(64),
+    operation_type VARCHAR(20) NOT NULL,
+    query_hash VARCHAR(64) NOT NULL,
+    corpus_version VARCHAR(64) NOT NULL,
+    embedding_model VARCHAR(100),
+    rerank_model VARCHAR(100),
+    params JSONB,
+    retrieved_ids JSONB NOT NULL DEFAULT '[]',
+    scores JSONB NOT NULL DEFAULT '[]',
+    filters JSONB,
+    classification VARCHAR(50),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ix_retrieval_runs_created_at
+    ON retrieval_runs(created_at);
+CREATE INDEX IF NOT EXISTS ix_retrieval_runs_operation_type
+    ON retrieval_runs(operation_type);
+
+-- -----------------------------------------------------------
 -- Tabela: schema_meta
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS schema_meta (
@@ -314,7 +340,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
     value VARCHAR(255) NOT NULL
 );
 
-INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260908_003')
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_001')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 CREATE INDEX IF NOT EXISTS idx_legal_chunks_embedding_hnsw

@@ -25,6 +25,7 @@ from app.config import settings
 from app.models.analysis import Analysis, Correction
 from app.models.document import DocumentItem
 from app.schemas.chat import ChatCitation
+from app.services.rag.retrieval_log import record_retrieval_run
 from app.services.rag.retriever import retrieve
 
 logger = logging.getLogger(__name__)
@@ -60,7 +61,7 @@ async def _legal_sources(
     *,
     allow_semantic: bool | None = None,
     allow_llm_rerank: bool | None = None,
-) -> list[ChatCitation]:
+) -> tuple[list[ChatCitation], str | None]:
     async def _buscar():
         return await retrieve(
             db,
@@ -71,6 +72,13 @@ async def _legal_sources(
         )
 
     chunks = await _seguro(db, _buscar)
+    run = await record_retrieval_run(
+        db,
+        operation_type="chat",
+        query=query,
+        chunks=chunks,
+        params={"top_k": settings.chat_top_k_sources},
+    )
 
     return [
         ChatCitation(
@@ -81,7 +89,7 @@ async def _legal_sources(
             snippet=_snippet(c.text),
         )
         for c in chunks
-    ]
+    ], (str(run.id) if run else None)
 
 
 async def _analysis_sources(
@@ -187,6 +195,15 @@ def source_ids_from(fontes: list[ChatCitation]) -> set[str]:
     return {f.source_id for f in fontes if f.source_id}
 
 
+def hydrate_citations(
+    citations: list[ChatCitation],
+    catalog: list[ChatCitation],
+) -> list[ChatCitation]:
+    """Substitui texto da citação pelo canônico do catálogo do servidor."""
+    by_id = {f.source_id: f for f in catalog if f.source_id}
+    return [by_id[c.source_id] for c in citations if c.source_id in by_id]
+
+
 async def build_sources(
     db: AsyncSession,
     query: str,
@@ -194,19 +211,18 @@ async def build_sources(
     *,
     allow_semantic: bool | None = None,
     allow_llm_rerank: bool | None = None,
-) -> list[ChatCitation]:
+) -> tuple[list[ChatCitation], str | None]:
     """Monta as fontes citáveis da resposta, deduplicadas e limitadas."""
     context = context or {}
     fontes: list[ChatCitation] = []
 
-    fontes.extend(
-        await _legal_sources(
-            db,
-            query,
-            allow_semantic=allow_semantic,
-            allow_llm_rerank=allow_llm_rerank,
-        )
+    legais, retrieval_run_id = await _legal_sources(
+        db,
+        query,
+        allow_semantic=allow_semantic,
+        allow_llm_rerank=allow_llm_rerank,
     )
+    fontes.extend(legais)
 
     analysis_id = context.get("analysis_id") or context.get("analysisId")
     document_id = context.get("document_id") or context.get("documentId")
@@ -227,4 +243,4 @@ async def build_sources(
             )
         )
 
-    return _dedupe(fontes)[: settings.chat_max_sources_stored]
+    return _dedupe(fontes)[: settings.chat_max_sources_stored], retrieval_run_id

@@ -9,7 +9,11 @@ from app.config import settings
 from app.models.chat import ChatConversation, ChatMessage
 from app.services.chat.llm_adapter import ChatLLMProvider
 from app.services.chat.prompts import build_messages
-from app.services.chat.sources import build_sources, source_ids_from
+from app.services.chat.sources import (
+    build_sources,
+    hydrate_citations,
+    source_ids_from,
+)
 from app.services.chat.validator import ValidatedAnswer, validate_llm_answer
 from app.services.llm.factory import select_chat_llm
 from app.services.privacy import classification_for_chat, resolve_policy
@@ -48,6 +52,7 @@ async def _persistir_mensagem(
     model: str | None = None,
     latency_ms: int | None = None,
     warning: str | None = None,
+    retrieval_run_id: str | None = None,
 ) -> ChatMessage:
     mensagem = ChatMessage(
         conversation_id=conversation.id,
@@ -60,6 +65,7 @@ async def _persistir_mensagem(
         model=model,
         latency_ms=latency_ms,
         warning=warning,
+        retrieval_run_id=retrieval_run_id,
     )
     db.add(mensagem)
     conversation.updated_at = _agora()
@@ -136,16 +142,21 @@ async def send_message(
         )
 
     try:
-        fontes = await build_sources(
+        montadas = await build_sources(
             db,
             content,
             conversation.context_json or {},
             allow_semantic=policy.cloud_embeddings,
             allow_llm_rerank=policy.llm_rerank,
         )
+        if isinstance(montadas, tuple):
+            fontes, retrieval_run_id = montadas
+        else:
+            fontes, retrieval_run_id = montadas, None
     except Exception:
         logger.exception("Falha ao montar fontes do copiloto")
         fontes = []
+        retrieval_run_id = None
     so_quarentena = consume_quarantine_only()
     logger.info(
         "chat.sources.retrieved conversation_id=%s count=%d quarantine_only=%s",
@@ -162,6 +173,7 @@ async def send_message(
             model="quarantine",
             latency_ms=0,
             warning=QUARANTINE_ONLY_MESSAGE,
+            retrieval_run_id=retrieval_run_id,
         )
 
     provider = None
@@ -182,6 +194,7 @@ async def send_message(
             require_grounding=settings.chat_require_grounding,
             valid_source_ids=source_ids_from(fontes),
         )
+        resposta.citations = hydrate_citations(resposta.citations, fontes)
     except Exception:
         logger.exception(
             "chat.llm.failed provider=%s",
@@ -213,4 +226,5 @@ async def send_message(
         model=getattr(provider, "model_name", None),
         latency_ms=latency_ms,
         warning=warning_message_pt(resposta.reason) if resposta.refused else None,
+        retrieval_run_id=retrieval_run_id,
     )

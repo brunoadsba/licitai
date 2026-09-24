@@ -16,6 +16,7 @@ from sqlalchemy.pool import StaticPool
 from app.config import settings
 from app.database import Base
 from app.models.legal import LegalChunk, LegalDocument
+from app.models.retrieval import RetrievalRun  # noqa: F401
 from app.services.analyzer.analysis_phases import _retrieve_legal_context
 from app.services.rag.loader import build_fts_index
 from app.services.rag.retriever import (
@@ -277,7 +278,9 @@ def test_regime_filter_desligado_por_padrao_e_filtra_quando_ligado(monkeypatch):
         async with Session() as db:
             return await _retrieve_legal_context(db, item)
 
-    assert _run(_cenario()) != ""
+    ctx = _run(_cenario())
+    assert ctx.text != ""
+    assert ctx.retrieval_run_id
 
     _clear_legal_context_cache()
     monkeypatch.setattr(settings, "rag_regime_filter", 1)
@@ -288,4 +291,4 @@ def test_regime_filter_desligado_por_padrao_e_filtra_quando_ligado(monkeypatch):
             return await _retrieve_legal_context(db, item)
 
     # Seed só tem Lei 14.133/2021; regime 13.303 filtra tudo
-    assert _run(_cenario_filtrado()) == ""
+    assert _run(_cenario_filtrado()).text == ""

@@ -126,15 +126,33 @@ async def run_analysis(
 
     # --- Fase 1: contexto jurídico por item (sequencial — usa a sessão DB) ---
     items_context: list = []
+    retrieval_by_item: dict[str, dict] = {}
+    retrieval_run_ids: list[str] = []
+    corpus_version = None
     for item in work_items:
-        legal_context = await _retrieve_legal_context(
+        legal_ctx = await _retrieve_legal_context(
             db,
             item,
             llm,
             allow_semantic=policy.cloud_embeddings,
             allow_llm_rerank=policy.llm_rerank,
         )
-        items_context.append((item, legal_context))
+        items_context.append((item, legal_ctx.text))
+        retrieval_by_item[str(item.id)] = {
+            "retrieval_run_id": legal_ctx.retrieval_run_id,
+            "chunk_ids": legal_ctx.chunk_ids,
+            "corpus_version": legal_ctx.corpus_version,
+        }
+        if legal_ctx.retrieval_run_id:
+            retrieval_run_ids.append(legal_ctx.retrieval_run_id)
+        if legal_ctx.corpus_version:
+            corpus_version = legal_ctx.corpus_version
+    snapshot["retrieval_run_ids"] = retrieval_run_ids
+    if corpus_version:
+        snapshot["corpus_version"] = corpus_version
+        snapshot["corpus_label"] = "legal-v2"
+    analysis.run_snapshot = snapshot
+    await db.commit()
 
     # --- Fase 2: análise LLM concorrente (sem acesso ao DB) ---
     results = await _analyze_items_concurrent(llm, orchestrator, items_context)
@@ -152,6 +170,7 @@ async def run_analysis(
         valid_refs,
         len(work_items),
         budget_truncated,
+        retrieval_by_item,
     )
 
     # Se nenhum item foi analisado, os provedores LLM estão indisponíveis:

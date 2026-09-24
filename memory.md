@@ -166,7 +166,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 
 ### Backend (`/backend`)
 - `Dockerfile`: Imagem Python 3.12-slim com `tesseract-ocr`, `tesseract-ocr-por` e `libmagic1`.
-- `alembic.ini` + `alembic/versions/`: Migrações de schema (head atual `20260908_003`).
+- `alembic.ini` + `alembic/versions/`: Migrações de schema (head atual `20260924_001`).
 - `requirements.txt` / `requirements-dev.txt`: Dependências runtime e teste (inclui Alembic).
 - `app/worker.py`: Worker da fila `jobs` (`python -m app.worker`); heartbeat de lease a cada 60s (`renew_lease`); default `job_lease_seconds=900`.
 - `scripts/seed_moldes.py`: Seed idempotente de moldes padrão (TR geral, serviços continuados, obras públicas).
@@ -310,10 +310,10 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (24/09/2026)**: `fix/quarentena-tcu` (0B+0C). `main` em `ddcbe58`. CI permanece desabilitado.
+- **Branch ativa (24/09/2026)**: `feat/fase-1-retrieval-run` (a partir de `fix/quarentena-tcu`). `main` em `ddcbe58`. CI permanece desabilitado.
+- **Fase 1 — retrieval_run + citações no servidor (24/09/2026)**: tabela `retrieval_runs`; hash SHA-256 do manifesto de `legal_documents`; análise e chat gravam a recuperação; chat hidrata `reference`/`title`/`snippet` no servidor e recusa `source_id` fora do contexto; parecer aponta correções e `retrieval_run`s de origem. Schema esperado `20260924_001`.
 - **Fase 0C — auth operacional + extensão SEI (24/09/2026)**: `API_TOKEN` obrigatório com PostgreSQL (boot falha se vazio); Compose exige a variável; `/api/docs` só em development; extensão usa BFF `:3000/api/proxy` e sanitiza HTML. Token compartilhado ≠ login. Doc: [docs/ops/auth-piloto.md](docs/ops/auth-piloto.md). Validado: API sem header 401, com token 200, BFF 200.
 - **Fase 0B — quarentena TCU (24/09/2026)**: fontes sem URL oficial (`Súmula 247/TCU`, `Súmula 272/TCU`, `Acórdão 1214/2013-TCU-Plenário`) saem da busca padrão, de `legal_basis` e do parecer; dados preservados com `version=quarantine-0B`. Lista em [docs/ops/quarentena-tcu.md](docs/ops/quarentena-tcu.md). Validado no Postgres piloto.
-- **Próxima fase técnica: Fase 1 (registro de recuperação e claims).**
 - **Fase 0A — sigilo fail-closed (23/09/2026, branch `fix/seguranca-sigilo-auth`, merge `e52b712`)**: plano de revisão em `.cursor/plans/revisão_fase_0a_sigilo_f9474b9c.plan.md`; plano completo arquivado em [docs/ops/plano-tecnico-ajustado.md](docs/ops/plano-tecnico-ajustado.md). `PrivacyPolicyError` em análise/reanálise/worker/chat/revisor/gerador; upload/chat/gerar-tr exigem classificação na UI; HTTP 422 com mensagem única. Backfill de `NULL` → `publico` no Postgres piloto. E2E: `e2e/tests/test_e2e_privacy.py` + `frontend/e2e/privacy-classification.spec.ts`. `ILIKE` fica para Fase 2.
 - **Auditoria backend 15/09 (P0+P1+P2 — `.omo/plans/fix-backend-auditoria-2026-09-15.md`)**: failover com lista filtrada (`is_last_provider`), fila atômica (`UPDATE...WHERE pending` + rowcount + `expire_all`), upload `max+1` bytes → 413 sem OOM + ZIP/`octet-stream` com assinatura `PK` p/ DOCX/ODT, parser semáforo `PARSE_MAX_CONCURRENT=2` + `PARSE_TIMEOUT_SECONDS` + log `orphan_thread`, orphans só em `running` stale (>2x lease), rate-limit evicção 5k IPs + `TRUST_PROXY`/XFF, `mkdir` no lifespan, `/metrics` com token fora de dev, métricas sem `threading.Lock`, `document.error_message` em `completed_with_errors`, snapshot `total/work_items`, `get_upload_path` com `is_relative_to`, PDF preserva causa raiz + OCR com motivo, ODT anti-zipbomb (5k entries, 200MB). Testes novos `test_llm_failover_last.py` + `test_jobs_race.py`. **Backend 261 passed (baseline 258) · E2E 26/26 (7 fast 0.75s + 19 live/full-flow 4m44s, Postgres real + LLM) · LSP 0 errors em `backend/app`**. E2E Docker não atualizado em `memory` antes; DeskcommCRM + free-for.dev avaliados (só periferia com dado fake; dado CODEBA fica local).
 - **Histórico consolidado (08–10/09/2026)**: runtime Docker confiável, modelos LLM atuais, E2E 17/17, UX Sprints 1–3, CSP Next.js, restore drill documentado, unificação `Badge` + Exportar PDF + `backend/tests/conftest.py`.
@@ -461,8 +461,9 @@ backend\.venv\Scripts\python.exe -m pytest e2e/tests -v --tb=short
 | **0A** Sigilo fail-closed | **Feito (23/09)** | Cloud bloqueada para `sigiloso`/`NULL`; UI exige classificação; 422 sem Ollama; plano arquivado |
 | **0B** Quarentena corpus TCU | **Feito (24/09)** | TCU sem fonte oficial fora da busca; dados preservados; validado no piloto |
 | **0C** Auth operacional + extensão SEI | **Feito (24/09)** | Token obrigatório com Postgres; BFF; sanitização da extensão |
+| **1** Retrieval run + claims | **Feito (24/09)** | Persistência da recuperação; citações montadas no servidor; parecer com origens |
 
-Fases 1–9 (rastreio, avaliação, ingestão, modelo jurídico, recuperação, grounding, custo, UX auditoria, multiusuário) só depois da contenção. Não enviar documento `sigiloso` ao piloto até existir Ollama configurado.
+Fases 2–9 (avaliação/CI, ingestão, modelo jurídico, recuperação, grounding, custo, UX auditoria, multiusuário) depois. Não enviar documento `sigiloso` ao piloto até existir Ollama configurado.
 
 ### Valor elaborador (Fases 0–4 — implementado, em `main`)
 - Fila Prioridade (alto/crítico + estrutural), pacote SEI, TR HTML corrigido, fluxo Atualizar TR (`?diffFrom=`), ops piloto (`docs/ops/piloto.md`, `scripts/backup_daily.sh`, `scripts/ops_alerts.sh`).
@@ -577,7 +578,7 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 
 ### Agora (ops / Bruno) — ordem sugerida
 1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build` (worker precisa de `defusedxml`). Upload/chat/gerar-tr **exigem classificação**; não enviar `sigiloso` sem Ollama (422 esperado).
-2. **Próxima sessão técnica:** Fase **1** — registro de recuperação e claims ([plano-tecnico-ajustado.md](docs/ops/plano-tecnico-ajustado.md)). Contenção 0A–0C concluída nesta branch.
+2. **Próxima sessão técnica:** Fase **2** (avaliação real, CI, linha de base). Merge/push de 0B+0C+Fase 1 na `main` só com pedido explícito.
 3. Continuar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md), aberto até 28/09): revisar alto/crítico, anotar rejeição, validar pacote SEI/DOCX.
 4. Em paralelo quando houver cota: demais TRs da quinzena (`07` → `11` → `01` → `05`) + colar export no SEI real.
 5. Rotacionar secrets quando conveniente. Emergência já anonimizada (15/09).
@@ -622,4 +623,5 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Para elevar o nível — o que realmente falta testar e como:** (1) Recall no corpus real: rotular 20 queries de elaboradores vs 599 chunks (`scripts/eval_rag.py` contra o Postgres piloto; meta Recall@5 ≥0.85); (2) Precisão+recall da análise: re-run ouro 09-ti-pabx-nuvem + 3 TRs diversos com revisão humana cega, meta precisão ≥0.80 e 0 placeholders/números inventados; (3) Latência p95 do `retrieve()` no corpus real (meta <2s; `rag_candidates=50` escaneia tudo em Python no fallback); (4) Custo do modo LLM: 1 ouro com `rag_rerank_mode="llm"` medindo tokens extras vs ganho (go/no-go); (5) `claim_support_rate` médio ≥0.9 no golden. Nada disso roda sem chaves LLM + Docker — é trabalho de piloto, não de laboratório.
 > **Fase 0A sigilo fail-closed (23/09/2026, `fix/seguranca-sigilo-auth` → `main` `e52b712`):** `NULL`=sigiloso; cloud bloqueada; 422/job não-retriável sem Ollama; UI com seletor obrigatório (upload/chat/gerar-tr); E2E `test_e2e_privacy.py` + `privacy-classification.spec.ts`; backfill `NULL`→`publico` no Postgres piloto; redirect pós-upload corrigido (`window.setTimeout`); plano completo em `docs/ops/plano-tecnico-ajustado.md`.
 > **Fase 0B quarentena TCU (24/09/2026, `fix/quarentena-tcu`):** súmulas 247/272 e Acórdão 1214/2013 fora da busca/`legal_basis`/parecer; `version=quarantine-0B` no Postgres piloto; retrieve validado (só lei/RILC).
-> **Fase 0C auth + extensão (24/09/2026, mesma branch):** Postgres exige `API_TOKEN`; Compose fail-closed; docs só em development; extensão via BFF + sanitize. **Próximo código: Fase 1.**
+> **Fase 0C auth + extensão (24/09/2026, `fix/quarentena-tcu`):** Postgres exige `API_TOKEN`; Compose fail-closed; docs só em development; extensão via BFF + sanitize.
+> **Fase 1 retrieval_run (24/09/2026, `feat/fase-1-retrieval-run`):** `retrieval_runs` + `chat_messages.retrieval_run_id`; `corpus_version` SHA-256 do manifesto; citações hidratadas no servidor; parecer com IDs de correção/recuperação. **Próximo: Fase 2.**

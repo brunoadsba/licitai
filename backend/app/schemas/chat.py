@@ -114,6 +114,7 @@ class ChatMessageResponse(BaseModel):
     model: str | None = None
     latency_ms: int | None = None
     warning: str | None = None
+    retrieval_run_id: str | None = None
     created_at: AwareDatetime
 
 

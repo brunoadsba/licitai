@@ -49,6 +49,7 @@ async def lifespan(app: FastAPI):
             from app.models.document_revision import DocumentRevision  # noqa: F401
             from app.models.job import Job  # noqa: F401
             from app.models.legal import LegalChunk, LegalDocument  # noqa: F401
+            from app.models.retrieval import RetrievalRun  # noqa: F401
 
             await conn.run_sync(Base.metadata.create_all)
 

@@ -18,6 +18,7 @@ from sqlalchemy.pool import StaticPool
 from app.database import Base
 from app.models.analysis import Analysis, Correction
 from app.models.document import Document, DocumentItem
+from app.models.retrieval import RetrievalRun  # noqa: F401
 from app.services.analyzer.engine import run_analysis
 from app.services.llm.provider import LLMProvider
 
@@ -216,8 +217,12 @@ def test_run_analysis_completa_fluxo_single_agent():
     # Scoring determinístico primário (2 correções juridica/medio → 9.5)
     assert float(analysis.score_overall) == 9.5
     assert analysis.risk_level == "baixo"
-    # Opinião LLM secundária (payload de scoring válido)
-    assert analysis.final_opinion == "Parecer final de teste."
+    # Opinião LLM secundária + rodapé de origens (Fase 1)
+    assert analysis.final_opinion.startswith("Parecer final de teste.")
+    assert "Fontes do parecer" in analysis.final_opinion
+    snapshot = analysis.run_snapshot or {}
+    assert snapshot.get("origin_correction_ids")
+    assert snapshot.get("retrieval_run_ids") is not None
     assert analysis.started_at is not None
     assert analysis.completed_at is not None
     assert doc.status == "completed"

@@ -149,3 +149,16 @@ class TestInitSqlChatContract:
     def test_chat_messages_unico_conversacao_role(self):
         raw = INIT_SQL_PATH.read_text(encoding="utf-8")
         assert "uq_chat_messages_conversation_role" in raw
+
+    def test_chat_messages_retrieval_run_id(self):
+        tables = _create_table_statements()
+        types = _column_types(tables["chat_messages"])
+        assert types.get("retrieval_run_id") == "varchar"
+
+    def test_retrieval_runs_existe(self):
+        tables = _create_table_statements()
+        assert "retrieval_runs" in tables
+        types = _column_types(tables["retrieval_runs"])
+        assert types["query_hash"] == "varchar"
+        assert types["corpus_version"] == "varchar"
+        assert types["retrieved_ids"] == "jsonb"

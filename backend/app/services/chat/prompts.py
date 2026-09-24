@@ -35,12 +35,13 @@ ou o conteúdo das fontes (e não for cumprimento), responda com \
 4. O campo "reason" deve ser EXATAMENTE um destes slugs (nunca frase longa, nunca inglês): \
 recusa-llm, sem-citacao, sem-fontes, fora-escopo, resposta-invalida, resposta-vazia, \
 source-id-inexistente, falha-llm.
-5. Se você usar uma fonte, cite-a obrigatoriamente em "citations" com o campo \
-"source_id" EXATO da fonte fornecida, além de "reference" e "snippet" curto.
+5. Se você usar uma fonte, cite-a obrigatoriamente em "citations" só com \
+"type" e o "source_id" EXATO da fonte fornecida. NÃO envie reference, title \
+nem snippet — o servidor monta o texto canônico.
 6. NUNCA invente source_id. Use somente IDs listados nas fontes.
 7. Todo fato jurídico citado deve ter pelo menos uma citação correspondente.
 8. Não invente números de artigo nem leis. NUNCA responda um fato jurídico sem citação.
-9. Nos campos "answer", "title" e "snippet", use somente português do Brasil.
+9. No campo "answer", use somente português do Brasil.
 
 Responda APENAS com um JSON válido e nada mais, no formato:
 {
@@ -48,7 +49,7 @@ Responda APENAS com um JSON válido e nada mais, no formato:
   "answer": "texto da resposta em markdown leve (português do Brasil)",
   "grounded": true,
   "confidence": 0.0,
-  "citations": [{"type": "legal", "source_id": "legal:...", "reference": "Lei 14.133/2021, art. 5º", "title": "Lei 14.133/2021", "snippet": "trecho curto"}],
+  "citations": [{"type": "legal", "source_id": "legal:..."}],
   "suggested_actions": []
 }
 """

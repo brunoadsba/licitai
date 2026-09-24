@@ -27,6 +27,7 @@ from app.models.document import Document, DocumentItem  # noqa: F401
 from app.models.document_revision import DocumentRevision  # noqa: F401
 from app.models.legal import LegalChunk, LegalDocument  # noqa: F401
 from app.models.job import Job  # noqa: F401
+from app.models.retrieval import RetrievalRun  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

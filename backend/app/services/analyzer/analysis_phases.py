@@ -6,12 +6,13 @@ carregados; a persistência decide o que fazer com cada resultado.
 
 import asyncio
 import logging
+from dataclasses import dataclass, field
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models.document import DocumentItem
 from app.models.analysis import Correction
+from app.models.document import DocumentItem
 from app.services.agents.orchestrator import MultiAgentOrchestrator
 from app.services.analyzer.item_analysis import analyze_item_llm
 from app.services.analyzer.review import (
@@ -19,9 +20,20 @@ from app.services.analyzer.review import (
     correction_to_dict,
     review_item_corrections,
 )
+from app.services.rag.retrieval_log import record_retrieval_run
 from app.services.rag.retriever import retrieve
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class LegalContext:
+    """Contexto jurídico textual + metadados da recuperação."""
+
+    text: str = ""
+    retrieval_run_id: str | None = None
+    chunk_ids: list[str] = field(default_factory=list)
+    corpus_version: str | None = None
 
 
 async def _analyze_items_concurrent(
@@ -63,7 +75,7 @@ async def _retrieve_legal_context(
     *,
     allow_semantic: bool | None = None,
     allow_llm_rerank: bool | None = None,
-) -> str:
+) -> LegalContext:
     """Busca artigos relevantes no corpus jurídico e formata para o prompt.
 
     `allow_semantic=False` não gera embedding da query (texto do item).
@@ -78,10 +90,11 @@ async def _retrieve_legal_context(
             "13.303": ["Lei 13.303/2016"],
             "14.133": ["Lei 14.133/2021"],
         }.get(regime or "")
+    query = f"{item.title or ''} {item.content}"
     try:
         chunks = await retrieve(
             db,
-            query=f"{item.title or ''} {item.content}",
+            query=query,
             top_k=4,
             law_numbers=law_numbers,
             llm=llm,
@@ -90,17 +103,28 @@ async def _retrieve_legal_context(
         )
     except Exception:
         logger.exception("Falha ao recuperar contexto jurídico")
-        return ""
+        return LegalContext()
 
-    if not chunks:
-        return ""
-
-    parts = []
-    for c in chunks:
-        parts.append(
-            f"### {c.law_number} — {c.article}\n{c.text[:2500]}"
-        )
-    return "\n\n".join(parts)
+    run = await record_retrieval_run(
+        db,
+        operation_type="analysis",
+        query=query,
+        chunks=chunks,
+        params={"top_k": 4, "allow_semantic": allow_semantic},
+        filters={"law_numbers": law_numbers} if law_numbers else {},
+    )
+    text = ""
+    if chunks:
+        parts = [
+            f"### {c.law_number} — {c.article}\n{c.text[:2500]}" for c in chunks
+        ]
+        text = "\n\n".join(parts)
+    return LegalContext(
+        text=text,
+        retrieval_run_id=str(run.id) if run else None,
+        chunk_ids=[str(c.id) for c in chunks if getattr(c, "id", None)],
+        corpus_version=run.corpus_version if run else None,
+    )
 
 
 async def _run_cross_review(

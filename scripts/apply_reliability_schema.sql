@@ -60,15 +60,35 @@ CREATE TABLE IF NOT EXISTS schema_meta (
     key VARCHAR(64) PRIMARY KEY,
     value VARCHAR(255) NOT NULL
 );
-INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260908_003')
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_001')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+
+CREATE TABLE IF NOT EXISTS retrieval_runs (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    request_id VARCHAR(64),
+    operation_type VARCHAR(20) NOT NULL,
+    query_hash VARCHAR(64) NOT NULL,
+    corpus_version VARCHAR(64) NOT NULL,
+    embedding_model VARCHAR(100),
+    rerank_model VARCHAR(100),
+    params JSONB,
+    retrieved_ids JSONB NOT NULL DEFAULT '[]',
+    scores JSONB NOT NULL DEFAULT '[]',
+    filters JSONB,
+    classification VARCHAR(50),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ix_retrieval_runs_created_at ON retrieval_runs (created_at);
+CREATE INDEX IF NOT EXISTS ix_retrieval_runs_operation_type ON retrieval_runs (operation_type);
+
+ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS retrieval_run_id VARCHAR(36);
 
 -- Alembic version tracking (se a tabela existir após alembic stamp)
 CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL
 );
 DELETE FROM alembic_version;
-INSERT INTO alembic_version (version_num) VALUES ('20260908_003');
+INSERT INTO alembic_version (version_num) VALUES ('20260924_001');
 
 -- CHECKs alinhados ao ORM (idempotente em Postgres legado)
 DO $$

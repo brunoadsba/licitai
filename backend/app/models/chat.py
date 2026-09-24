@@ -97,6 +97,7 @@ class ChatMessage(Base):
         BigInteger, nullable=True
     )
     warning: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retrieval_run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     feedback_rating: Mapped[str | None] = mapped_column(String(10), nullable=True)
     feedback_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

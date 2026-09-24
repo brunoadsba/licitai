@@ -23,6 +23,7 @@ from app.services.analyzer.grounding import (
     should_fail_closed_legal,
 )
 from app.services.rag.quarantine import sanitize_legal_basis
+from app.services.analyzer.parecer_origins import append_parecer_origins
 from app.services.analyzer.scoring import (
     calculate_fallback_scores,
     generate_scores,
@@ -43,6 +44,7 @@ async def persist_item_outcomes(
     valid_refs,
     total_work: int,
     budget_truncated: bool,
+    retrieval_by_item: dict | None = None,
 ) -> dict:
     """Persiste correções item a item + progresso; retorna resumo da rodada."""
     analyzed_count = 0
@@ -51,6 +53,8 @@ async def persist_item_outcomes(
     coverage_incomplete = False
     successfully_analyzed_ids: list[str] = []
     failed_item_ids: list[str] = []
+    origin_correction_ids: list[str] = []
+    retrieval_meta = retrieval_by_item or {}
     try:
         _items_all = list(getattr(document, "items", None) or [it for it, _ in items_context])
     except Exception:
@@ -106,10 +110,15 @@ async def persist_item_outcomes(
                     severity = "alto"
             excerpt = correction_data.get("original_text", "") or ""
             excerpt_hash = hashlib.sha256(excerpt.encode("utf-8")).hexdigest()[:16] if excerpt else None
+            item_retrieval = retrieval_meta.get(str(item.id)) or {}
             evidence = {
                 "excerpt_hash": excerpt_hash,
                 "prompt_version": "v1",
-                "corpus_version": str(len(valid_refs)),
+                "corpus_version": item_retrieval.get("corpus_version")
+                or str(len(valid_refs)),
+                "corpus_label": "legal-v2",
+                "retrieval_run_id": item_retrieval.get("retrieval_run_id"),
+                "legal_chunk_ids": item_retrieval.get("chunk_ids") or [],
                 "grounded": grounded,
                 "legal_valid": legal_valid,
                 "fail_closed_legal": fail_closed,
@@ -149,6 +158,8 @@ async def persist_item_outcomes(
                 correction.reviewed_at = datetime.now(timezone.utc)
                 metrics.inc("review_rejected")
             db.add(correction)
+            await db.flush()
+            origin_correction_ids.append(str(correction.id))
             correction_objs.append(correction)
             if grounded and not fail_closed:
                 all_corrections.append(correction_data)
@@ -184,6 +195,7 @@ async def persist_item_outcomes(
     snapshot["analyzed_item_ids"] = successfully_analyzed_ids
     snapshot["failed_item_ids"] = failed_item_ids
     snapshot["regime"] = regime
+    snapshot["origin_correction_ids"] = origin_correction_ids
     analysis.run_snapshot = snapshot
     await db.commit()
 
@@ -235,6 +247,13 @@ async def finalize_analysis(
         analysis.score_structural = scores["score_structural"]
         analysis.risk_level = scores["risk_level"]
         analysis.final_opinion = scores["final_opinion"]
+
+    snapshot = dict(analysis.run_snapshot or {})
+    analysis.final_opinion = append_parecer_origins(
+        analysis.final_opinion or "",
+        snapshot.get("origin_correction_ids") or [],
+        snapshot.get("retrieval_run_ids") or [],
+    )
 
     # Finalizar
     if coverage_incomplete:

@@ -12,6 +12,7 @@ from app.models.document import Document, DocumentItem
 from app.models.document_revision import DocumentRevision
 from app.models.job import Job
 from app.models.legal import LegalChunk, LegalDocument
+from app.models.retrieval import RetrievalRun
 
 __all__ = [
     "Document",
@@ -28,4 +29,5 @@ __all__ = [
     "ChatConversation",
     "ChatMessage",
     "Job",
+    "RetrievalRun",
 ]
