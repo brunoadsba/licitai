@@ -92,3 +92,7 @@ class LegalChunk(Base):
     legal_document: Mapped["LegalDocument"] = relationship(
         back_populates="chunks"
     )
+
+
+# Registra works/versions/provisions no mesmo metadata (create_all / Alembic).
+from app.models import legal_versioned as _legal_versioned  # noqa: E402,F401

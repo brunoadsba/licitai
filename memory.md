@@ -166,7 +166,7 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
 
 ### Backend (`/backend`)
 - `Dockerfile`: Imagem Python 3.12-slim com `tesseract-ocr`, `tesseract-ocr-por` e `libmagic1`.
-- `alembic.ini` + `alembic/versions/`: Migrações de schema (head atual `20260924_002`).
+- `alembic.ini` + `alembic/versions/`: Migrações de schema (head atual `20260924_003`).
 - `requirements.txt` / `requirements-dev.txt`: Dependências runtime e teste (inclui Alembic).
 - `app/worker.py`: Worker da fila `jobs` (`python -m app.worker`); heartbeat de lease a cada 60s (`renew_lease`); default `job_lease_seconds=900`.
 - `scripts/seed_moldes.py`: Seed idempotente de moldes padrão (TR geral, serviços continuados, obras públicas).
@@ -310,7 +310,8 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (24/09/2026)**: `main` inclui 0A–3. CI GitHub permanece desabilitado (`ci.yml.disabled`).
+- **Branch ativa (24/09/2026)**: `feat/fase-4-modelo-juridico`. `main` inclui 0A–3. CI GitHub permanece desabilitado (`ci.yml.disabled`).
+- **Fase 4 — modelo jurídico versionado (24/09/2026, em branch)**: `legal_works`/`legal_versions`/`legal_provisions` + `legal_id_map`. Índice legado permanece. TCU em quarentena não publica. Visto jurídico da amostra pendente. Schema `20260924_003`. Doc: [docs/ops/modelo-juridico-fase4.md](docs/ops/modelo-juridico-fase4.md).
 - **Fase 3 — ingestão confiável (24/09/2026)**: pipeline idempotente (hash/origem/manifesto); parse/OCR no worker; timeout OCR com SIGKILL; tachado/VETADO fora do vigente. Schema `20260924_002`. Doc: [docs/ops/ingestao-fase3.md](docs/ops/ingestao-fase3.md).
 - **Fase 2 — avaliação real e linha de base (24/09/2026)**: conjunto `backend/eval/cases.json`; runner `scripts/eval_corpus_real.py`; baselines em `eval/baseline.ci.json` (r@5 1.0) e `eval/baseline.piloto.json` (r@5 0.214). Doc: [docs/ops/eval-fase2.md](docs/ops/eval-fase2.md). Visto jurídico pendente. CI GitHub desligado.
 - **Fase 1 — retrieval_run + citações no servidor (24/09/2026, `9b25fb1`)**: tabela `retrieval_runs`; hash SHA-256 do manifesto; análise e chat gravam a recuperação; citações montadas no servidor. Piloto: `schema_meta=20260924_001`, `/readyz` ready, 4 containers healthy.

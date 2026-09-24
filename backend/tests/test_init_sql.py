@@ -171,4 +171,15 @@ class TestInitSqlChatContract:
         assert types["ingest_status"] == "varchar"
         assert types["ingest_manifest"] == "jsonb"
         raw = INIT_SQL_PATH.read_text(encoding="utf-8")
-        assert "schema_version', '20260924_002'" in raw
+        assert "schema_version', '20260924_003'" in raw
+
+    def test_legal_works_fase4(self):
+        tables = _create_table_statements()
+        assert "legal_works" in tables
+        assert "legal_versions" in tables
+        assert "legal_provisions" in tables
+        assert "legal_id_map" in tables
+        types = _column_types(tables["legal_provisions"])
+        assert types["path"] == "varchar"
+        assert types["canonical_text"] == "text"
+        assert types["provision_hash"] == "varchar"

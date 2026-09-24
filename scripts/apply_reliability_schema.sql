@@ -67,7 +67,59 @@ ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS ingest_status VARCHAR(20) N
 ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS last_error TEXT;
 ALTER TABLE legal_documents ADD COLUMN IF NOT EXISTS ingest_manifest JSONB;
 
-INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_002')
+CREATE TABLE IF NOT EXISTS legal_works (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    law_number VARCHAR(80) NOT NULL UNIQUE,
+    title VARCHAR(500) NOT NULL,
+    kind VARCHAR(40) NOT NULL DEFAULT 'lei',
+    issuing_body VARCHAR(200),
+    sphere VARCHAR(40),
+    jurisdiction VARCHAR(80),
+    subject_area VARCHAR(80),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS legal_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_id UUID NOT NULL REFERENCES legal_works(id) ON DELETE CASCADE,
+    source_url VARCHAR(500),
+    collected_at TIMESTAMPTZ,
+    content_hash VARCHAR(64) NOT NULL,
+    wording VARCHAR(40) DEFAULT 'consolidada',
+    status VARCHAR(20) NOT NULL DEFAULT 'unpublished',
+    validity_start DATE,
+    validity_end DATE,
+    amending_norm VARCHAR(200),
+    validation_source VARCHAR(200),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE TABLE IF NOT EXISTS legal_provisions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    version_id UUID NOT NULL REFERENCES legal_versions(id) ON DELETE CASCADE,
+    work_id UUID NOT NULL REFERENCES legal_works(id) ON DELETE CASCADE,
+    parent_id UUID REFERENCES legal_provisions(id) ON DELETE SET NULL,
+    path VARCHAR(200) NOT NULL,
+    article VARCHAR(40),
+    paragraph VARCHAR(40),
+    inciso VARCHAR(20),
+    alinea VARCHAR(10),
+    item VARCHAR(20),
+    canonical_text TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'vigente',
+    provision_hash VARCHAR(64) NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (version_id, path)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_provision_vigente_path
+    ON legal_provisions (work_id, path)
+    WHERE status = 'vigente';
+CREATE TABLE IF NOT EXISTS legal_id_map (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    old_chunk_id UUID NOT NULL UNIQUE REFERENCES legal_chunks(id) ON DELETE CASCADE,
+    provision_id UUID NOT NULL REFERENCES legal_provisions(id) ON DELETE CASCADE,
+    legal_document_id UUID NOT NULL REFERENCES legal_documents(id) ON DELETE CASCADE
+);
+
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_003')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 CREATE TABLE IF NOT EXISTS retrieval_runs (
@@ -95,7 +147,7 @@ CREATE TABLE IF NOT EXISTS alembic_version (
     version_num VARCHAR(32) NOT NULL
 );
 DELETE FROM alembic_version;
-INSERT INTO alembic_version (version_num) VALUES ('20260924_002');
+INSERT INTO alembic_version (version_num) VALUES ('20260924_003');
 
 -- CHECKs alinhados ao ORM (idempotente em Postgres legado)
 DO $$

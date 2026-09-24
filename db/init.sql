@@ -179,6 +179,67 @@ CREATE TABLE IF NOT EXISTS legal_chunks (
 );
 
 -- -----------------------------------------------------------
+-- Modelo jurídico versionado (Fase 4). O índice legado permanece.
+-- -----------------------------------------------------------
+CREATE TABLE IF NOT EXISTS legal_works (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    law_number VARCHAR(80) NOT NULL UNIQUE,
+    title VARCHAR(500) NOT NULL,
+    kind VARCHAR(40) NOT NULL DEFAULT 'lei',
+    issuing_body VARCHAR(200),
+    sphere VARCHAR(40),
+    jurisdiction VARCHAR(80),
+    subject_area VARCHAR(80),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS legal_versions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    work_id UUID NOT NULL REFERENCES legal_works(id) ON DELETE CASCADE,
+    source_url VARCHAR(500),
+    collected_at TIMESTAMP WITH TIME ZONE,
+    content_hash VARCHAR(64) NOT NULL,
+    wording VARCHAR(40) DEFAULT 'consolidada',
+    status VARCHAR(20) NOT NULL DEFAULT 'unpublished'
+        CHECK (status IN ('published', 'superseded', 'unpublished')),
+    validity_start DATE,
+    validity_end DATE,
+    amending_norm VARCHAR(200),
+    validation_source VARCHAR(200),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS legal_provisions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    version_id UUID NOT NULL REFERENCES legal_versions(id) ON DELETE CASCADE,
+    work_id UUID NOT NULL REFERENCES legal_works(id) ON DELETE CASCADE,
+    parent_id UUID REFERENCES legal_provisions(id) ON DELETE SET NULL,
+    path VARCHAR(200) NOT NULL,
+    article VARCHAR(40),
+    paragraph VARCHAR(40),
+    inciso VARCHAR(20),
+    alinea VARCHAR(10),
+    item VARCHAR(20),
+    canonical_text TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'vigente'
+        CHECK (status IN ('vigente', 'historical', 'vetado')),
+    provision_hash VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (version_id, path)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_provision_vigente_path
+    ON legal_provisions (work_id, path)
+    WHERE status = 'vigente';
+
+CREATE TABLE IF NOT EXISTS legal_id_map (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    old_chunk_id UUID NOT NULL UNIQUE REFERENCES legal_chunks(id) ON DELETE CASCADE,
+    provision_id UUID NOT NULL REFERENCES legal_provisions(id) ON DELETE CASCADE,
+    legal_document_id UUID NOT NULL REFERENCES legal_documents(id) ON DELETE CASCADE
+);
+
+-- -----------------------------------------------------------
 -- Tabela: moldes
 -- Moldes de regras de conformidade (config_json validado)
 -- -----------------------------------------------------------
@@ -347,7 +408,7 @@ CREATE TABLE IF NOT EXISTS schema_meta (
     value VARCHAR(255) NOT NULL
 );
 
-INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_002')
+INSERT INTO schema_meta (key, value) VALUES ('schema_version', '20260924_003')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 
 CREATE INDEX IF NOT EXISTS idx_legal_chunks_embedding_hnsw
