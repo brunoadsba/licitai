@@ -2,6 +2,19 @@
 
 Runbook das três camadas. Branch de implementação: `feat/e2e-full`.
 
+## Auditoria com LLM (falhas recentes)
+
+Quando precisar que um agente rode E2E e julgue F1 (1.1/`[prazo]`), F2 (Copiloto) e F3 (smoke HTTP 000):
+
+```bash
+./scripts/contexto-auditoria.sh          # bloco FATOS DO GIT
+./scripts/contexto-auditoria.sh --smoke  # + smoke_readyz se a stack estiver up
+```
+
+Cole a saída + [`.cursor/contexts/auditoria-e2e-falhas.md`](../../.cursor/contexts/auditoria-e2e-falhas.md) numa conversa Agent. O briefing manda verificar, não implementar feature nem reabrir TCU/RAG 5–8.
+
+Implementação das oportunidades (ondas 0–6): [plano-30-60-90.md](plano-30-60-90.md).
+
 ## Pré-requisitos
 
 ```bash
