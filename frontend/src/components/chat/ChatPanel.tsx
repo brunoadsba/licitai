@@ -152,8 +152,8 @@ export default function ChatPanel({
               <div className="mb-4 text-center">
                 <Sparkles className="mx-auto mb-2.5 h-9 w-9 text-content-subtle" strokeWidth={1.25} aria-hidden />
                 <p className="text-sm font-medium text-content-primary">Olá! Sou o Copiloto LicitAI.</p>
-                <p className="mx-auto mt-1 max-w-sm text-xs text-content-muted">
-                  Pergunte sobre este documento e a legislação citada. Escolha uma sugestão para começar:
+                <p className="mx-auto mt-1 max-w-md text-xs text-content-muted">
+                  Pergunte sobre este TR. Eu respondo o essencial e indico o que fazer agora.
                 </p>
               </div>
               <SuggestionChips onSelect={handleChip} disabled={sending} className="justify-center" />

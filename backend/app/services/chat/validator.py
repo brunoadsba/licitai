@@ -14,6 +14,7 @@ import re
 from pydantic import ValidationError
 
 from app.schemas.chat import ChatCitation
+from app.services.chat.answer_sanitize import sanitize_answer
 from app.services.chat.warnings_pt import (
     REFUSAL_MESSAGE,
     normalize_reason,
@@ -212,7 +213,7 @@ def validate_llm_answer(
         return _recusa("source-id-inexistente")
 
     return ValidatedAnswer(
-        content=answer.strip(),
+        content=sanitize_answer(answer),
         grounded=grounded if citations else False,
         confidence=confidence,
         citations=citations,

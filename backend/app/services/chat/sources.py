@@ -17,6 +17,7 @@ decide entre recusar (grounding obrigatório) ou responder com warning.
 """
 
 import logging
+import re
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,12 +26,25 @@ from app.config import settings
 from app.models.analysis import Analysis, Correction
 from app.models.document import DocumentItem
 from app.schemas.chat import ChatCitation
+from app.services.chat.answer_sanitize import strip_parecer_audit
 from app.services.rag.retrieval_log import record_retrieval_run
 from app.services.rag.retriever import retrieve
 
 logger = logging.getLogger(__name__)
 
 _SNIPPET_MAX = 400
+_COVERAGE_FAIL_RE = re.compile(
+    r":(?:failed|parse_error)\b|reexecutar\s+a\s+an[aá]lise|falha\s+de\s+cobertura",
+    re.IGNORECASE,
+)
+
+
+def _is_operational_correction(correction) -> bool:
+    evidence = getattr(correction, "evidence", None) or {}
+    if evidence.get("coverage_errors"):
+        return True
+    blob = f"{getattr(correction, 'problem', '')} {getattr(correction, 'suggested_text', '')}"
+    return bool(_COVERAGE_FAIL_RE.search(blob))
 
 
 def _snippet(texto: str) -> str:
@@ -112,16 +126,16 @@ async def _analysis_sources(
     analysis = analysis[0] if analysis else None
     if not analysis:
         return []
+    parecer = strip_parecer_audit(analysis.final_opinion or "")
+    if not parecer:
+        parecer = f"Status: {analysis.status} · Nota geral: {analysis.score_overall}"
     return [
         ChatCitation(
             type="analysis",
             source_id=f"analysis:{analysis_id}",
-            reference=f"Análise {analysis_id}",
+            reference="Parecer da análise",
             title="Análise do documento",
-            snippet=_snippet(
-                analysis.final_opinion
-                or f"Status: {analysis.status} · Nota geral: {analysis.score_overall}"
-            ),
+            snippet=_snippet(parecer),
         )
     ]
 
@@ -150,6 +164,7 @@ async def _correction_sources(
             snippet=_snippet(c.suggested_text or c.justification),
         )
         for c in corrections
+        if not _is_operational_correction(c)
     ]
 
 

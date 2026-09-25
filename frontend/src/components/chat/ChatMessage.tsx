@@ -2,6 +2,7 @@
 
 import type { ChatMessage } from '@/types';
 import { Check, ThumbsDown, ThumbsUp, TriangleAlert } from 'lucide-react';
+import AssistantAnswer from './AssistantAnswer';
 import CitationList from './CitationList';
 import { Badge } from '@/components/ui/Badge';
 import { cn } from '@/lib/utils';
@@ -43,9 +44,11 @@ export default function ChatMessageView({
               </div>
             )}
 
-            <p className="whitespace-pre-wrap text-content-secondary">
-              {sending && !message.content ? 'Gerando resposta…' : message.content}
-            </p>
+            {sending && !message.content ? (
+              <p className="text-content-secondary">Gerando resposta…</p>
+            ) : (
+              <AssistantAnswer content={message.content} />
+            )}
 
             {message.warning && (
               <p className="mt-2 flex items-start gap-1.5 text-[11px] text-amber-700 dark:text-yellow-400/80">

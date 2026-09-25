@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, FileText, MessageSquareText, PenLine, Scale } from 'lucide-react';
 import type { ChatCitation } from '@/types';
+import { looksLikeId } from '@/lib/chatAnswer';
 import { legalSearchHref } from '@/lib/legalHref';
 import { copy } from '@/lib/copy';
 
@@ -51,7 +52,9 @@ export default function CitationList({ sources }: { sources: ChatCitation[] }) {
                             ? 'Item'
                             : c.type}
                   </span>
-                  <span className="tnum truncate font-mono text-accent-400">{c.reference}</span>
+                  {!looksLikeId(c.reference) && (
+                    <span className="truncate text-accent-400">{c.reference}</span>
+                  )}
                 </div>
                 {c.title && <p className="mt-0.5 truncate text-content-subtle">{c.title}</p>}
                 {(c.article || c.version || c.status) && (

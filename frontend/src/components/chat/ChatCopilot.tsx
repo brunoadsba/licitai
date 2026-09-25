@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { MessageCircle } from 'lucide-react';
 import ChatPanel from '@/components/chat/ChatPanel';
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/Sheet';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/Dialog';
 
 interface ChatCopilotProps {
   documentId?: string;
@@ -25,7 +25,7 @@ interface ChatCopilotProps {
 }
 
 /**
- * Assistente sob demanda (FAB). Fechado por default — não compete com a revisão.
+ * Assistente sob demanda. Abre centralizado, ocupando a maior parte da tela.
  */
 export default function ChatCopilot({
   defaultOpen = false,
@@ -49,16 +49,17 @@ export default function ChatCopilot({
         <span className="hidden sm:inline">Perguntar</span>
       </button>
 
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent
-          side="right"
-          className="flex h-full w-full flex-col p-0 sm:max-w-md"
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          className="flex h-[min(92dvh,860px)] max-h-[92dvh] w-[min(96vw,1100px)] max-w-[1100px] flex-col overflow-hidden p-0"
           hideClose={false}
         >
-          <SheetHeader className="shrink-0">
-            <SheetTitle>Copiloto LicitAI</SheetTitle>
-            <SheetDescription>Respostas com base no TR e na lei</SheetDescription>
-          </SheetHeader>
+          <DialogHeader className="mb-0 shrink-0 border-b border-line-subtle px-5 py-4 pr-12">
+            <DialogTitle>Copiloto LicitAI</DialogTitle>
+            <DialogDescription>
+              Pergunte sobre o TR. A resposta indica o próximo passo.
+            </DialogDescription>
+          </DialogHeader>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <ChatPanel
               {...props}
@@ -67,8 +68,8 @@ export default function ChatCopilot({
               onClose={() => setOpen(false)}
             />
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
