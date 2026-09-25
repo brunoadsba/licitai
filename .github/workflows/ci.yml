@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências de sistema (libmagic, tesseract)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libmagic1 tesseract-ocr tesseract-ocr-por
+
+      - name: Instalar dependências Python
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: ruff check app tests eval
+
+      - name: Testes unitários (SQLite via conftest; sem e2e_live)
+        run: python -m pytest tests/test_init_sql.py tests -q
+        env:
+          LLM_PROVIDER: groq
+
+  # e2e_fast roda só local com token (source .env) — sem secret no GHA, sem e2e_live por cota LLM.
+
+  eval-rag:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: sei_user
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: sei_analise
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sei_user -d sei_analise"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar dependências Python
+        run: pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Avaliar corpus curado e barrar regressão
+        run: PYTHONPATH=. python scripts/eval_corpus_real.py --seed --check-baseline --baseline eval/baseline.ci.json
+        env:
+          DATABASE_URL: postgresql+asyncpg://sei_user:ci@localhost:5432/sei_analise
+          API_TOKEN: ci-eval-fase2
+          APP_ENV: development
+          LLM_PROVIDER: groq
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint -- --max-warnings 0
+
+      - name: Build
+        run: npm run build

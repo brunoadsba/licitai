@@ -48,7 +48,11 @@ Valida `/livez`, `/readyz`, frontend e BFF `/api/proxy/{documents,moldes,compari
 
 ## Camada 1 — API HTTP
 
+> `e2e_fast` exige `API_TOKEN` (401 sem token — erro de invocação, não do produto).
+
 ```bash
+set -a && source .env && set +a
+test -n "${API_TOKEN:-}" || { echo "API_TOKEN vazio"; exit 1; }
 # Rápidos (sem LLM longo)
 E2E_BASE_URL=http://127.0.0.1:8000 PYTHONPATH=backend:e2e/tests \
   pytest e2e/tests -m e2e_fast -v --tb=short

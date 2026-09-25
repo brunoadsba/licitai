@@ -15,14 +15,14 @@ from app.services.chat.sources import (
     source_ids_from,
 )
 from app.services.chat.validator import ValidatedAnswer, validate_llm_answer
-from app.services.llm.factory import select_chat_llm
-from app.services.privacy import classification_for_chat, resolve_policy
 from app.services.chat.warnings_pt import (
     FALHA_LLM_MESSAGE,
     GREETING_MESSAGE,
     is_greeting,
     warning_message_pt,
 )
+from app.services.llm.factory import select_chat_llm
+from app.services.privacy import classification_for_chat, resolve_policy
 from app.services.rag.quarantine import (
     QUARANTINE_ONLY_MESSAGE,
     consume_quarantine_only,
