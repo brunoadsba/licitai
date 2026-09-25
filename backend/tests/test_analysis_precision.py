@@ -231,3 +231,32 @@ def test_g4_omissao_verdadeira_ainda_passa():
     )
     assert r.gate != "G4"
     assert r.passed
+
+
+def test_g4_nao_indica_prazo_com_fato_em_outro_item():
+    # Caso real c35af754 (25/09/2026, re-run ouro 09-ti-pabx-nuvem):
+    # 1.1 acusado de "não indica o prazo" com o fato em 1.4 (24 meses).
+    # Sem "indica" no OMISSION_RE o G4 nem rodava e o achado persistia.
+    item_11 = (
+        "1.1. A presente contratacao tem por objeto a prestacao de servicos "
+        "de Telefonia Fixa Corporativa durante toda a vigencia contratual."
+    )
+    c = _corr(
+        category="estrutural",
+        severity="baixo",
+        original_text=item_11,
+        suggested_text=(
+            'Especificar o prazo de vigencia, por exemplo: "O contrato '
+            "tera vigencia de 24 (vinte e quatro) meses, contados a partir "
+            'da assinatura, conforme previsto no item XX."'
+        ),
+        problem="O item 1.1 não indica o prazo de vigência do contrato.",
+    )
+    doc = item_11 + " 1.4 vigencia de 24 meses. 11.5 prorrogacao admitida."
+    r = evaluate_finding(
+        c, item_11, doc, inventory={"prazo": "1.4"}, item_number="1.1"
+    )
+    assert not r.passed and r.gate == "G4"
+    # Sem inventory: a busca doc-wide pelo número também desmente.
+    r2 = evaluate_finding(c, item_11, doc, item_number="1.1")
+    assert not r2.passed and r2.gate == "G4"

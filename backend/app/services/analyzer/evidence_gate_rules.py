@@ -16,7 +16,7 @@ NUMBER_RE = re.compile(r"\d+[.,]?\d*\s*%?")
 
 OMISSION_RE = re.compile(
     r"n[aã]o\s+(especifica|define|prev[eê]|informa|detalha|apresenta|"
-    r"menciona|traz|inclui|cont[eé]m|cita)"
+    r"menciona|traz|inclui|cont[eé]m|cita|indicam?)"
     r"|ausente|omiss[oa]|falta|n[aã]o\s+consta|deixou\s+de"
     r"|sem\s+(prazo|defini|detalha)",
     re.IGNORECASE,
