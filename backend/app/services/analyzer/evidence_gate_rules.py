@@ -24,7 +24,8 @@ OMISSION_RE = re.compile(
 
 OPERATIONAL_RE = re.compile(
     r"reexecutar\s+a\s+an[aá]lise|reanalyze|falha\s+de\s+cobertura"
-    r"|cobertura\s+incompleta|erro\s+de\s+processamento",
+    r"|cobertura\s+incompleta|erro\s+de\s+processamento"
+    r"|agentes?\s+falharam\s+na\s+an[aá]lise|falharam\s+na\s+an[aá]lise",
     re.IGNORECASE,
 )
 

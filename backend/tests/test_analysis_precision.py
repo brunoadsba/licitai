@@ -112,6 +112,23 @@ def test_ops_ruido_operacional():
         assert not r.passed and r.gate == "OPS", f"[{i}]"
 
 
+def test_ops_falharam_orquestrador_c35():
+    # Caso real c35af754 (25/09/2026): orquestrador persiste ruído com
+    # severity alto — "falharam" não estava no OPERATIONAL_RE e passava.
+    c = _corr(
+        category="estrutural",
+        severity="alto",
+        original_text="1.1. Objeto contratacao de solucao de pabx em nuvem.",
+        suggested_text="Reexecutar a análise deste item.",
+        problem=(
+            "Um ou mais agentes falharam na análise deste item: "
+            "juridico:failed, estrutural:failed"
+        ),
+    )
+    r = evaluate_finding(c, "1.1. Objeto contratacao.", DOC_RILC)
+    assert not r.passed and r.gate == "OPS"
+
+
 def test_g1_fatia_truncada():
     # [6]/[9] defeito era artefato de segmentacao
     c = _corr(
