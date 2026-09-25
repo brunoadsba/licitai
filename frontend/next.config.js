@@ -1,5 +1,7 @@
 const BACKEND_URL = process.env.BACKEND_URL || 'http://127.0.0.1:8000';
 
+// Espelho parcial de backend/app/utils/security.py — manter alinhado ao
+// alterar diretivas. HSTS e Cross-Origin-* só com TLS de staging.
 // CSP alinhada ao backend, com exceção necessária ao Next.js App Router:
 // o runtime injeta <script> inline de hidratação/RSC — sem 'unsafe-inline'
 // (ou nonce por request) a UI fica quebrada no browser.

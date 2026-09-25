@@ -16,6 +16,9 @@ COPY . .
 # No Compose a API é o serviço `backend`, não 127.0.0.1 do container.
 ARG BACKEND_URL=http://backend:8000
 ENV BACKEND_URL=$BACKEND_URL
+# SHA do commit da UI (rastreabilidade; default dev fora do Compose).
+ARG GIT_SHA=dev
+ENV NEXT_PUBLIC_BUILD_SHA=$GIT_SHA
 RUN npm run build
 
 # Production

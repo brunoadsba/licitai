@@ -43,7 +43,8 @@ Modelo jurídico versionado (Fase 4): [modelo-juridico-fase4.md](modelo-juridico
 
 ## Secrets (manual Bruno)
 
-1. Rotacionar `GROQ_API_KEY` / `GEMINI_API_KEY` / `POSTGRES_PASSWORD` / `API_TOKEN` quando conveniente.
+1. Rotacionar `GROQ_API_KEY` / `GEMINI_API_KEY` / `POSTGRES_PASSWORD` / `API_TOKEN` quando conveniente (dono: Bruno; validade: fim do gate 28/09/2026 ou 90 dias).
+   Comprovação: `git log --all -- backups/` vazio (nenhum dump commitado) + `.env` ignorado (`git check-ignore .env`).
 2. Em `.env`, use driver async: `DATABASE_URL=postgresql+asyncpg://...` (nunca só `postgresql://` para a API).
 3. `.env` em **LF** (não CRLF). Preferir `./scripts/up.sh` (já faz `unset POSTGRES_PASSWORD DATABASE_URL`). Se subir na mão sem o script, o shell pode sobrescrever o `.env` e deixar o backend `unhealthy`. Detalhes: [deploy.md](deploy.md#problemas-comuns-compose--postgres).
 

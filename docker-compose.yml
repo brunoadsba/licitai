@@ -76,6 +76,9 @@ services:
       dockerfile: Dockerfile
     container_name: sei-worker
     restart: unless-stopped
+    # Teto anti PDF-bomba/OCR pesado (piloto single-user).
+    mem_limit: 1g
+    cpus: "1.0"
     command: ["python", "-m", "app.worker"]
     environment:
       DATABASE_URL: postgresql+asyncpg://sei_user:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-sei_analise}
@@ -119,6 +122,8 @@ services:
       args:
         # Obrigatório no build: next.config.js embute BACKEND_URL nos rewrites.
         BACKEND_URL: http://backend:8000
+        # Rastreabilidade da UI (up.sh exporta GIT_SHA; default dev fora do Compose).
+        GIT_SHA: ${GIT_SHA:-dev}
     container_name: sei-frontend
     restart: unless-stopped
     environment:

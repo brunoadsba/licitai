@@ -13,6 +13,8 @@ Pipeline jurídico com estágios separados: source → extract → normalize →
 
 Schema: `20260924_002`. Depois de puxar a branch, aplicar a migration e reiniciar API/worker juntos.
 
+> Lock de ingestão: rodar `ingest_*` sempre **sequencial no mesmo banco** — nunca paralelizar duas ingestões (corrompe `corpus_version` e duplicatas de chunk).
+
 ```bash
 # no host, com Compose no ar
 docker compose exec backend alembic upgrade head

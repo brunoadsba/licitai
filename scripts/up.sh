@@ -44,6 +44,8 @@ done
 unset POSTGRES_PASSWORD DATABASE_URL || true
 
 echo "==> compose up (env limpo)"
+# SHA da UI na imagem (Compose usa ${GIT_SHA:-dev})
+export GIT_SHA="$(git rev-parse --short HEAD 2>/dev/null || echo dev)"
 if [[ "$BUILD" -eq 1 ]]; then
   docker compose up -d --build
 else

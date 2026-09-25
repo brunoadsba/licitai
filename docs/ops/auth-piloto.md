@@ -15,3 +15,9 @@ python3 -c "import secrets; print(secrets.token_urlsafe(32))"
 ```
 
 Coloque o valor em `.env` (`API_TOKEN=...`). Não commite o `.env`.
+
+## Validade e donos (piloto single-user)
+
+- Dono: Bruno. Validade: até o fim do gate do piloto (28/09/2026); renovar a cada gate ou a cada 90 dias.
+- Qualquer uso multiusuário exige OIDC/RBAC + trilha por ator — fora do escopo do piloto (decisão registrada, não implementar aqui).
+- Comprovação sem expor valores: `git log --all -- backups/` vazio + `.env` fora do git (`git check-ignore .env`).

@@ -45,7 +45,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
 
-        # Content Security Policy — restritivo
+        # CSP restritivo do backend. Espelho parcial em
+        # frontend/next.config.js (SECURITY_HEADERS) — o App Router exige
+        # 'unsafe-inline' em script-src SÓ no frontend; manter alinhado.
+        # HSTS e Cross-Origin-* só com TLS de staging, nunca no HTTP local.
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             "script-src 'self'; "
