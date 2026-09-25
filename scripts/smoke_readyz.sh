@@ -7,9 +7,18 @@ FE="${2:-http://127.0.0.1:3000}"
 
 check_json() {
   local name="$1" url="$2" expect_substr="${3:-}"
-  local code body
+  local code body attempt
   body=$(mktemp)
-  code=$(curl -sS -o "$body" -w "%{http_code}" "$url" || true)
+  code="000"
+  # Após --build o frontend/docs ainda podem estar subindo (HTTP 000 / reset).
+  for attempt in 1 2 3 4 5 6 7 8 9 10; do
+    code=$(curl -sS --max-time 15 -o "$body" -w "%{http_code}" "$url" 2>/dev/null || true)
+    if [[ "$code" == "200" ]]; then
+      break
+    fi
+    echo "==> $name ($url) HTTP $code (tentativa $attempt/10)"
+    sleep 2
+  done
   echo "==> $name ($url) HTTP $code"
   # JSON curto; HTML só confirma status
   if head -c 1 "$body" | grep -q '{'; then

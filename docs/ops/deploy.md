@@ -59,6 +59,8 @@ docker compose up -d --build
 # ou: ./scripts/smoke_e2e_compose.sh
 ```
 
+> Após `--build`, o Next pode levar ~20s para escutar :3000 — o `smoke_readyz.sh` já tem retry 10x2s; se der HTTP 000, aguarde e repita.
+
 - Frontend: build arg `BACKEND_URL=http://backend:8000` obrigatório (rewrites do Next são embutidos no build).
 - Schema: Alembic head `20260908_003` (ou `scripts/apply_reliability_schema.sql` em Postgres já provisionado).
 - LLM defaults: Groq `openai/gpt-oss-20b`, Gemini `gemini-flash-latest`; `ANALYSIS_CONCURRENCY=1` no free tier.
