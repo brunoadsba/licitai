@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.analysis import Correction
+from app.services.analyzer.document_inventory import build_inventory
 from app.services.analyzer.evidence_gate import (
     claim_support_rate,
     detect_regime,
@@ -64,6 +65,7 @@ async def persist_item_outcomes(
         _items_all = [it for it, _ in items_context]
     doc_text = " ".join(getattr(it, "content", "") or "" for it in _items_all)
     regime = detect_regime(doc_text)
+    inventory = build_inventory(_items_all)
 
     for (item, legal_context), outcome in zip(items_context, results, strict=False):
         if isinstance(outcome, Exception):
@@ -80,7 +82,13 @@ async def persist_item_outcomes(
             if correction_data.get("_coverage_errors"):
                 coverage_incomplete = True
             gate = evaluate_finding(
-                correction_data, item.content or "", doc_text, regime, valid_refs
+                correction_data,
+                item.content or "",
+                doc_text,
+                regime,
+                valid_refs,
+                inventory=inventory,
+                item_number=getattr(item, "item_number", None),
             )
             if not gate.passed:
                 metrics.inc(f"evidence_gate_rejected_{gate.gate.lower()}")

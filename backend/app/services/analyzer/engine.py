@@ -156,7 +156,9 @@ async def run_analysis(
     await db.commit()
 
     # --- Fase 2: análise LLM concorrente (sem acesso ao DB) ---
-    results = await _analyze_items_concurrent(llm, orchestrator, items_context)
+    results = await _analyze_items_concurrent(
+        llm, orchestrator, items_context, inventory_items=all_items
+    )
 
     valid_refs = await get_valid_legal_refs(db)
 

@@ -21,42 +21,23 @@ import unicodedata
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 
+from app.services.analyzer.document_inventory import (
+    claimed_canonical_facts,
+    fact_in_text,
+)
+from app.services.analyzer.evidence_gate_rules import (
+    NUMBER_RE,
+    OMISSION_RE,
+    OPERATIONAL_RE,
+    PLACEHOLDER_RE,
+    REGIME_ALLOWLIST,
+    RILC_SIGNALS,
+    SIGNALS_14133,
+    TRANSVERSAL_RE,
+)
 from app.services.analyzer.grounding import extract_law_and_articles, make_legal_ref
 
 logger = logging.getLogger(__name__)
-
-# Mesmo padrão do revisor-assistente + extensões da crítica afd39876
-# (X/Y/Z isolados, "N meses", "a definir", "[...]").
-_PLACEHOLDER_RE = re.compile(
-    r"\b[XYZ]\b|\[inserir[^\]]*\]|\[preencher[^\]]*\]|\[…\]|\[\.\.\.\]|\___+"
-    r"|\{[^}]+\}|a definir|a preencher|campo a preencher|N\s+meses|[XYZ]/[XYZ]",
-    re.IGNORECASE,
-)
-
-_NUMBER_RE = re.compile(r"\d+[.,]?\d*\s*%?")
-
-_OMISSION_RE = re.compile(
-    r"n[aã]o\s+(especifica|define|prev[eê]|informa|detalha|apresenta)"
-    r"|ausente|omiss[oa]|falta|n[aã]o\s+consta|sem\s+(prazo|defini|detalha)",
-    re.IGNORECASE,
-)
-
-_OPERATIONAL_RE = re.compile(
-    r"reexecutar\s+a\s+an[aá]lise|reanalyze|falha\s+de\s+cobertura"
-    r"|cobertura\s+incompleta|erro\s+de\s+processamento",
-    re.IGNORECASE,
-)
-
-_RILC_SIGNALS = re.compile(r"RILC|13\.303|estatal|CODEBA|companhia\s+de\s+docas", re.IGNORECASE)
-_14133_SIGNALS = re.compile(r"14\.133|preg[aã]o\s+eletr[oô]nico|entes\s+federativos", re.IGNORECASE)
-
-# Allowlist por regime: leis aceitas como fundamento principal.
-_REGIME_ALLOWLIST: dict[str, set[str]] = {
-    "13.303": {"13.303/2016", "13303/2016"},
-    "14.133": {"14.133/2021", "14133/2021"},
-}
-# Leis transversais sempre aceitas (TCU, AGU, CGU, RILC interno).
-_TRANSVERSAL_RE = re.compile(r"TCU|AGU|CGU|RILC|s[úu]mula|ac[óo]rd[ãa]o", re.IGNORECASE)
 
 
 @dataclass
@@ -80,21 +61,21 @@ def _normalize(text: str) -> str:
 def has_placeholder(text: str | None) -> bool:
     if not text:
         return False
-    return bool(_PLACEHOLDER_RE.search(text))
+    return bool(PLACEHOLDER_RE.search(text))
 
 
 def numbers_in(text: str | None) -> list[str]:
     if not text:
         return []
-    return [m.group(0).strip() for m in _NUMBER_RE.finditer(text)]
+    return [m.group(0).strip() for m in NUMBER_RE.finditer(text)]
 
 
 def detect_regime(doc_text: str | None) -> str | None:
     """Detecta regime pelo documento inteiro. None = ambíguo."""
     if not doc_text:
         return None
-    has_rilc = bool(_RILC_SIGNALS.search(doc_text))
-    has_14133 = bool(_14133_SIGNALS.search(doc_text or ""))
+    has_rilc = bool(RILC_SIGNALS.search(doc_text))
+    has_14133 = bool(SIGNALS_14133.search(doc_text or ""))
     if has_rilc and not has_14133:
         return "13.303"
     if has_14133 and not has_rilc:
@@ -143,7 +124,10 @@ def _g2_sugestao_honesta(suggested: str, original: str, item_content: str, doc_t
         return GateResult(False, "G2", "suggested_text idêntico ao original: sem alteração textual", 0.90)
     if has_placeholder(suggested):
         return GateResult(
-            False, "G2", "suggested_text com placeholder (X/Y/Z, N meses, a definir)", 0.90
+            False,
+            "G2",
+            "suggested_text com placeholder ([…], X/Y/Z, N meses, a definir)",
+            0.90,
         )
     nums = numbers_in(suggested)
     if not nums:
@@ -169,14 +153,14 @@ def _g2_sugestao_honesta(suggested: str, original: str, item_content: str, doc_t
 def _g3_lei_do_regime(legal_basis: str | None, regime: str | None) -> GateResult | None:
     if not legal_basis or not legal_basis.strip():
         return None  # sem fundamento: revisor decide, gate não barra
-    if _TRANSVERSAL_RE.search(legal_basis):
+    if TRANSVERSAL_RE.search(legal_basis):
         return None  # TCU/AGU/RILC valem em qualquer regime
     if regime is None:
         return None  # ambíguo: união + aviso, não barra
     law, arts = extract_law_and_articles(legal_basis)
     if not law:
         return None
-    allowed = _REGIME_ALLOWLIST.get(regime, set())
+    allowed = REGIME_ALLOWLIST.get(regime, set())
     law_norm = law.strip()
     if law_norm in allowed:
         return None
@@ -186,7 +170,7 @@ def _g3_lei_do_regime(legal_basis: str | None, regime: str | None) -> GateResult
             return None
     # Lei de outro regime como fundamento principal -> descarta
     other_regime = "14.133" if regime == "13.303" else "13.303"
-    other_laws = _REGIME_ALLOWLIST.get(other_regime, set())
+    other_laws = REGIME_ALLOWLIST.get(other_regime, set())
     if law_norm in other_laws:
         return GateResult(
             False,
@@ -197,11 +181,35 @@ def _g3_lei_do_regime(legal_basis: str | None, regime: str | None) -> GateResult
     return None
 
 
-def _g4_omissao_real(problem: str, suggested: str, item_content: str, doc_text: str) -> GateResult | None:
-    if not _OMISSION_RE.search(problem or ""):
+def _g4_omissao_real(
+    problem: str,
+    suggested: str,
+    item_content: str,
+    doc_text: str,
+    inventory: dict[str, str] | None = None,
+    item_number: str | None = None,
+) -> GateResult | None:
+    if not OMISSION_RE.search(problem or ""):
         return None
-    # Entidades procuradas: números da sugestão + palavras-chave do problema
-    # (prazo, prorrogação, ramais, vigência, garantia...).
+    claimed = claimed_canonical_facts(f"{problem} {suggested}")
+    current = str(item_number).strip() if item_number else ""
+    for fact in claimed:
+        loc = (inventory or {}).get(fact)
+        if loc and (not current or str(loc) != current):
+            return GateResult(
+                False,
+                "G4",
+                f"omissão desmentida: {fact} já no item {loc}",
+                0.85,
+            )
+        if fact_in_text(doc_text, fact) and not fact_in_text(item_content, fact):
+            return GateResult(
+                False,
+                "G4",
+                f"omissão desmentida: {fact} presente em outro trecho do documento",
+                0.85,
+            )
+    # Entidades procuradas: números da sugestão + palavras-chave do problema.
     keywords = re.findall(r"[a-zA-Zçãõáéíóúâê]{4,}", _normalize(problem or ""))
     stop = {"para", "este", "esta", "item", "esta", "não", "nao", "que", "dos", "das", "com", "como"}
     keywords = [k for k in keywords if k not in stop][:8]
@@ -219,25 +227,20 @@ def _g4_omissao_real(problem: str, suggested: str, item_content: str, doc_text: 
                     f"omissão desmentida: '{n}' presente em outro trecho do documento",
                     0.85,
                 )
-    # 2. Palavras-chave da alegação aparecem no doc mas não no item?
-    # Ex.: 1.1 "sem prazo" quando 1.4 tem "24 meses" e 11.5 "prorrogação".
-    for kw in keywords:
-        if kw in norm_doc and kw not in norm_item:
-            # Exige ao menos 2 keywords externas para não barrar por coincidência
-            others = [k for k in keywords if k in norm_doc and k not in norm_item]
-            if len(others) >= 2:
-                return GateResult(
-                    False,
-                    "G4",
-                    f"omissão desmentida por busca doc-wide: {', '.join(others[:3])} presente em outro item",
-                    0.80,
-                )
-                break
+    # 2. Omissão genérica: exige 2 keywords no doc e ausentes no item.
+    others = [k for k in keywords if k in norm_doc and k not in norm_item]
+    if len(others) >= 2:
+        return GateResult(
+            False,
+            "G4",
+            f"omissão desmentida por busca doc-wide: {', '.join(others[:3])} presente em outro item",
+            0.80,
+        )
     return None
 
 
 def _ops_ruido_operacional(problem: str, legal_basis: str | None, suggested: str) -> GateResult | None:
-    if _OPERATIONAL_RE.search(problem or "") and not (legal_basis or "").strip():
+    if OPERATIONAL_RE.search(problem or "") and not (legal_basis or "").strip():
         return GateResult(
             False,
             "OPS",
@@ -284,6 +287,8 @@ def evaluate_finding(
     doc_text: str = "",
     regime: str | None = None,
     valid_refs: set[str] | None = None,  # reservado p/ G3-corpus (não barra aqui)
+    inventory: dict[str, str] | None = None,
+    item_number: str | None = None,
 ) -> GateResult:
     """
     Aplica OPS -> G1 -> G3 -> G2 -> G4 em ordem. Primeiro que reprovar vence.
@@ -304,7 +309,14 @@ def evaluate_finding(
         _g1_trecho_existe(original, item_content or ""),
         _g3_lei_do_regime(legal_basis, eff_regime),
         _g2_sugestao_honesta(suggested, original, item_content or "", doc_text or ""),
-        _g4_omissao_real(problem, suggested, item_content or "", doc_text or ""),
+        _g4_omissao_real(
+            problem,
+            suggested,
+            item_content or "",
+            doc_text or "",
+            inventory,
+            item_number,
+        ),
     ):
         if check is not None:
             logger.info("evidence_gate %s: %s", check.gate, check.reason)

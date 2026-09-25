@@ -6,6 +6,9 @@ Cada caso: item real (simplificado) + achado + veredito esperado do gate.
 O teste FALHA com gate desligado (prova que a fase morde FP) e PASSA ligado.
 """
 
+from types import SimpleNamespace
+
+from app.services.analyzer.document_inventory import build_inventory, format_document_facts
 from app.services.analyzer.evidence_gate import detect_regime, evaluate_finding
 
 DOC_RILC = (
@@ -160,3 +163,71 @@ def test_claim_support_rate():
     )
     r2 = claim_support_rate(ruim, "multa contratual", "doc sem numeros")
     assert r2["supported"] < r2["total"]
+
+
+def test_g2_rejeita_placeholder_colchetes():
+    c = _corr(
+        original_text="",
+        suggested_text="Contratação de [quantidade] ramais pelo prazo de [prazo].",
+        problem="nao menciona quantitativos nem prazo",
+    )
+    r = evaluate_finding(c, ITEM_11, DOC_RILC)
+    assert not r.passed and r.gate == "G2"
+
+
+def test_g4_omissao_sinonimos_nao_menciona():
+    c = _corr(
+        original_text="",
+        suggested_text="incluir quantitativos, prazo contratual e possibilidade de prorrogacao",
+        problem="nao menciona quantitativos, prazo contratual nem possibilidade de prorrogacao",
+    )
+    r = evaluate_finding(c, ITEM_11, DOC_RILC)
+    assert not r.passed and r.gate == "G4"
+
+
+def test_inventory_pabx_fatos_em_outros_itens():
+    items = [
+        SimpleNamespace(item_number="1.1", content="Objeto contratacao de solucao de pabx em nuvem"),
+        SimpleNamespace(item_number="1.4", content="vigencia de 24 meses"),
+        SimpleNamespace(item_number="4.3.2", content="130 ramais"),
+        SimpleNamespace(item_number="11.5", content="prorrogacao admitida"),
+    ]
+    inventory = build_inventory(items)
+    assert inventory["prazo"] == "1.4"
+    assert inventory["quantitativo"] == "4.3.2"
+    assert inventory["prorrogacao"] == "11.5"
+    facts = format_document_facts(inventory)
+    assert "prazo em 1.4" in facts
+    assert "quantitativo em 4.3.2" in facts
+    assert "prorrogação em 11.5" in facts
+
+
+def test_g4_inventory_descarta_fato_em_outro_item():
+    c = _corr(
+        original_text="",
+        suggested_text="incluir o prazo contratual no objeto",
+        problem="nao menciona prazo contratual",
+    )
+    r = evaluate_finding(
+        c,
+        ITEM_11,
+        "objeto contratacao de solucao de pabx em nuvem",
+        inventory={"prazo": "1.4"},
+        item_number="1.1",
+    )
+    assert not r.passed and r.gate == "G4"
+
+
+def test_g4_omissao_verdadeira_ainda_passa():
+    c = _corr(
+        original_text="",
+        suggested_text="definir o prazo de vigencia do contrato",
+        problem="nao especifica prazo",
+    )
+    r = evaluate_finding(
+        c,
+        ITEM_11,
+        "objeto contratacao de solucao de pabx em nuvem com suporte tecnico",
+    )
+    assert r.gate != "G4"
+    assert r.passed

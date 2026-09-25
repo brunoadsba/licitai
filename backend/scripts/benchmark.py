@@ -234,6 +234,7 @@ def _item_prompt(item) -> str:
         page_number=item.page_number or "N/A",
         item_content=item.content[:8000],
         legal_context=LEGAL_CONTEXT,
+        document_facts="",
     )
 
 

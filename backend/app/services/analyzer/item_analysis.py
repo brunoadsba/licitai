@@ -20,10 +20,13 @@ ITEM_CONTENT_MAX_CHARS = 4000
 ITEM_SUMMARY_CHARS = 800
 
 
-async def analyze_item_llm(llm, item, legal_context: str) -> list[dict]:
+async def analyze_item_llm(
+    llm, item, legal_context: str, document_facts: str = ""
+) -> list[dict]:
     """Analisa um item via LLM usando contexto jurídico fornecido (sem DB).
 
     Usada pelo engine (com contexto do RAG) e pelo benchmark (com contexto fixo).
+    `document_facts` vazio no benchmark: o quadro do TR não é injetado.
     """
     content = item.content or ""
     if len(content) > ITEM_CONTENT_MAX_CHARS:
@@ -43,6 +46,7 @@ async def analyze_item_llm(llm, item, legal_context: str) -> list[dict]:
         page_number=item.page_number or "N/A",
         item_content=content,
         legal_context=legal_context,
+        document_facts=document_facts,
     )
 
     response = await llm.generate(SYSTEM_PROMPT, user_prompt)

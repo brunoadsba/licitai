@@ -232,9 +232,13 @@ O **Sistema Especialista em Análise de Termos de Referência (SEI)** é uma apl
   - `privacy.py`: `resolve_policy` (`cloud_llm` / `cloud_embeddings` / `llm_rerank`); `NULL` tratado como `sigiloso`.
   - `groq_provider.py`, `gemini_provider.py`, `ollama_provider.py`: Implementações dos provedores.
 - `app/services/analyzer/`:
-  - `prompts.py`: Persona do Especialista Sênior, regras estritas, checklist do Art. 6º XXIII, prompts de análise e de revisão cruzada.
-  - `engine.py`: Motor de execução da análise item a item + revisão cruzada pós-análise + pontuação global (orquestra `item_analysis.py` + `scoring.py` desde 13/08). Snapshot `failed_item_ids` / `analyzed_item_ids` pós-execução (14/09).
-  - `item_analysis.py`: Análise individual de um item (extraído de `engine.py` em 13/08).
+  - `prompts.py`: Persona do Especialista Sênior, regras estritas, checklist do Art. 6º XXIII (do **TR**, não da cláusula isolada), quadro `{document_facts}`, prompts de análise e de revisão cruzada.
+  - `engine.py`: Motor de execução da análise item a item + revisão cruzada pós-análise + pontuação global (orquestra `item_analysis.py` + `scoring.py` desde 13/08). Snapshot `failed_item_ids` / `analyzed_item_ids` pós-execução (14/09). Inventário de fatos passado à fase LLM (25/09).
+  - `item_analysis.py`: Análise individual de um item; recebe `document_facts` (vazio no benchmark).
+  - `document_inventory.py`: Varredura determinística prazo/quantitativo/prorrogação → primeiro `item_number`.
+  - `evidence_gate.py` + `evidence_gate_rules.py`: OPS→G1→G3→G2→G4; G2 qualquer `[…]`; G4 omissão + sinônimos + inventário.
+  - `analysis_persistence.py`: persiste só achado que passa no gate; monta inventário uma vez por rodada.
+  - `analysis_phases.py`: inventário antes do loop LLM; RAG por item.
   - `scoring.py`: Pontuação global e por severidade (extraído de `engine.py` em 13/08); recalculado após review humana via API.
   - `review.py`: Revisão cruzada das correções pelo LLM (aprova/rejeita/ajusta) — Fase 2.2.
   - `report.py`: Relatório Markdown com evidência DE→PARA quando houver.
@@ -330,7 +334,8 @@ A IA atua estritamente sob as seguintes diretrizes:
 
 ## 5. Estado Atual do Código
 
-- **Branch ativa (24/09/2026)**: `main` inclui **0A–8 + sobras** (`a0f76ef`) e a UX do elaborador + Fontes (`feat/ux-simples-elaborador`). CI GitHub permanece desabilitado (`ci.yml.disabled`). Schema esperado: `20260924_004`.
+- **Branch ativa (25/09/2026)**: `main` inclui **0A–8 + sobras** (`a0f76ef`), UX do elaborador + Fontes e **omissão Art. 6º no documento**. CI GitHub desabilitado (`ci.yml.disabled`). Schema esperado: `20260924_004`.
+- **Omissão Art. 6º só no documento (25/09/2026)**: fecha o FP do 1.1 (PABX: `[quantidade]`/`[prazo]` + Art. 6º (a) quando prazo está em 1.4, ramais em 4.3.2, prorrogação em 11.5). G2 barra qualquer `[…]`. G4 reconhece “não menciona” e sinônimos (prazo/vigência/meses; prorrogação; quantitativo/ramais). Inventário determinístico (`document_inventory.py`) no prompt e no gate. Instrução 4: checklist é do TR, não da cláusula. Sem segundo LLM. Régua em `test_analysis_precision.py` (placeholder, omissão com sinônimo, inventário, TP real, omissão verdadeira ainda passa). Fora deste passo: correção virtual quando o inventário está vazio; Copiloto; TCU no RAG.
 - **UX simples + Fontes (24/09/2026)**: chrome enxuto (Painel / Enviar TR / Complementos); `copy.ts` PT-BR; análise guiada por padrão; Enviar TR só TR; proposta com classificação em Comparações. `GET /legal/sources`. Piloto reingeriu RILC-CODEBA (287 chunks) e 3 peças TCU. TCU **não** entra na análise/chat/SEI; a UI diz por quê. Não ligar TCU no RAG sem visto + URL oficial.
 - **Sobras 5–8 (24/09/2026, `a0f76ef`)**: FTS AND/OR + rerank em `rag_candidates` (piloto r@5 **0.929**, só `documentos_longos` em 0); `embedding_vector` 599/599 sem HNSW; `/legal` com formulário + nav; parecer/relatório com rastro DE→PARA; alerta `LICITAI_COST_USD_ALERT` em `scripts/ops_alerts.sh`; marca LicitAI (favicon + SEI/HTML/DOCX); URLs TCU só em [tcu-urls-propostas.md](docs/ops/tcu-urls-propostas.md) — quarentena mantida.
 - **Fase 8 — auditoria (24/09/2026, `76dfd2a`)**: `GET /legal/provisions`, UI `/legal`, `CorrectionResponse.evidence` (DE→PARA + corpus + retrieval_run), `GET /analysis/{id}/audit-pack` + download no menu Exportar. Testes `test_fase8_audit.py`.
@@ -531,8 +536,10 @@ Não enviar documento `sigiloso` ao piloto até existir Ollama configurado.
 | 9 | **Visto jurídico** do conjunto Fase 2 e da amostra Fase 4 | Humano | `legal_review` ainda `pendente` em `eval/baseline.piloto.json` |
 | 10 | **URLs oficiais TCU** (sair da quarentena 0B) | Humano | 3 peças já no banco + linha nas Fontes (**Fora da análise**). Candidatas em [tcu-urls-propostas.md](docs/ops/tcu-urls-propostas.md). **Não** citar no RAG/`legal_basis` sem visto |
 | 11 | **Ollama** para TR `sigiloso` | Ops | Sem modelo local o fluxo sigiloso retorna 422 (fail-closed, esperado) |
+| 12 | **Copiloto UX** (ajustes futuros) | UI | (1) Ao clicar, chat centralizado ocupando a maior parte da tela. (2) Resposta clara, objetiva, sem redundância — guia o próximo passo. Não misturar com o gate de omissão |
+| 13 | ~~FP 1.1 Art. 6º com `[prazo]`~~ | Feito (25/09) | G2+G4+inventário em `main`. Pendente humano: re-run ouro na UI |
 
-**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`, exclusão de sumário/títulos na análise + UX análise (14/09/2026), **hardening backend** (TOC/reanálise/lease/pagemap/scores/ODT — 14/09/2026), contraste modo claro na UI, **sobras 5–8** (r@5 0.929, `/legal` no menu, branding LicitAI, alerta de custo), **UX simples + Fontes** (24/09; TCU honesto na lista, fora da análise).
+**Pronto (não pendente):** Fases A–G código, DOCX, cron neste host, fixtures 12/10, tema claro/escuro, E2E API 17/17, métrica `art6_coverage`, exclusão de sumário/títulos na análise + UX análise (14/09/2026), **hardening backend** (TOC/reanálise/lease/pagemap/scores/ODT — 14/09/2026), contraste modo claro na UI, **sobras 5–8** (r@5 0.929, `/legal` no menu, branding LicitAI, alerta de custo), **UX simples + Fontes** (24/09; TCU honesto na lista, fora da análise), **omissão Art. 6º no documento** (25/09).
 
 ### Correção análise: sumário/títulos + UX (14/09/2026)
 
@@ -618,7 +625,7 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 
 ### Agora (ops / Bruno) — ordem sugerida
 1. Dia a dia: `./scripts/up.sh` (após ligar Docker/WSL); guia em `/guia`. Após mudanças de deps/imagem: `./scripts/up.sh --build`. Upload/chat/gerar-tr **exigem classificação**; não enviar `sigiloso` sem Ollama (422 esperado).
-2. Código agent-implementável das Fases **0A–8 e sobras** + UX simples/Fontes está em **`main`**. Não reabrir 5–8 sem regressão de r@5. Não tirar TCU da quarentena de RAG sem visto. UI Docker exige `./scripts/up.sh --build`. Fase 9 / CI / K8s / fine-tune / OIDC: fora de escopo.
+2. Código agent-implementável das Fases **0A–8 e sobras** + UX simples/Fontes + omissão Art. 6º (G2/G4/inventário) está em **`main`**. Não reabrir 5–8 sem regressão de r@5. Não tirar TCU da quarentena de RAG sem visto. UI Docker exige `./scripts/up.sh --build`. Fase 9 / CI / K8s / fine-tune / OIDC / Copiloto tela cheia: fora de escopo.
 3. Continuar **gate 14 dias** ([docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md), aberto até 28/09): revisar alto/crítico, anotar rejeição, validar pacote SEI/DOCX.
 4. Pendências humanas: visto jurídico do conjunto Fase 2 e da amostra Fase 4; confirmar URLs TCU (proposta pronta, quarentena mantida); colar export no SEI real; rotacionar secrets; Ollama se for usar `sigiloso`.
 5. Em paralelo quando houver cota: demais TRs da quinzena (`07` → `11` → `01` → `05`).
@@ -668,3 +675,4 @@ Frontend Docker **sem bind mount** — mudanças de UI exigem `./scripts/up.sh -
 > **Fases 5–8 (24/09/2026, merges em `main`)**: FTS Postgres + hierarquia + cache (`f81ca21`); grounding/citações (`53fd9b5`); custo/embed cache/non-root (`4eacf7f`); dispositivo + evidência + audit-pack (`76dfd2a`).
 > **Sobras 5–8 (24/09/2026, `a0f76ef` em `main`)**: FTS conteúdo + `rag_candidates`; backfill `embedding_vector` 599/599; `/legal` com busca; parecer com rastro; alerta de custo; icon LicitAI; proposta TCU sem sair da quarentena. Docs: [recuperacao-fase5.md](docs/ops/recuperacao-fase5.md), [tcu-urls-propostas.md](docs/ops/tcu-urls-propostas.md), [piloto.md](docs/ops/piloto.md). Pendente só humano (visto jurídico, confirmar TCU, gate, SEI, secrets, Ollama).
 > **UX simples + Fontes (24/09/2026, `feat/ux-simples-elaborador`)**: chrome Painel / Enviar TR / Complementos; breadcrumb no conteúdo; `copy.ts`; Enviar TR só TR; proposta classificada em Comparações. `/legal` lista Fontes com contexto. RILC reingerido (287 chunks, clicável). TCU ingerido (Súmulas 247/272 + Acórdão 1214, `quarantine-0B`): selo **Fora da análise** + texto “Ainda sem documento oficial conferido. Por isso a análise e o SEI não usam.” Gerar TR sem prometer jurisprudência TCU. Quarentena de RAG/`legal_basis` **mantida**.
+> **Omissão Art. 6º só no documento (25/09/2026)**: o gate de 18/09 não pegava o 1.1 desta tela (`[quantidade]`/`[prazo]`, “não menciona”, “quantitativos” ≠ “ramais”). Sem supervisor LLM. G2 `\[[^\]]{1,80}\]`; G4 + mapa canônico; `document_inventory.py` no persistir e no prompt; instrução 4 proíbe lacuna do Art. 6º nascida de cláusula isolada. Testes novos na régua de precisão + `test_tp_real_passa` intacto. Backlog UI: Copiloto centralizado em tela cheia + resposta do chat sem ruído/`estrutural:failed`.

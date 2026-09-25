@@ -14,6 +14,10 @@ from app.config import settings
 from app.models.analysis import Correction
 from app.models.document import DocumentItem
 from app.services.agents.orchestrator import MultiAgentOrchestrator
+from app.services.analyzer.document_inventory import (
+    build_inventory,
+    format_document_facts,
+)
 from app.services.analyzer.item_analysis import analyze_item_llm
 from app.services.analyzer.review import (
     apply_review_decisions,
@@ -40,6 +44,7 @@ async def _analyze_items_concurrent(
     llm,
     orchestrator: MultiAgentOrchestrator | None,
     items_context: list[tuple[DocumentItem, str]],
+    inventory_items: list | None = None,
 ) -> list[list[dict] | Exception]:
     """
     Executa a análise LLM dos itens com concorrência limitada.
@@ -48,13 +53,17 @@ async def _analyze_items_concurrent(
     o que é seguro sob concorrência. Exceções são devolvidas por posição
     (`return_exceptions=True`) para que a persistência decida o que fazer.
     """
+    source = inventory_items if inventory_items is not None else [it for it, _ in items_context]
+    document_facts = format_document_facts(build_inventory(source))
     semaphore = asyncio.Semaphore(max(1, settings.analysis_concurrency))
 
     async def _analyze_one(item: DocumentItem, legal_context: str) -> list[dict]:
         async with semaphore:
             if orchestrator:
                 return await orchestrator.analyze_item_multi(llm, item, legal_context)
-            return await analyze_item_llm(llm, item, legal_context)
+            return await analyze_item_llm(
+                llm, item, legal_context, document_facts=document_facts
+            )
 
     total = len(items_context)
     if total > 1:
