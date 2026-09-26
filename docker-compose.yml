@@ -43,6 +43,27 @@ services:
       GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-open-mistral-nemo}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-qwen/qwen3.8-27b:free}
+      HF_API_KEY: ${HF_API_KEY:-}
+      HF_MODEL: ${HF_MODEL:-Qwen/Qwen3-8B}
+      HF_BASE_URL: ${HF_BASE_URL:-https://router.huggingface.co/v1}
+      COHERE_API_KEY: ${COHERE_API_KEY:-}
+      COHERE_MODEL: ${COHERE_MODEL:-command-r}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      NVIDIA_MODEL: ${NVIDIA_MODEL:-meta/llama-3.1-8b-instruct}
+      POLLINATIONS_MODEL: ${POLLINATIONS_MODEL:-openai}
+      POLLINATIONS_BASE_URL: ${POLLINATIONS_BASE_URL:-https://text.pollinations.ai/openai}
+      POLLINATIONS_API_KEY: ${POLLINATIONS_API_KEY:-}
+      SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
+      SILICONFLOW_MODEL: ${SILICONFLOW_MODEL:-Qwen/Qwen3-8B}
+      ZAI_API_KEY: ${ZAI_API_KEY:-}
+      ZAI_MODEL: ${ZAI_MODEL:-glm-4.5-flash}
+      ZAI_BASE_URL: ${ZAI_BASE_URL:-https://api.z.ai/api/paas/v4}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
       LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-false}
@@ -51,6 +72,8 @@ services:
       API_TOKEN: ${API_TOKEN:?Defina API_TOKEN no .env}
       APP_ENV: ${APP_ENV:-development}
       ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-1}
+      # Itens por chamada LLM: 1 = 1 call/item; 5 = bulk (~5x menos calls/tokens).
+      ANALYSIS_BATCH_SIZE: ${ANALYSIS_BATCH_SIZE:-1}
       # Piloto free tier: limita itens (~2 calls/item no economic)
       ANALYSIS_MAX_LLM_CALLS: ${ANALYSIS_MAX_LLM_CALLS:-24}
     ports:
@@ -93,6 +116,27 @@ services:
       GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-flash-latest}
+      MISTRAL_API_KEY: ${MISTRAL_API_KEY:-}
+      MISTRAL_MODEL: ${MISTRAL_MODEL:-open-mistral-nemo}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-qwen/qwen3.8-27b:free}
+      HF_API_KEY: ${HF_API_KEY:-}
+      HF_MODEL: ${HF_MODEL:-Qwen/Qwen3-8B}
+      HF_BASE_URL: ${HF_BASE_URL:-https://router.huggingface.co/v1}
+      COHERE_API_KEY: ${COHERE_API_KEY:-}
+      COHERE_MODEL: ${COHERE_MODEL:-command-r}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      NVIDIA_MODEL: ${NVIDIA_MODEL:-meta/llama-3.1-8b-instruct}
+      POLLINATIONS_MODEL: ${POLLINATIONS_MODEL:-openai}
+      POLLINATIONS_BASE_URL: ${POLLINATIONS_BASE_URL:-https://text.pollinations.ai/openai}
+      POLLINATIONS_API_KEY: ${POLLINATIONS_API_KEY:-}
+      SILICONFLOW_API_KEY: ${SILICONFLOW_API_KEY:-}
+      SILICONFLOW_MODEL: ${SILICONFLOW_MODEL:-Qwen/Qwen3-8B}
+      ZAI_API_KEY: ${ZAI_API_KEY:-}
+      ZAI_MODEL: ${ZAI_MODEL:-glm-4.5-flash}
+      ZAI_BASE_URL: ${ZAI_BASE_URL:-https://api.z.ai/api/paas/v4}
+      DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
+      DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
       API_TOKEN: ${API_TOKEN:?Defina API_TOKEN no .env}
@@ -100,6 +144,8 @@ services:
       LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-false}
       # Free tier: concorrência 1 reduz 429 TPM no Groq durante E2E/uso local
       ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-1}
+      # Itens por chamada LLM: 1 = 1 call/item; 5 = bulk (~5x menos calls/tokens).
+      ANALYSIS_BATCH_SIZE: ${ANALYSIS_BATCH_SIZE:-1}
       ANALYSIS_MAX_LLM_CALLS: ${ANALYSIS_MAX_LLM_CALLS:-24}
     volumes:
       - ./backend/app:/app/app:ro

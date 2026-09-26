@@ -15,6 +15,9 @@ import pytest
 # Sempre sobrescrever: `setdefault` falha se o shell já exportou DATABASE_URL.
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["API_TOKEN"] = ""
+# Lote 1 = fluxo unitário: .env local com ANALYSIS_BATCH_SIZE>1 (bulk) não
+# pode mudar o comportamento coberto pela suíte (testes de lote usam monkeypatch).
+os.environ["ANALYSIS_BATCH_SIZE"] = "1"
 os.environ.setdefault("APP_ENV", "development")
 os.environ.setdefault("CHAT_FORCE_FAKE_PROVIDER", "true")
 

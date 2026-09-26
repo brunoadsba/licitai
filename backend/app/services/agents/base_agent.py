@@ -117,3 +117,106 @@ class BaseSpecializedAgent(ABC):
             outcome=AgentOutcome.OK_EMPTY,
             corrections=[],
         )
+
+    async def analyze_batch(
+        self, llm: Any, batch: list[tuple[Any, str]]
+    ) -> dict[str, AgentResult]:
+        """Analisa um lote de (item, contexto) em UMA chamada LLM.
+
+        Cada correção da resposta precisa carregar `item_number` válido do
+        lote; o roteamento usa `split_corrections_by_item` (atribuição
+        desconhecida é descartada, nunca remapeada). Falha de chamada ou de
+        parse vira FAILED/PARSE_ERROR para todos os itens do lote, preservando
+        a semântica de cobertura do fluxo unitário.
+        """
+        from app.services.analyzer.batching import (
+            BATCH_ATTRIBUTION_INSTRUCTION,
+            batch_numbers_label,
+            split_corrections_by_item,
+        )
+
+        numbers = batch_numbers_label(batch)
+        sections = []
+        for item, legal_context in batch:
+            sections.append(
+                f"=== ITEM {getattr(item, 'item_number', '?')} ===\n"
+                + self.build_user_prompt(item, legal_context)
+            )
+        user_prompt = (
+            f"AUDITORIA MULTIAGENTE EM LOTE — {self.agent_name} "
+            f"({self.agent_id})\n"
+            + BATCH_ATTRIBUTION_INSTRUCTION.format(n=len(batch), numbers=numbers)
+            + "\n\n"
+            + "\n\n".join(sections)
+        )
+
+        try:
+            raw_response = await llm.generate(
+                system_prompt=self.system_prompt,
+                user_prompt=user_prompt,
+            )
+        except Exception as e:
+            logger.warning(
+                "Falha na análise em lote do agente %s (%d itens): %s",
+                self.agent_id,
+                len(batch),
+                str(e),
+            )
+            return {
+                str(item.id): AgentResult(
+                    agent_id=self.agent_id,
+                    outcome=AgentOutcome.FAILED,
+                    error=str(e),
+                )
+                for item, _ in batch
+            }
+
+        try:
+            corrections = parse_json_response(raw_response)
+        except Exception as e:
+            logger.warning(
+                "Parse error em lote no agente %s: %s", self.agent_id, str(e)
+            )
+            return {
+                str(item.id): AgentResult(
+                    agent_id=self.agent_id,
+                    outcome=AgentOutcome.PARSE_ERROR,
+                    error=str(e),
+                )
+                for item, _ in batch
+            }
+
+        if isinstance(corrections, dict):
+            corrections = [corrections]
+        if not isinstance(corrections, list):
+            corrections = []
+
+        valid = [
+            c
+            for c in corrections
+            if isinstance(c, dict) and validate_correction(c)
+        ]
+        routed = split_corrections_by_item(batch, valid)
+
+        results: dict[str, AgentResult] = {}
+        for item, _ in batch:
+            item_id = str(item.id)
+            sanitized = []
+            for corr in routed[item_id]:
+                clean = sanitize_correction(corr)
+                clean["category"] = self.category
+                clean["agent_origin"] = self.agent_id
+                sanitized.append(clean)
+            if sanitized:
+                results[item_id] = AgentResult(
+                    agent_id=self.agent_id,
+                    outcome=AgentOutcome.FINDINGS,
+                    corrections=sanitized,
+                )
+            else:
+                results[item_id] = AgentResult(
+                    agent_id=self.agent_id,
+                    outcome=AgentOutcome.OK_EMPTY,
+                    corrections=[],
+                )
+        return results

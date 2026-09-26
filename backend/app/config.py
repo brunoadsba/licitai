@@ -32,7 +32,10 @@ class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:///./licitacao.db"
 
     # --- Provedor de LLM ---
-    llm_provider: Literal["groq", "gemini", "ollama"] = "groq"
+    llm_provider: Literal[
+        "groq", "gemini", "ollama", "mistral", "openrouter", "huggingface",
+        "cohere", "nvidia", "pollinations", "siliconflow", "zai", "deepseek",
+    ] = "groq"
     # True só em development: permite nuvem também para sigiloso/NULL.
     # Fora de development o boot falha. Público/interno usam nuvem mesmo com False.
     llm_allow_cloud: bool = False
@@ -48,6 +51,45 @@ class Settings(BaseSettings):
     # --- Ollama ---
     ollama_base_url: str = "http://ollama:11434"
     ollama_model: str = "qwen3:32b"
+
+    # --- Mistral La Plateforme (free; OpenAI-compatível) ---
+    mistral_api_key: str = ""
+    mistral_model: str = "open-mistral-nemo"
+
+    # --- OpenRouter (modelos :free; OpenAI-compatível) ---
+    openrouter_api_key: str = ""
+    openrouter_model: str = "qwen/qwen3.8-27b:free"
+
+    # --- HuggingFace Inference Providers (free com token; OpenAI-compatível) ---
+    hf_api_key: str = ""
+    hf_model: str = "Qwen/Qwen3-8B"
+    hf_base_url: str = "https://router.huggingface.co/v1"
+
+    # --- Cohere Trial (free ~100/dia non-commercial; OpenAI-compatível) ---
+    cohere_api_key: str = ""
+    cohere_model: str = "command-r"
+
+    # --- NVIDIA NIM (free com conta NVIDIA; OpenAI-compatível) ---
+    nvidia_api_key: str = ""
+    nvidia_model: str = "meta/llama-3.1-8b-instruct"
+
+    # --- Pollinations (nova API autenticada; OpenAI-compatível) ---
+    pollinations_api_key: str = ""
+    pollinations_model: str = "openai"
+    pollinations_base_url: str = "https://text.pollinations.ai/openai"
+
+    # --- SiliconFlow (free sem cartão, 1000 RPM; OpenAI-compatível) ---
+    siliconflow_api_key: str = ""
+    siliconflow_model: str = "Qwen/Qwen3-8B"
+
+    # --- Z.ai / Zhipu GLM (Flash free sem cartão; OpenAI-compatível) ---
+    zai_api_key: str = ""
+    zai_model: str = "glm-4.5-flash"
+    zai_base_url: str = "https://api.z.ai/api/paas/v4"
+
+    # --- DeepSeek (5M tokens free no cadastro, sem cartão; OpenAI-compatível) ---
+    deepseek_api_key: str = ""
+    deepseek_model: str = "deepseek-chat"
 
     # --- Embeddings (RAG Fase 4) ---
     embeddings_provider: Literal["gemini", "ollama"] = "gemini"
@@ -93,6 +135,10 @@ class Settings(BaseSettings):
     llm_global_concurrency: int = 6
     # Soft budget: 0 = ilimitado. Estima ~4 calls/item (multi), ~2 (economic), ~1 (single).
     analysis_max_llm_calls: int = 0
+    # Itens por chamada LLM (batching): 1 = comportamento atual (1 call/item).
+    # N>1 agrupa itens por call (cai calls e tokens ~Nx). Orçamento em
+    # analysis_max_llm_calls continua contando *chamadas*.
+    analysis_batch_size: int = 1
 
     # --- Copiloto (Chat Consultivo) ---
     chat_enabled: bool = True

@@ -13,6 +13,10 @@ Achados jurídicos altos sem review válida permanecem `pendente` e fora do scor
 import logging
 from datetime import datetime, timezone
 
+from app.services.analyzer.batching import (
+    BATCH_REVIEW_INSTRUCTION,
+    batch_numbers_label,
+)
 from app.services.analyzer.json_utils import parse_json_response
 from app.services.analyzer.prompts import REVIEW_PROMPT, REVIEW_SYSTEM_PROMPT
 
@@ -66,6 +70,72 @@ async def review_item_corrections(
         len(normalized),
     )
     return normalized
+
+
+async def review_batch_corrections(
+    llm, batch: list[tuple]
+) -> dict[str, list[dict]]:
+    """Revisa correções de um lote de (item, contexto, [correções]) em UMA call.
+
+    Cada decisão precisa carregar `item_number` válido do lote + índice LOCAL
+    da correção dentro daquele item; decisão sem endereço válido é ignorada
+    (fail-closed). Itens sem correções não entram na chamada.
+    """
+    revisaveis = [(item, ctx, objs) for item, ctx, objs in batch if objs]
+    if not revisaveis:
+        return {}
+
+    numbers = batch_numbers_label([(item, ctx) for item, ctx, _ in revisaveis])
+    sections = []
+    for item, legal_context, corrections in revisaveis:
+        sections.append(
+            f"=== ITEM {getattr(item, 'item_number', '?')} "
+            f"({getattr(item, 'title', '') or 'sem título'}) ===\n"
+            f"Texto do item: {(getattr(item, 'content', '') or '')[:8000]}\n"
+            f"Contexto jurídico: {legal_context or '(nenhum contexto recuperado)'}\n"
+            f"Correções deste item (índices locais 0..{len(corrections) - 1}):\n"
+            + _build_summary(corrections)
+        )
+    user_prompt = (
+        BATCH_REVIEW_INSTRUCTION.format(n=len(revisaveis), numbers=numbers)
+        + "\n\n"
+        + "\n\n".join(sections)
+    )
+
+    response = await llm.generate(REVIEW_SYSTEM_PROMPT, user_prompt)
+    decisions = parse_json_response(response)
+    if isinstance(decisions, dict):
+        decisions = decisions.get("review", [])
+    if not isinstance(decisions, list):
+        logger.warning("Resposta do revisor em lote inválida; correções mantidas")
+        return {}
+
+    by_id = {str(item.id): (item, corrections) for item, _, corrections in revisaveis}
+    by_number = {
+        getattr(item, "item_number", None): str(item.id)
+        for item, _, _ in revisaveis
+    }
+    out: dict[str, list[dict]] = {item_id: [] for item_id in by_id}
+    for d in decisions:
+        if not isinstance(d, dict):
+            continue
+        item_id = by_number.get(d.get("item_number"))
+        if item_id is None:
+            logger.warning(
+                "Decisão de revisão com item_number %r fora do lote — ignorada",
+                d.get("item_number"),
+            )
+            continue
+        _, corrections = by_id[item_id]
+        decision = _normalize_decision(d, len(corrections))
+        if decision is not None:
+            out[item_id].append(decision)
+    logger.info(
+        "Revisão em lote: %d decisões para %d itens",
+        sum(len(v) for v in out.values()),
+        len(revisaveis),
+    )
+    return out
 
 
 def _build_summary(corrections: list[dict]) -> str:

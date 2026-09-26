@@ -95,8 +95,13 @@ async def run_analysis(
         candidates = list(all_items)
 
     max_calls = int(getattr(settings, "analysis_max_llm_calls", 0) or 0)
+    batch_size = max(
+        1, int(getattr(settings, "analysis_batch_size", 1) or 1)
+    )
     max_items = (
-        max(1, max_calls // calls_per_item(mode)) if max_calls > 0 else None
+        max(1, (max_calls * batch_size) // calls_per_item(mode))
+        if max_calls > 0
+        else None
     )
     work_items, skipped_headings, budget_truncated = select_items_for_analysis(
         candidates, max_items=max_items

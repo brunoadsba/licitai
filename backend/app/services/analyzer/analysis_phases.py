@@ -14,14 +14,16 @@ from app.config import settings
 from app.models.analysis import Correction
 from app.models.document import DocumentItem
 from app.services.agents.orchestrator import MultiAgentOrchestrator
+from app.services.analyzer.batching import chunk_batches, get_batch_size
 from app.services.analyzer.document_inventory import (
     build_inventory,
     format_document_facts,
 )
-from app.services.analyzer.item_analysis import analyze_item_llm
+from app.services.analyzer.item_analysis import analyze_batch_llm, analyze_item_llm
 from app.services.analyzer.review import (
     apply_review_decisions,
     correction_to_dict,
+    review_batch_corrections,
     review_item_corrections,
 )
 from app.services.rag.retrieval_log import record_retrieval_run
@@ -65,16 +67,50 @@ async def _analyze_items_concurrent(
                 llm, item, legal_context, document_facts=document_facts
             )
 
+    async def _analyze_batch(
+        chunk: list[tuple[DocumentItem, str]],
+    ) -> list[list[dict] | Exception]:
+        async with semaphore:
+            try:
+                if orchestrator:
+                    mapped = await orchestrator.analyze_batch_multi(llm, chunk)
+                else:
+                    mapped = await analyze_batch_llm(
+                        llm, chunk, document_facts=document_facts
+                    )
+            except Exception as exc:
+                return [exc for _ in chunk]
+            return [mapped.get(str(item.id), []) for item, _ in chunk]
+
+    batch_size = get_batch_size()
     total = len(items_context)
     if total > 1:
         logger.info(
-            "Analisando %d itens com concorrência %d", total, settings.analysis_concurrency
+            "Analisando %d itens com concorrência %d (lote %d)",
+            total,
+            settings.analysis_concurrency,
+            batch_size,
         )
 
-    return await asyncio.gather(
-        *(_analyze_one(item, ctx) for item, ctx in items_context),
+    if batch_size <= 1:
+        return await asyncio.gather(
+            *(_analyze_one(item, ctx) for item, ctx in items_context),
+            return_exceptions=True,
+        )
+
+    chunked = await asyncio.gather(
+        *(_analyze_batch(chunk) for chunk in chunk_batches(items_context, batch_size)),
         return_exceptions=True,
     )
+    results: list[list[dict] | Exception] = []
+    for chunk, outcome in zip(
+        chunk_batches(items_context, batch_size), chunked, strict=False
+    ):
+        if isinstance(outcome, Exception):
+            results.extend([outcome for _ in chunk])
+        else:
+            results.extend(outcome)
+    return results
 
 
 async def _retrieve_legal_context(
@@ -159,10 +195,46 @@ async def _run_cross_review(
             corrections_dict = [correction_to_dict(obj) for obj in correction_objs]
             return await review_item_corrections(llm, item, corrections_dict, legal_context)
 
-    decisions_or_exc = await asyncio.gather(
-        *(_review_one(item, ctx, objs) for item, ctx, objs in revisaveis),
-        return_exceptions=True,
-    )
+    async def _review_batch(
+        chunk: list[tuple],
+    ) -> dict[str, list[dict]] | Exception:
+        async with semaphore:
+            try:
+                payload = [
+                    (
+                        item,
+                        ctx,
+                        [correction_to_dict(obj) for obj in objs],
+                    )
+                    for item, ctx, objs in chunk
+                ]
+                return await review_batch_corrections(llm, payload)
+            except Exception as exc:
+                return exc
+
+    batch_size = get_batch_size()
+    if batch_size > 1:
+        chunks = chunk_batches(revisaveis, batch_size)
+        decisions_or_exc = await asyncio.gather(
+            *(_review_batch(chunk) for chunk in chunks),
+            return_exceptions=True,
+        )
+        merged: list = []
+        for chunk, outcome in zip(chunks, decisions_or_exc, strict=False):
+            if isinstance(outcome, Exception):
+                logger.warning(
+                    "Falha na revisão em lote (%d itens): %s", len(chunk), outcome
+                )
+                merged.extend([outcome for _ in chunk])
+                continue
+            for item, _ctx, _objs in chunk:
+                merged.append(outcome.get(str(item.id), []))
+        decisions_or_exc = merged
+    else:
+        decisions_or_exc = await asyncio.gather(
+            *(_review_one(item, ctx, objs) for item, ctx, objs in revisaveis),
+            return_exceptions=True,
+        )
 
     # Aplicação sequencial das decisões (mutação de objetos ORM + flush)
     for (item, _ctx, correction_objs), outcome in zip(revisaveis, decisions_or_exc, strict=False):

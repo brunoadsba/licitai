@@ -237,16 +237,116 @@ def _build_providers():
             from app.services.llm.ollama_provider import OllamaProvider
             providers.append(OllamaProvider(base_url=settings.ollama_base_url, model=settings.ollama_model))
 
+    def _add_openai_compat(
+        name: str, api_key: str, model: str, base_url: str,
+        extra_headers: dict | None = None,
+    ):
+        if api_key and not any(p.provider_name == name for p in providers):
+            from app.services.llm.openai_compat_provider import OpenAICompatProvider
+            providers.append(OpenAICompatProvider(
+                provider_name=name,
+                api_key=api_key,
+                model=model,
+                base_url=base_url,
+                extra_headers=extra_headers,
+            ))
+
+    def _add_mistral():
+        _add_openai_compat(
+            "mistral", settings.mistral_api_key, settings.mistral_model,
+            "https://api.mistral.ai/v1",
+        )
+
+    def _add_openrouter():
+        _add_openai_compat(
+            "openrouter", settings.openrouter_api_key, settings.openrouter_model,
+            "https://openrouter.ai/api/v1",
+            extra_headers={
+                "HTTP-Referer": "http://127.0.0.1:3000",
+                "X-Title": "LicitAI",
+            },
+        )
+
+    def _add_huggingface():
+        _add_openai_compat(
+            "huggingface", settings.hf_api_key, settings.hf_model,
+            settings.hf_base_url,
+        )
+
+    def _add_cohere():
+        _add_openai_compat(
+            "cohere", settings.cohere_api_key, settings.cohere_model,
+            "https://api.cohere.com/compatibility/v1",
+        )
+
+    def _add_nvidia():
+        _add_openai_compat(
+            "nvidia", settings.nvidia_api_key, settings.nvidia_model,
+            "https://integrate.api.nvidia.com/v1",
+        )
+
+    def _add_pollinations():
+        _add_openai_compat(
+            "pollinations", settings.pollinations_api_key,
+            settings.pollinations_model, settings.pollinations_base_url,
+        )
+
+    def _add_siliconflow():
+        _add_openai_compat(
+            "siliconflow", settings.siliconflow_api_key,
+            settings.siliconflow_model, "https://api.siliconflow.cn/v1",
+        )
+
+    def _add_zai():
+        _add_openai_compat(
+            "zai", settings.zai_api_key, settings.zai_model,
+            settings.zai_base_url,
+        )
+
+    def _add_deepseek():
+        _add_openai_compat(
+            "deepseek", settings.deepseek_api_key, settings.deepseek_model,
+            "https://api.deepseek.com",
+        )
+
+    def _add_free_fallbacks():
+        _add_mistral()
+        _add_openrouter()
+        _add_huggingface()
+        _add_cohere()
+        _add_nvidia()
+        _add_siliconflow()
+        _add_zai()
+        _add_deepseek()
+        _add_pollinations()
+
     if primary == "gemini":
         _add_gemini()
-        _add_groq()
     elif primary == "groq":
         _add_groq()
-        _add_gemini()
     elif primary == "ollama":
         _add_ollama()
-        _add_groq()
-        _add_gemini()
+    elif primary == "mistral":
+        _add_mistral()
+    elif primary == "openrouter":
+        _add_openrouter()
+    elif primary == "huggingface":
+        _add_huggingface()
+    elif primary == "cohere":
+        _add_cohere()
+    elif primary == "nvidia":
+        _add_nvidia()
+    elif primary == "pollinations":
+        _add_pollinations()
+    elif primary == "siliconflow":
+        _add_siliconflow()
+    elif primary == "zai":
+        _add_zai()
+    elif primary == "deepseek":
+        _add_deepseek()
+    _add_groq()
+    _add_gemini()
+    _add_free_fallbacks()
     return providers
 
 
