@@ -15,6 +15,13 @@ import pytest
 # Sempre sobrescrever: `setdefault` falha se o shell já exportou DATABASE_URL.
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["API_TOKEN"] = ""
+# Chaves LLM zeradas: .env local com chaves reais não pode vazar para testes
+# de factory/failover (cada teste liga o que precisa via monkeypatch).
+for _key in ("GROQ_API_KEY", "GEMINI_API_KEY", "MISTRAL_API_KEY",
+             "OPENROUTER_API_KEY", "HF_API_KEY", "COHERE_API_KEY",
+             "NVIDIA_API_KEY", "SILICONFLOW_API_KEY", "ZAI_API_KEY",
+             "DEEPSEEK_API_KEY", "POLLINATIONS_API_KEY"):
+    os.environ[_key] = ""
 # Lote 1 = fluxo unitário: .env local com ANALYSIS_BATCH_SIZE>1 (bulk) não
 # pode mudar o comportamento coberto pela suíte (testes de lote usam monkeypatch).
 os.environ["ANALYSIS_BATCH_SIZE"] = "1"

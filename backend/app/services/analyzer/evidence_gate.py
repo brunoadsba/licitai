@@ -11,6 +11,8 @@ Gates:
 - G3 lei do regime? legal_basis restrito à allowlist do regime detectado.
 - G4 omissão real? "não especifica X" exige busca doc-wide por X antes.
 - OPS falha operacional != achado (antecipação Fase 3): nunca vira Correction.
+- NIT implicância cosmética? queixa de subdivisão/hierarquia em achado
+  estrutural info/baixo sem defeito local: nunca vira Correction.
 """
 
 from __future__ import annotations
@@ -26,6 +28,7 @@ from app.services.analyzer.document_inventory import (
     fact_in_text,
 )
 from app.services.analyzer.evidence_gate_rules import (
+    NITPICK_RE,
     NUMBER_RE,
     OMISSION_RE,
     OPERATIONAL_RE,
@@ -211,7 +214,7 @@ def _g4_omissao_real(
             )
     # Entidades procuradas: números da sugestão + palavras-chave do problema.
     keywords = re.findall(r"[a-zA-Zçãõáéíóúâê]{4,}", _normalize(problem or ""))
-    stop = {"para", "este", "esta", "item", "esta", "não", "nao", "que", "dos", "das", "com", "como"}
+    stop = {"para", "este", "esta", "item", "não", "nao", "que", "dos", "das", "com", "como"}
     keywords = [k for k in keywords if k not in stop][:8]
     norm_doc = _normalize(doc_text or "")
     norm_item = _normalize(item_content or "")
@@ -246,6 +249,28 @@ def _ops_ruido_operacional(problem: str, legal_basis: str | None, suggested: str
             "OPS",
             "falha de cobertura não é achado: vai para banner operacional, nunca Correction",
             0.95,
+        )
+    return None
+
+
+def _nit_implicancia_cosmetica(
+    problem: str, category: str | None, severity: str | None
+) -> GateResult | None:
+    """Barra queixa de subdivisão/hierarquia sem defeito local apontado.
+
+    Só morde estrutural info/baixo (ex.: 4.9.2 "não possui subdivisões").
+    Título-só alto (4.3) e qualquer achado jurídico passam ilesos.
+    """
+    if (category or "").strip().lower() != "estrutural":
+        return None
+    if (severity or "").strip().lower() not in ("info", "baixo"):
+        return None
+    if NITPICK_RE.search(problem or ""):
+        return GateResult(
+            False,
+            "NIT",
+            "implicância cosmética: ausência de subdivisão não é defeito do item",
+            0.90,
         )
     return None
 
@@ -291,7 +316,7 @@ def evaluate_finding(
     item_number: str | None = None,
 ) -> GateResult:
     """
-    Aplica OPS -> G1 -> G3 -> G2 -> G4 em ordem. Primeiro que reprovar vence.
+    Aplica OPS -> NIT -> G1 -> G3 -> G2 -> G4 em ordem. Primeiro que reprovar vence.
     G3 antes de G2: número de artigo (ex. art. 6) é julgado como regime,
     não como número inventado.
     Achado reprovado deve ser descartado com motivo logado (auditoria).
@@ -301,11 +326,14 @@ def evaluate_finding(
     suggested = correction.get("suggested_text", "") or ""
     problem = correction.get("problem", "") or ""
     legal_basis = correction.get("legal_basis")
+    category = correction.get("category")
+    severity = correction.get("severity")
 
     eff_regime = regime or detect_regime(f"{item_content} {doc_text}")
 
     for check in (
         _ops_ruido_operacional(problem, legal_basis, suggested),
+        _nit_implicancia_cosmetica(problem, category, severity),
         _g1_trecho_existe(original, item_content or ""),
         _g3_lei_do_regime(legal_basis, eff_regime),
         _g2_sugestao_honesta(suggested, original, item_content or "", doc_text or ""),

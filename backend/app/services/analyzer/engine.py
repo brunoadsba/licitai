@@ -31,6 +31,7 @@ from app.services.analyzer.analysis_phases import (
     _analyze_items_concurrent,
     _retrieve_legal_context,
     _run_cross_review,
+    _run_supervisor_rereview,
 )
 from app.services.analyzer.grounding import get_valid_legal_refs
 from app.services.analyzer.item_selection import select_items_for_analysis
@@ -200,6 +201,11 @@ async def run_analysis(
 
     # --- Fase 2.2: revisão cruzada das correções (após análise completa) ---
     all_corrections = await _run_cross_review(db, llm, outcome["pending_reviews"])
+
+    # --- Fase 2.3: supervisor v1 — segunda chance para altos pendentes ---
+    all_corrections.extend(
+        await _run_supervisor_rereview(db, llm, outcome["pending_reviews"])
+    )
 
     # --- Fase 4: pontuação + status final ---
     await finalize_analysis(

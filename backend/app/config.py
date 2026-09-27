@@ -139,6 +139,9 @@ class Settings(BaseSettings):
     # N>1 agrupa itens por call (cai calls e tokens ~Nx). Orçamento em
     # analysis_max_llm_calls continua contando *chamadas*.
     analysis_batch_size: int = 1
+    # Supervisor v1: segunda chance de review só para altos ainda pendentes
+    # (custo ~1 call/lote). False = mantém pendente sem gastar chamada.
+    supervisor_rereview_high: bool = True
 
     # --- Copiloto (Chat Consultivo) ---
     chat_enabled: bool = True

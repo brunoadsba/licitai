@@ -277,3 +277,73 @@ def test_g4_nao_indica_prazo_com_fato_em_outro_item():
     # Sem inventory: a busca doc-wide pelo número também desmente.
     r2 = evaluate_finding(c, item_11, doc, item_number="1.1")
     assert not r2.passed and r2.gate == "G4"
+
+
+def test_nit_subdivisoes_info_barra():
+    # 4.9.2 real do job 8cdafd60: queixa de subdivisão, sem defeito local.
+    item = (
+        "4.9.2. A execução dos serviços deverá observar a legislação aplicável "
+        "à proteção de dados pessoais, à segurança da informação e ao sigilo "
+        "das comunicações."
+    )
+    c = _corr(
+        category="estrutural",
+        severity="info",
+        original_text=item,
+        suggested_text="Manter o texto, sem subdivisões necessárias.",
+        problem=(
+            "O item 4.9.2 não possui subdivisões hierárquicas (ex.: 4.9.2.1, "
+            "4.9.2.a), o que pode dificultar a referência cruzada ou a "
+            "integração com outros documentos."
+        ),
+    )
+    r = evaluate_finding(c, item, item + " contexto")
+    assert not r.passed and r.gate == "NIT"
+
+
+def test_nit_subitens_baixo_barra():
+    # 4.9.4 real do job 8cdafd60, severidade baixo.
+    item = "4.9.4. Os acessos administrativos deverão ser individualizados."
+    c = _corr(
+        category="estrutural",
+        severity="baixo",
+        original_text=item,
+        suggested_text="Manter o texto único do item.",
+        problem=(
+            "O item 4.9.4 não possui subitens ou alíneas que organizem seu "
+            "conteúdo de forma hierárquica."
+        ),
+    )
+    r = evaluate_finding(c, item, item + " contexto")
+    assert not r.passed and r.gate == "NIT"
+
+
+def test_nit_titulo_so_alto_passa_ileso():
+    # 4.3 real: título sem conteúdo é defeito estrutural ALTO de verdade.
+    item = "4.3. Requisitos da Plataforma de PABX em Nuvem"
+    c = _corr(
+        category="estrutural",
+        severity="alto",
+        original_text=item,
+        suggested_text="Detalhar os requisitos da plataforma no item 4.3.",
+        problem=(
+            "O item 4.3 possui apenas um título sem conteúdo ou detalhamento "
+            "dos requisitos da plataforma."
+        ),
+    )
+    r = evaluate_finding(c, item, item + " plataforma pabx nuvem requisitos")
+    assert r.gate != "NIT"
+
+
+def test_nit_juridica_nunca_barra():
+    # Mesmo texto de subdivisão, mas categoria jurídica: NIT não morde.
+    item = "4.9.2. A execução dos serviços deverá observar a legislação."
+    c = _corr(
+        category="juridica",
+        severity="baixo",
+        original_text=item,
+        suggested_text="Manter o texto.",
+        problem="O item não possui subdivisões hierárquicas claras.",
+    )
+    r = evaluate_finding(c, item, item + " contexto")
+    assert r.gate != "NIT"

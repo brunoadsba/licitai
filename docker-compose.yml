@@ -74,6 +74,7 @@ services:
       ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-1}
       # Itens por chamada LLM: 1 = 1 call/item; 5 = bulk (~5x menos calls/tokens).
       ANALYSIS_BATCH_SIZE: ${ANALYSIS_BATCH_SIZE:-1}
+      SUPERVISOR_REREVIEW_HIGH: ${SUPERVISOR_REREVIEW_HIGH:-true}
       # Piloto free tier: limita itens (~2 calls/item no economic)
       ANALYSIS_MAX_LLM_CALLS: ${ANALYSIS_MAX_LLM_CALLS:-24}
     ports:
@@ -146,6 +147,7 @@ services:
       ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-1}
       # Itens por chamada LLM: 1 = 1 call/item; 5 = bulk (~5x menos calls/tokens).
       ANALYSIS_BATCH_SIZE: ${ANALYSIS_BATCH_SIZE:-1}
+      SUPERVISOR_REREVIEW_HIGH: ${SUPERVISOR_REREVIEW_HIGH:-true}
       ANALYSIS_MAX_LLM_CALLS: ${ANALYSIS_MAX_LLM_CALLS:-24}
     volumes:
       - ./backend/app:/app/app:ro

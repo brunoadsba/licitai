@@ -253,3 +253,67 @@ async def _run_cross_review(
     await db.flush()
     logger.info("Revisão cruzada concluída: %d correções válidas", len(kept))
     return kept
+
+
+_HIGH_SEVERITIES = frozenset({"alto", "critico"})
+_HIGH_IMPORTANCES = frozenset({"alta", "critica"})
+
+
+def _is_high_pending(obj) -> bool:
+    """Alvo da segunda chance: ainda pendente e alto/crítico."""
+    if getattr(obj, "review_status", None) != "pendente":
+        return False
+    severity = (getattr(obj, "severity", "") or "").lower()
+    importance = (getattr(obj, "importance", "") or "").lower()
+    return severity in _HIGH_SEVERITIES or importance in _HIGH_IMPORTANCES
+
+
+async def _run_supervisor_rereview(db, llm, pending_reviews) -> list[dict]:
+    """Supervisor v1: segunda chance só para altos ainda pendentes.
+
+    Custa ~1 call por lote (reusa review em lote). Retorna dicts das
+    correções que viraram aprovada/ajustada nesta rodada; quem continua
+    sem decisão permanece pendente (fail-closed preservado).
+    """
+    if not getattr(settings, "supervisor_rereview_high", True):
+        return []
+    targets = [
+        (item, ctx, [o for o in objs if _is_high_pending(o)])
+        for item, ctx, objs in pending_reviews
+    ]
+    targets = [(item, ctx, objs) for item, ctx, objs in targets if objs]
+    if not targets:
+        return []
+
+    semaphore = asyncio.Semaphore(max(1, settings.analysis_concurrency))
+
+    async def _rereview_batch(chunk: list[tuple]):
+        async with semaphore:
+            try:
+                payload = [
+                    (item, ctx, [correction_to_dict(o) for o in objs])
+                    for item, ctx, objs in chunk
+                ]
+                return await review_batch_corrections(llm, payload)
+            except Exception as exc:
+                return exc
+
+    batch_size = get_batch_size()
+    chunks = chunk_batches(targets, batch_size)
+    outcomes = await asyncio.gather(
+        *(_rereview_batch(chunk) for chunk in chunks),
+        return_exceptions=True,
+    )
+
+    flipped: list[dict] = []
+    for chunk, outcome in zip(chunks, outcomes, strict=False):
+        if isinstance(outcome, Exception):
+            logger.warning("Falha na re-review supervisora: %s", outcome)
+            continue
+        for item, _ctx, objs in chunk:
+            kept = apply_review_decisions(objs, outcome.get(str(item.id), []))
+            flipped.extend(kept)
+    if flipped:
+        await db.flush()
+        logger.info("Supervisor v1: %d altos pendentes viraram válidos", len(flipped))
+    return flipped

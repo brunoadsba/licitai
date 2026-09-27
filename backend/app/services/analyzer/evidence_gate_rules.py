@@ -29,6 +29,13 @@ OPERATIONAL_RE = re.compile(
     re.IGNORECASE,
 )
 
+NITPICK_RE = re.compile(
+    r"n[aã]o\s+possu[ia]\s+(subdivis|sub-?itens|al[ií]neas?)"
+    r"|aus[eê]ncia\s+de\s+(subdivis|modularidade)"
+    r"|sem\s+subdivis",
+    re.IGNORECASE,
+)
+
 RILC_SIGNALS = re.compile(
     r"RILC|13\.303|estatal|CODEBA|companhia\s+de\s+docas", re.IGNORECASE
 )
