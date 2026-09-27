@@ -64,6 +64,12 @@ services:
       ZAI_BASE_URL: ${ZAI_BASE_URL:-https://api.z.ai/api/paas/v4}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      LONGCAT_API_KEY: ${LONGCAT_API_KEY:-}
+      LONGCAT_MODEL: ${LONGCAT_MODEL:-LongCat-2.5-Preview}
+      LONGCAT_BASE_URL: ${LONGCAT_BASE_URL:-https://api.longcat.chat/openai/v1}
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+      OPENCODE_MODEL: ${OPENCODE_MODEL:-mimo-v2.6-flash-free}
+      OPENCODE_BASE_URL: ${OPENCODE_BASE_URL:-https://opencode.ai/inference/openai/v1}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
       LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-false}
@@ -138,6 +144,12 @@ services:
       ZAI_BASE_URL: ${ZAI_BASE_URL:-https://api.z.ai/api/paas/v4}
       DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY:-}
       DEEPSEEK_MODEL: ${DEEPSEEK_MODEL:-deepseek-chat}
+      LONGCAT_API_KEY: ${LONGCAT_API_KEY:-}
+      LONGCAT_MODEL: ${LONGCAT_MODEL:-LongCat-2.5-Preview}
+      LONGCAT_BASE_URL: ${LONGCAT_BASE_URL:-https://api.longcat.chat/openai/v1}
+      OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
+      OPENCODE_MODEL: ${OPENCODE_MODEL:-mimo-v2.6-flash-free}
+      OPENCODE_BASE_URL: ${OPENCODE_BASE_URL:-https://opencode.ai/inference/openai/v1}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
       API_TOKEN: ${API_TOKEN:?Defina API_TOKEN no .env}

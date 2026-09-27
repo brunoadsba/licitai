@@ -156,7 +156,8 @@ def test_factory_pollinations_sem_chave_fica_fora(monkeypatch):
     for key in ("groq_api_key", "gemini_api_key", "mistral_api_key",
                 "openrouter_api_key", "hf_api_key", "cohere_api_key",
                 "nvidia_api_key", "siliconflow_api_key", "zai_api_key",
-                "deepseek_api_key", "pollinations_api_key"):
+                "deepseek_api_key", "longcat_api_key", "opencode_api_key",
+                "pollinations_api_key"):
         monkeypatch.setattr(settings, key, "")
     assert _build_providers() == []
 
@@ -172,3 +173,34 @@ def test_factory_deepseek_no_fallback(monkeypatch):
     monkeypatch.setattr(settings, "deepseek_model", "deepseek-chat")
     chain = [p.provider_name for p in _build_providers()]
     assert chain == ["deepseek"]
+
+
+def test_factory_longcat_no_fallback(monkeypatch):
+    monkeypatch.setattr(settings, "llm_provider", "groq")
+    for key in ("groq_api_key", "gemini_api_key", "mistral_api_key",
+                "openrouter_api_key", "hf_api_key", "cohere_api_key",
+                "nvidia_api_key", "siliconflow_api_key", "zai_api_key",
+                "deepseek_api_key", "pollinations_api_key"):
+        monkeypatch.setattr(settings, key, "")
+    monkeypatch.setattr(settings, "longcat_api_key", "ak-x")
+    monkeypatch.setattr(settings, "longcat_model", "LongCat-2.5-Preview")
+    monkeypatch.setattr(settings, "longcat_base_url",
+                          "https://api.longcat.chat/openai/v1")
+    chain = [p.provider_name for p in _build_providers()]
+    assert chain == ["longcat"]
+
+
+def test_factory_opencode_zen_no_fallback(monkeypatch):
+    monkeypatch.setattr(settings, "llm_provider", "groq")
+    for key in ("groq_api_key", "gemini_api_key", "mistral_api_key",
+                "openrouter_api_key", "hf_api_key", "cohere_api_key",
+                "nvidia_api_key", "siliconflow_api_key", "zai_api_key",
+                "deepseek_api_key", "longcat_api_key",
+                "pollinations_api_key"):
+        monkeypatch.setattr(settings, key, "")
+    monkeypatch.setattr(settings, "opencode_api_key", "ok-x")
+    monkeypatch.setattr(settings, "opencode_model", "mimo-v2.6-flash-free")
+    monkeypatch.setattr(settings, "opencode_base_url",
+                          "https://opencode.ai/inference/openai/v1")
+    chain = [p.provider_name for p in _build_providers()]
+    assert chain == ["opencode_zen"]

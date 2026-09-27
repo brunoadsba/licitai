@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     llm_provider: Literal[
         "groq", "gemini", "ollama", "mistral", "openrouter", "huggingface",
         "cohere", "nvidia", "pollinations", "siliconflow", "zai", "deepseek",
+        "longcat", "opencode_zen",
     ] = "groq"
     # True só em development: permite nuvem também para sigiloso/NULL.
     # Fora de development o boot falha. Público/interno usam nuvem mesmo com False.
@@ -90,6 +91,16 @@ class Settings(BaseSettings):
     # --- DeepSeek (5M tokens free no cadastro, sem cartão; OpenAI-compatível) ---
     deepseek_api_key: str = ""
     deepseek_model: str = "deepseek-chat"
+
+    # --- LongCat/Meituan (OpenAI-compatível; entra sozinho com cota) ---
+    longcat_api_key: str = ""
+    longcat_model: str = "LongCat-2.5-Preview"
+    longcat_base_url: str = "https://api.longcat.chat/openai/v1"
+
+    # --- OpenCode Zen (gateway; free *-free; OpenAI-compatível) ---
+    opencode_api_key: str = ""
+    opencode_model: str = "mimo-v2.6-flash-free"
+    opencode_base_url: str = "https://opencode.ai/inference/openai/v1"
 
     # --- Embeddings (RAG Fase 4) ---
     embeddings_provider: Literal["gemini", "ollama"] = "gemini"

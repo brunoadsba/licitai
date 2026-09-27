@@ -309,6 +309,18 @@ def _build_providers():
             "https://api.deepseek.com",
         )
 
+    def _add_longcat():
+        _add_openai_compat(
+            "longcat", settings.longcat_api_key, settings.longcat_model,
+            settings.longcat_base_url,
+        )
+
+    def _add_opencode_zen():
+        _add_openai_compat(
+            "opencode_zen", settings.opencode_api_key, settings.opencode_model,
+            settings.opencode_base_url,
+        )
+
     def _add_free_fallbacks():
         _add_mistral()
         _add_openrouter()
@@ -318,6 +330,8 @@ def _build_providers():
         _add_siliconflow()
         _add_zai()
         _add_deepseek()
+        _add_longcat()
+        _add_opencode_zen()
         _add_pollinations()
 
     if primary == "gemini":
@@ -344,6 +358,10 @@ def _build_providers():
         _add_zai()
     elif primary == "deepseek":
         _add_deepseek()
+    elif primary == "longcat":
+        _add_longcat()
+    elif primary == "opencode_zen":
+        _add_opencode_zen()
     _add_groq()
     _add_gemini()
     _add_free_fallbacks()
