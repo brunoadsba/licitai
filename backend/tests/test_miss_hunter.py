@@ -168,3 +168,47 @@ def test_hunter_vazio_honesto(monkeypatch):
         llm, [_pending()], {}, set()))
     assert out == []
     assert seen["results"] == [[]]
+
+
+def test_snapshot_mesclado_sem_duplicar(monkeypatch):
+    monkeypatch.setattr(settings, "miss_hunter_enabled", True)
+    monkeypatch.setattr(settings, "miss_hunter_max_items", 10)
+    monkeypatch.setattr(settings, "analysis_batch_size", 1)
+
+    async def fake_persist(db, analysis, document, doc_id, targets, results,
+                           valid_refs, total, truncated, retrieval):
+        analysis.run_snapshot = {
+            "analyzed_item_ids": ["id-4.3", "id-9.9"],
+            "failed_item_ids": [],
+            "origin_correction_ids": ["new-1"],
+        }
+        analysis.analyzed_items = 1
+        return {"pending_reviews": []}
+
+    async def fake_review(db, llm, pendings):
+        return []
+
+    async def fake_super(db, llm, pendings):
+        return []
+
+    monkeypatch.setattr(miss_hunter, "persist_item_outcomes", fake_persist)
+    monkeypatch.setattr(miss_hunter, "_run_cross_review", fake_review)
+    monkeypatch.setattr(miss_hunter, "_run_supervisor_rereview", fake_super)
+
+    analysis = SimpleNamespace(
+        run_snapshot={
+            "analyzed_item_ids": ["id-4.1", "id-4.3"],
+            "failed_item_ids": ["id-4.0"],
+            "origin_correction_ids": ["old-1"],
+        },
+        analyzed_items=2,
+    )
+    out = asyncio.run(_run_miss_hunter(
+        SimpleNamespace(flush=AsyncMock()), analysis,
+        SimpleNamespace(items=[]), "doc",
+        HunterFake(), [_pending()], {}, set()))
+    assert out == []
+    assert analysis.run_snapshot["analyzed_item_ids"] == ["id-4.1", "id-4.3", "id-9.9"]
+    assert analysis.run_snapshot["failed_item_ids"] == ["id-4.0"]
+    assert analysis.run_snapshot["origin_correction_ids"] == ["old-1", "new-1"]
+    assert analysis.analyzed_items == 2
