@@ -1,18 +1,32 @@
 {
   "id": "tr_pabx_real",
-  "descricao": "DRAFT 28/09/2026 — 09-ti-pabx-nuvem. Anotação parcial a partir dos vereditos humanos já no banco (revisão Bruno 16/09): 3 TPs (aprovada/ajustada) + 7 FPs conhecidos (rejeitada). Sem texto do TR, só descritores — seguro p/ Git. FALTAM os 17 pendentes (inclui DDR alínea 'e', o alto que mais importa). Golden completo exige anotação humana dedicada.",
+  "descricao": "PABX em nuvem CODEBA — golden v1 fechado 28/09/2026 (máquina + crítica externa, 2 rodadas). 12 TPs + 7 tripwires de FP. Sem texto do TR, só descritores — seguro p/ Git. Carimbo humano final ainda pendente (a planilha anotacao_pabx_pendentes.md é o documento de trabalho).",
   "provenance": {
     "analyses": ["8cdafd60-3720-401d-b090-efc83c154af5", "290c7061-c24d-4131-bf66-9f9a7b7ecbfc", "c35af754-f5dc-4d28-bcd3-fd27afb48895"],
-    "reviewed_by": "Bruno (UI, 16/09/2026)",
-    "status": "draft"
+    "reviewed_by": "Bruno (UI, 16/09/2026: 3 vereditos) + máquina+externa (28/09: 17 vereditos recomendados, 10A/7R)",
+    "status": "v1"
   },
   "expected_findings": [
-    {"item_number": "3.1.1", "category": "estrutural", "severity": "baixo", "keyword": "truncado", "note": "título truncado, não corresponde ao conteúdo (ajustada)"},
-    {"item_number": "3.1.2", "category": "estrutural", "severity": "baixo", "keyword": "incompleto", "note": "título incompleto termina em 'e' (aprovada)"},
-    {"item_number": "3.1.4", "category": "estrutural", "severity": "baixo", "keyword": "abruptamente", "note": "título termina em 'da' (aprovada)"}
+    {"item_number": "3.1.1", "category": "estrutural", "severity": "baixo", "keyword": "não corresponde ao conteúdo", "note": "título truncado (ajustada humana)"},
+    {"item_number": "3.1.2", "category": "estrutural", "severity": "baixo", "keyword": "terceiro elemento", "note": "título incompleto (aprovada humana)"},
+    {"item_number": "3.1.4", "category": "estrutural", "severity": "baixo", "keyword": "abruptamente", "note": "título (aprovada humana)"},
+    {"item_number": "3.1.6", "category": "estrutural", "severity": "baixo", "keyword": "interrompendo a frase", "note": "título truncado; a duplicata info foi rejeitada"},
+    {"item_number": "2.1.5", "category": "estrutural", "severity": "baixo", "keyword": "todas as", "note": "título incompleto"},
+    {"item_number": "4.2.2", "category": "estrutural", "severity": "baixo", "keyword": "sem concluir a frase", "note": "título termina em 'a'"},
+    {"item_number": "4.3", "category": "estrutural", "severity": "alto", "keyword": "apenas um título", "note": "título-só sem conteúdo; verificado ausente no TR inteiro"},
+    {"item_number": "4.3.3", "category": "estrutural", "severity": "baixo", "keyword": "terminando em \"sem\"", "note": "título truncado"},
+    {"item_number": "4.5.3", "category": "estrutural", "severity": "info", "keyword": "preposição \"de\"", "note": "título truncado"},
+    {"item_number": "4.6.4", "category": "estrutural", "severity": "baixo", "keyword": "deixando a frase sem conclusão", "note": "título termina em 'por meio de'"},
+    {"item_number": "4.9.1", "category": "estrutural", "severity": "alto", "keyword": "auditorias periódicas", "note": "sem critério de segurança; verificado ausente no TR inteiro"},
+    {"item_number": "e", "category": "juridica", "severity": "alto", "keyword": "200 números DDR", "note": "DDR sem justificativa; maior valor do lote"}
   ],
   "known_fps": [
-    {"keyword": "Um ou mais agentes falharam", "note": "6x ruído operacional (cobertura) — gate OPS já barra por desenho; tripwire de regressão"},
-    {"item_number": "4.9.2", "keyword": "obrigação genérica de observância", "note": "FP jurídico rejeitado: obrigação genérica LGPD sem defeito local"}
+    {"keyword": "Um ou mais agentes falharam", "note": "ruído operacional — gate OPS barra por desenho"},
+    {"keyword": "obrigação genérica de observância", "note": "FP 4.9.2 rejeitado; persiste no batch"},
+    {"keyword": "não indica o prazo de vigência", "note": "1.1 rejeitado: prazo existe (24 meses)"},
+    {"keyword": "subdivisões hierárquicas", "note": "12/13 rejeitados: implicância cosmética"},
+    {"keyword": "inconsistência entre a numeração", "note": "14 rejeitado: cosmético sem base"},
+    {"keyword": "indica subitem \"b-3\"", "note": "15 rejeitado: cosmético sem base"},
+    {"keyword": "numerado com a letra", "note": "17 rejeitado: cosmético sem base"}
   ]
 }

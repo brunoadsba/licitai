@@ -58,9 +58,17 @@ embeddings) + revisão cruzada fail-closed + supervisor determinístico
   `budget_truncated`). Com TPM apertado (Groq 413), baixar o lote p/ 1–2.
 - Qualidade medida: Groq golden R 0,56 / P 1,0; FTS piloto r@5 0,929;
   TR real (golden draft `e2e/golden/real/tr_pabx.json`): `290c7061` recall
-  0,67 fp 0/2, `8cdafd60` recall 0,00 fp 1/2 (FP 4.9.2 persiste no batch).
+  0,67 fp 0/2, `8cdafd60` recall 0,00 fp 1/2 (FP 4.9.2 persiste no modo batch).
   Medida real exige re-run + anotação humana.
   ([docs/ops/recall-tr-real-2026-09.md](docs/ops/recall-tr-real-2026-09.md))
+- Ciclo de anotação fechado (28/09, main): golden v1 (12 TPs + 7 tripwires,
+  máquina + 2 rodadas externas, 10A/7R, carimbo humano pendente); medido
+  `290c7061` e `8cdafd60` recall 0,25 (3/12) — harness validado, medida real
+  exige re-run + carimbo.
+- Anotação acelerada (28/09, sem commit): planilha dos 17 pendentes
+  (`e2e/golden/real/anotacao_pabx_pendentes.md`, agrupados T/N/R, veredito em
+  aberto) + eleição dos próximos (`07-obra` × `10-monitoramento`,
+  [README](e2e/golden/real/README.md)).
 - Confiança: roda sem quebrar ALTA; precisão MÉDIA-ALTA; **recall o ponto
   vermelho**; free exige babysitting. Bom piloto **assistido**, não p/
   confiança cega.

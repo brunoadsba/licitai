@@ -92,9 +92,10 @@ async def main() -> None:
     if "Recall em TR real" not in previous:
         previous = header + (
             "\n## Leitura honesta\n\n"
-            "O golden é DRAFT (3 TPs estruturais-baixo + 7 FPs; faltam os 17 pendentes, "
-            "inclui o DDR). Medir a análise que GEROU esses achados valida o harness, "
-            "não o recall — a medida real exige re-run (hunter/pago) + anotação humana.\n"
+            "Golden v1 (12 TPs + 7 tripwires; vereditos máquina+externa, carimbo\n"
+            "humano pendente). Medir análises que GERARAM esses achados valida o\n"
+            "harness, não o recall — a medida real exige re-run (hunter/pago) +\n"
+            "carimbo humano.\n"
         )
     OUT.write_text(previous + section, encoding="utf-8")
     print(f"Relatório: {OUT}")
