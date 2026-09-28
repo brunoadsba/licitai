@@ -39,6 +39,8 @@ def test_assert_cloud_bloqueia_quando_desabilitado(monkeypatch):
 
 def test_assert_cloud_permite_quando_flag_true(monkeypatch):
     monkeypatch.setattr(settings, "llm_allow_cloud", True)
+    monkeypatch.setattr(settings, "llm_dev_cloud_override", True)
+    monkeypatch.setattr(settings, "app_env", "development")
     monkeypatch.setattr(settings, "llm_provider", "groq")
     assert_cloud_allowed_for_document("sigiloso")
 

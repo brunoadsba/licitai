@@ -168,6 +168,25 @@ fixa corporativa, contemplando STFC integrado à solução de PABX em nuvem.
     )
 
 
+def test_alineas_repetidas_ficam_sob_o_pai():
+    texto = """
+4.3.4. A solução deverá contemplar os recursos:
+a) criação de ramais;
+b) grupos de ramais;
+2.1.3. A solução deverá contemplar, no mínimo:
+a) Prestação do STFC;
+b) Disponibilização de plataforma;
+"""
+    items = structure_items(texto, pages=[])
+    numeros = [it["item_number"] for it in items]
+    assert "4.3.4.a" in numeros
+    assert "4.3.4.b" in numeros
+    assert "2.1.3.a" in numeros
+    assert "2.1.3.b" in numeros
+    assert "a-2" not in numeros
+    assert "b-3" not in numeros
+
+
 def test_indice_nao_gera_itens():
     texto = """
 ÍNDICE

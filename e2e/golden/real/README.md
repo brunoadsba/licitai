@@ -14,7 +14,6 @@ Preteridos: `05-concurso` (concorrência ×6, regime próprio — bom 4º); `08-
 
 ## Arquivos
 
-- `tr_pabx.json` — golden draft (3 TPs + 7 FPs de vereditos humanos no banco).
-- `anotacao_pabx_pendentes.md` — planilha dos 17 pendentes p/ revisão humana.
-- Protocolo: aprovar/rejeitar na UI ou na planilha → virar `expected_findings`
-  (TPs) e `known_fps` aqui; re-medir com `benchmark_offline.py`.
+- `tr_pabx.json` — golden v2: 3 TPs humanos (16/09) + 17 rejeitados (28/09).
+- `anotacao_pabx_pendentes.md` — carimbo dos 17 (0 aprovar / 17 rejeitar), com a prova no PDF.
+- Re-medir com `benchmark_offline.py` quando houver análise no Postgres.

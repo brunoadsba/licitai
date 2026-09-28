@@ -14,6 +14,7 @@ em DocumentItems vazios (causa raiz de falsos positivos Art. 6º).
 """
 
 import logging
+import re
 
 from app.services.parser.detection_items import _detect_item_type
 from app.services.parser.detection_patterns import PATTERNS
@@ -173,14 +174,21 @@ def structure_items(raw_text: str, pages: list[dict]) -> list[dict]:
             "item_type": "section",
         })
 
-    # Validar itens duplicados e conteúdo vazio
+    # Validar itens duplicados e conteúdo vazio.
+    # Alínea repetida fica sob o pai numérico (4.3.4.a), não como a-2.
     seen_numbers: set[str] = set()
     validated = []
+    parent = ""
     for item in items:
         num = item.get("item_number", "")
         if not num or not item.get("content", "").strip():
             logger.warning("Item ignorado: número ou conteúdo vazio (%s)", num)
             continue
+        if re.fullmatch(r"\d+(?:\.\d+)*", num):
+            parent = num
+        elif re.fullmatch(r"[a-z]", num) and parent:
+            num = f"{parent}.{num}"
+            item["item_number"] = num
         if num in seen_numbers:
             suffix = 1
             while f"{num}-{suffix}" in seen_numbers:

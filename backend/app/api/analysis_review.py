@@ -52,11 +52,10 @@ async def update_correction_review(
     else:
         correction.reviewed_at = datetime.now(timezone.utc)
 
-    if payload.review_status == "ajustada":
-        if payload.suggested_text is not None:
-            correction.suggested_text = payload.suggested_text
-        if payload.justification is not None:
-            correction.justification = payload.justification
+    if payload.suggested_text is not None:
+        correction.suggested_text = payload.suggested_text
+    if payload.justification is not None:
+        correction.justification = payload.justification
 
     await recalculate_analysis_scores(db, correction.analysis_id)
     await db.commit()

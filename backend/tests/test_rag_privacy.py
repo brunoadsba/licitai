@@ -10,7 +10,7 @@ import uuid
 from app.config import settings
 from app.models.analysis import Correction
 from app.schemas.analysis import CorrectionResponse
-from app.services.privacy import llm_rerank_allowed_for_document
+from app.services.privacy import llm_rerank_allowed_for_document, resolve_policy
 
 
 def _correction(**overrides):
@@ -73,6 +73,15 @@ def test_rerank_llm_permite_publico_e_bloqueia_restrito():
         llm_rerank_allowed_for_document(None, rerank_mode="llm", provider="groq")
         is False
     )
+
+
+def test_allow_cloud_sem_override_bloqueia_sigiloso(monkeypatch):
+    monkeypatch.setattr(settings, "llm_allow_cloud", True)
+    monkeypatch.setattr(settings, "llm_dev_cloud_override", False)
+    monkeypatch.setattr(settings, "app_env", "development")
+    monkeypatch.setattr(settings, "llm_provider", "groq")
+    policy = resolve_policy("sigiloso")
+    assert policy.cloud_llm is False
 
 
 def test_rerank_llm_usa_modo_do_settings_por_padrao(monkeypatch):

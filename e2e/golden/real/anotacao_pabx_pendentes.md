@@ -1,85 +1,45 @@
-# Anotação PABX — 17 pendentes (pré-preenchido pela máquina, 28/09/2026)
+# Anotação PABX — fechada (28/09/2026)
 
-## Contexto para o revisor externo (leia primeiro)
+Placar: **0 aprovar, 17 rejeitar.** Precisão > recall. Prova: PDF
+`fixtures/trs-codeba/piloto-unico/09-ti-pabx-nuvem.pdf` passado pelo parser
+do projeto (`parse_pdf` + `structure_items`). O campo `content` de cada item
+está completo. O que a máquina leu como título truncado é a primeira linha
+do PDF, cortada na quebra de linha.
 
-- **O que é isto:** fila de anotação humana do TR `09-ti-pabx-nuvem` (PABX em nuvem, CODEBA). Cada linha é um achado gerado por IA multiagente que um humano ainda não julgou. Seu veredito vira verdade de medição (golden): aprovado = problema real; rejeitado = falso positivo conhecido.
-- **Regra de ouro: precisão > recall.** Em dúvida, REJEITE. Um falso positivo no SEI custa mais que um miss.
-- **Legenda de grupo (agrupamento, NÃO veredito):** `T` = título truncado/incompleto, mesmo defeito dos 3 já aprovados (3.1.1/3.1.2/3.1.4) · `N` = caso novo, exige olho jurídico · `R` = classe de ruído já rejeitado.
-- **Doutrina do projeto:** checklist do Art. 6º XXIII vale para o TR inteiro, não para a cláusula isolada — omissão que existe em outro trecho do documento NÃO vira achado do item.
-- **Histórico desta planilha:** revisão 1 da máquina (14 aprovar) → crítica externa apontou T esticado, 1.1 sem conferência e duplicata 4/5 → revisão 2 com prova nos dados (TR contém "contrato será de 24 meses"; 4 e 5 têm mesmo trecho e mesma sugestão). Placar atual: **10 aprovar, 7 rejeitar, 0 condicionais**.
-- **O que pedimos de você:** veredito independente por item + apontar onde a recomendação da máquina ainda está forçada. Desconfie especialmente de achados sem base legal e de severidade baixa.
+Os 3 TPs já carimbados por humano (3.1.1, 3.1.2, 3.1.4, keyword
+"abruptamente") **não foram reabertos**. O mesmo padrão de quebra de linha
+existe neles; reabrir é decisão à parte.
 
+A recomendação da máquina (10 aprovar / 7 rejeitar) fica abaixo, como
+histórico. Os 10 "aprovar" estavam forçados.
 
-**Como usar:** para cada linha, marque UM veredito e devolva. A coluna
-"padrão" só agrupa por semelhança com os 3 já aprovados — **não é veredito**,
-não confie nela. Em dúvida, rejeite (precisão > recall nesta fase).
+| # | item | sev/cat | problema (resumo) | veredito | por que |
+|---|------|---------|-------------------|----------|---------|
+| 1 | 1.1 | baixo/estrutural | não indica prazo de vigência | **rejeitar** | 1.4, 10.1 e 11.1 fixam 24 meses. Omissão que existe no TR não é achado do item. |
+| 2 | 2.1.5 | baixo/estrutural | título incompleto ("todas as") | **rejeitar** | Frase fecha: "todas as atividades necessárias… durante a vigência contratual." |
+| 3 | 3.1.4 | info/estrutural | título termina em "da" | **rejeitar** | "essencial da contratação" continua no mesmo item. Não é o TP humano ("abruptamente"). |
+| 4 | 3.1.6 | baixo/estrutural | título truncado | **rejeitar** | Frase fecha em "princípios aplicáveis às contratações públicas." |
+| 5 | 3.1.6 | info/estrutural | título termina em "à" | **rejeitar** | Duplicata do 4. "contínua à necessidade institucional" continua na linha seguinte. |
+| 6 | 4.2.2 | baixo/estrutural | título termina em "a" | **rejeitar** | O "a" é quebra antes de "CONTRATADA deverá possuir autorização da ANATEL…". |
+| 7 | 4.3 | alto/estrutural | título-só, sem conteúdo | **rejeitar** | Cabeçalho de seção, igual a 4.1, 4.2, 4.4. O requisito está em 4.3.1–4.3.5. Art. 6º XXIII c, d, g vale para o TR, não para o título. A checagem da máquina ("plataforma de PABX não aparece em outro trecho") é falsa: 4.3.1 e 2.1.3 b) trazem a plataforma. |
+| 8 | 4.3.3 | baixo/estrutural | título truncado ("sem") | **rejeitar** | "sem limitação de chamadas entre os ramais…" fecha o item. |
+| 9 | 4.5.3 | info/estrutural | título truncado ("de") | **rejeitar** | "de forma a reduzir os riscos de interrupção…" fecha o item. |
+| 10 | 4.6.4 | baixo/estrutural | título termina em "por meio de" | **rejeitar** | "por meio de canais oficiais de atendimento…" fecha o item. |
+| 11 | 4.9.1 | alto/estrutural | sem critério p/ medidas de segurança | **rejeitar** | 4.9.2–4.9.7 detalham LGPD, autenticação, acesso individual, sigilo, incidente e devolução. Art. 6º XXIII g é medição/pagamento e h é seleção do fornecedor — não é base para este achado. "Relatórios gerenciais" está em 2.1.3 i). |
+| 12 | 4.9.2 | baixo/estrutural | sem subdivisões hierárquicas | **rejeitar** | Item único e completo (LGPD). Implicância. |
+| 13 | 4.9.4 | info/estrutural | sem subdivisões hierárquicas | **rejeitar** | Idem 12. |
+| 14 | a-2 | baixo/estrutural | numeração inconsistente | **rejeitar** | Alínea normal: "a) criação, alteração, exclusão e administração de ramais e usuários;". O id "a-2" é desambiguação do parser, não defeito do TR. |
+| 15 | b-3 | baixo/estrutural | numeração inconsistente | **rejeitar** | Alínea normal: "b) disponibilização e configuração da plataforma de PABX em Nuvem;". |
+| 16 | e | alto/jurídica | 200 DDR sem justificativa | **rejeitar** | 4.1.3 lista duas faixas de 100 números (3341-8000–8099 e 3341-8300–8399). 4.4.1 amarra os 200 DDR à portabilidade dessas faixas. Art. 23 é compatibilidade do valor estimado com o mercado e com as quantidades, não um vazio neste item. |
+| 17 | k | baixo/estrutural | letra em vez de número + título | **rejeitar** | Alínea k de 2.1.3 está completa. Letra em lista é redação padrão. |
 
-Legenda padrão: `T` = mesmo padrão dos títulos truncados aprovados (3.1.1/3.1.2/3.1.4) · `N` = caso novo, exige olho jurídico · `R` = mesma classe de ruído já rejeitado (4.9.2).
+## Onde a máquina forçou
 
-| # | item | sev/cat | problema (resumo) | base legal? | padrão | veredito [ ] | obs |
-|---|------|---------|-------------------|-------------|--------|--------------|-----|
-| 1 | 1.1 | baixo/estrutural | não indica prazo de vigência | não | N | [ ] aprovar [ ] rejeitar | omissão — conferir no TR inteiro antes |
-| 2 | 2.1.5 | baixo/estrutural | título incompleto ("todas as") | não | T | [ ] aprovar [ ] rejeitar | |
-| 3 | 3.1.4 | info/estrutural | título termina em "da" | não | T | [ ] aprovar [ ] rejeitar | |
-| 4 | 3.1.6 | baixo/estrutural | título truncado | não | T | [ ] aprovar [ ] rejeitar | |
-| 5 | 3.1.6 | info/estrutural | título termina em "à" | não | T | [ ] aprovar [ ] rejeitar | duplicado do 4? ver se é o mesmo defeito |
-| 6 | 4.2.2 | baixo/estrutural | título termina em "a" | não | T | [ ] aprovar [ ] rejeitar | |
-| 7 | 4.3 | **alto**/estrutural | título-só, sem conteúdo | sim (Art. 6º XXIII c,d,g) | N | [ ] aprovar [ ] rejeitar | alto fora do score até você decidir |
-| 8 | 4.3.3 | baixo/estrutural | título truncado ("sem") | não | T | [ ] aprovar [ ] rejeitar | |
-| 9 | 4.5.3 | info/estrutural | título truncado ("de") | não | T | [ ] aprovar [ ] rejeitar | |
-| 10 | 4.6.4 | baixo/estrutural | título termina em "por meio de" | não | T | [ ] aprovar [ ] rejeitar | |
-| 11 | 4.9.1 | **alto**/estrutural | sem critério p/ medidas de segurança | sim (Art. 6º XXIII g,h) | N | [ ] aprovar [ ] rejeitar | alto fora do score até você decidir |
-| 12 | 4.9.2 | baixo/estrutural | sem subdivisões hierárquicas | sim (Art. 92 III) | R | [ ] aprovar [ ] rejeitar | classe do nitpick; se for implicância, rejeite |
-| 13 | 4.9.4 | info/estrutural | sem subdivisões hierárquicas | sim (Art. 92 XVIII) | R | [ ] aprovar [ ] rejeitar | idem acima |
-| 14 | a-2 | baixo/estrutural | numeração inconsistente | não | T | [ ] aprovar [ ] rejeitar | |
-| 15 | b-3 | baixo/estrutural | numeração inconsistente | não | T | [ ] aprovar [ ] rejeitar | |
-| 16 | e | **alto**/jurídica | 200 DDR sem justificativa | sim (Art. 23 + TCU) | N | [ ] aprovar [ ] rejeitar | **o mais importante** — decide o recall jurídico |
-| 17 | k | baixo/estrutural | letra em vez de número + título | não | T | [ ] aprovar [ ] rejeitar | |
+1. Classe T (2, 3, 4, 6, 8, 9, 10): precedente dos 3 TPs humanos tratado como mérito. O `content` parseado não está truncado.
+2. Altos 7, 11 e 16: a "prova doc-wide" não confere com o PDF. 4.3 tem filhos; 4.9 tem critérios nos irmãos e a base legal citada não é a do achado; os 200 DDR são as duas faixas de portabilidade.
+3. 14, 15 e 17: a revisão 2 já rejeitava. Mantido, com o texto da alínea.
 
-Regra de ouro: aprovou os 3 altos (7, 11, 16)? Eles entram no score e no SEI.
-Rejeitou? Vira FP conhecido e alimenta o tripwire.
+## Histórico da recomendação da máquina (superada)
 
-## Verificação doc-wide pedida na 2ª crítica (28/09, com prova)
-
-- **4.3 (nº 7):** "requisitos da plataforma"/"plataforma de pabx" NÃO aparece em
-  nenhum outro trecho do TR → lacuna real no documento. Aprovação sem ressalva.
-- **4.9.1 (nº 11):** "auditoria"/"medidas de segurança"/"relatórios gerenciais"
-  NÃO aparecem no TR → ausência de critério real. Aprovação sem ressalva.
-- **DDR (nº 16):** só menção genérica; justificativa dos 200 ausente. Mantido.
-- **Classe T:** a crítica procede em doutrina (precedente != mérito). Decisão
-  proposta: manter por consistência com os 3 aprovados humanos; reabrir a
-  classe exige julgamento humano, não desta máquina. Variante estrita
-  documentada: 4 A / 13 R (só 4, 7, 11, 16).
-
-## Recomendação técnica da máquina (28/09 — veredito continua seu)
-
-Base: todos os 17 com `grounded=true` e `claim_support` cheio; todos passaram
-nos gates. Critério: mesmo defeito dos 3 aprovados → aprovar; classe de ruído
-já rejeitado → rejeitar; caso novo com evidência → aprovar c/ destaque.
-
-| # | item | recomendação | motivo (1 linha) |
-|---|------|--------------|------------------|
-| 1 | 1.1 | REJEITAR (era aprovar) | prazo EXISTE no TR ("contrato será de 24 meses") — omissão desmentida |
-| 2 | 2.1.5 | aprovar | mesmo padrão dos títulos truncados aprovados |
-| 3 | 3.1.4 | aprovar | idem |
-| 4 | 3.1.6 | aprovar | idem; ver duplicidade com o 5 |
-| 5 | 3.1.6 | REJEITAR | duplicata confirmada: mesmo original_text e mesma sugestão do 4; fica o 4 (sev maior) |
-| 6 | 4.2.2 | aprovar | idem padrão T |
-| 7 | 4.3 | **aprovar** | item só-título sem conteúdo é lacuna real; base Art. 6º válida |
-| 8 | 4.3.3 | aprovar | idem padrão T |
-| 9 | 4.5.3 | aprovar | idem padrão T |
-| 10 | 4.6.4 | aprovar | idem padrão T |
-| 11 | 4.9.1 | **aprovar** | sem critério de avaliação de segurança é lacuna real; base Art. 6º válida |
-| 12 | 4.9.2 | rejeitar | implicância cosmética (mesma classe do FP 4.9.2 já rejeitado) — mantido |
-| 13 | 4.9.4 | rejeitar | idem |
-| 14 | a-2 | REJEITAR (era aprovar) | T era só p/ títulos truncados; numeração sem base é cosmético |
-| 15 | b-3 | REJEITAR (era aprovar) | idem 14 |
-| 16 | e | **aprovar** | 200 DDR sem justificativa, trecho exato, base Art. 23 + TCU; maior valor do lote |
-| 17 | k | REJEITAR (era aprovar) | idem 14 |
-
-Revisão 2 (pós-crítica externa, com prova nos dados): **10 aprovar**
-(2,3,4,6,7,8,9,10,11,16), **7 rejeitar** (1,5,12,13,14,15,17), 0 condicionais.
-Mudanças vs revisão 1: 1→R (prazo existe), 5→R (duplicata provada),
-14/15/17→R (T esticado além da definição).
-Achado lateral: G4 deixou passar a omissão do 1.1 mesmo com "24 meses" no TR —
-ponto de tuning futuro do gate, fora desta anotação.
+Revisão 2 pedia 10 aprovar (2, 3, 4, 6, 7, 8, 9, 10, 11, 16) e 7 rejeitar
+(1, 5, 12, 13, 14, 15, 17). Este carimbo rejeita os 10.

@@ -70,7 +70,11 @@ def is_cloud_provider(provider: str | None = None) -> bool:
 
 
 def _dev_cloud_override() -> bool:
-    return bool(settings.llm_allow_cloud and settings.app_env == "development")
+    return bool(
+        settings.llm_allow_cloud
+        and settings.llm_dev_cloud_override
+        and settings.app_env == "development"
+    )
 
 
 def resolve_policy(classification: str | None) -> ProviderPolicy:

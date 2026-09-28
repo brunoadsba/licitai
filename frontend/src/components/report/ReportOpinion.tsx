@@ -3,7 +3,7 @@
 import { Check, ClipboardCopy, FileText } from 'lucide-react';
 import { useCopy } from '@/lib/useCopy';
 
-/** Parecer final com botão de cópia SEI — extraído de `app/report/[id]/page.tsx`. */
+/** Parecer final. A cópia não substitui o pacote SEI. */
 export default function ReportOpinion({
   opinion,
   analyzedItems,
@@ -41,7 +41,7 @@ export default function ReportOpinion({
           ) : (
             <>
               <ClipboardCopy className="h-3.5 w-3.5" aria-hidden />
-              Copiar Parecer para o SEI
+              Copiar parecer
             </>
           )}
         </button>
@@ -52,6 +52,9 @@ export default function ReportOpinion({
           copiado não representa o documento inteiro.
         </p>
       )}
+      <p className="mb-3 text-xs text-content-muted">
+        Este parecer não é o pacote SEI e inclui achados ainda não aprovados.
+      </p>
       <p className="whitespace-pre-wrap leading-relaxed text-content-secondary">{opinion}</p>
     </div>
   );

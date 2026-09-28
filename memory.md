@@ -22,7 +22,9 @@ embeddings) + revisão cruzada fail-closed + supervisor determinístico
 
 - Sigilo fail-closed: classificação `NULL` = sigiloso; cloud bloqueada p/
   sigiloso/sem classificação (422 / job não-retriável); sem Ollama não roda.
-- Cópia SEI só com `review_status ∈ {aprovada, ajustada}`.
+- Cópia SEI só com `review_status ∈ {aprovada, ajustada}` escrito pelo PATCH
+  humano. O revisor LLM grava `evidence.machine_review` e deixa `pendente`
+  (`rejeitada` automática continua fora do SEI e da fila).
 - TCU sem URL oficial em quarentena (`quarantine-0B`): fora da busca, do
   `legal_basis`, do parecer e do SEI.
 - Análises/comparações só avançam com o worker no ar.
@@ -32,16 +34,18 @@ embeddings) + revisão cruzada fail-closed + supervisor determinístico
 - Arquivo >300 LOC: ao tocar, extrair módulo no mesmo PR (sem refactor
   especulativo). Exceções atuais: `llm/provider.py` (376),
   `analyzer/evidence_gate.py` (352), `rag/loader.py` (339), `rag/semantic.py`
-  (323), `analyzer/analysis_phases.py` (319), `analysis_persistence.py` (315),
+  (323), `analysis_persistence.py` (315),
   `useAnalysisPage.ts` (312), `api/documents.py` (311).
 
 ## 3. Estado atual (28/09/2026)
 
-- Branch: só `main` (== `origin/main`); feature branches apagadas após merge.
-- Suíte backend **435 passed** · frontend **47 testes Vitest**
-  (`npm run test`, libs puras) · `tsc --noEmit` limpo · `ruff check` limpo
+- Branch: `main` (== `origin/main`) após o merge de `fix/auditoria-sei-humano`.
+  Spike `feat/fetch-pncp-trs` segue sem merge.
+- Suíte: última completa **435** backend · **47** Vitest; fatia da auditoria
+  (analyzer, revisão, quarentena, parser, privacidade, supervisor, engine,
+  miss-hunter) verde em 28/09 · `tsc --noEmit` limpo · `ruff check` limpo
   (format não é gate). Schema esperado: `20260924_004`.
-- UX-Confiança (28/09, `feat/ux-confianca`, sem commit): página `/confianca`
+- UX-Confiança (28/09, mergeado): página `/confianca`
   (números com fonte + staleness), nota calibrada por cobertura (<95% = faixa)
   em `ReportScores`, retomada da fila por id, chips de evidência, teclado
   (a/r/j/n/?) + undo inline, microcopy sem absolutos. QA externo (Grok,
@@ -57,23 +61,31 @@ embeddings) + revisão cruzada fail-closed + supervisor determinístico
 - Frontend: Next **14.2.35** (audit residual aceito e documentado em
   [docs/ops/auditoria-deps-2026-09.md](docs/ops/auditoria-deps-2026-09.md);
   rotina mensal `scripts/audit_deps.sh`).
+- Correção da auditoria (28/09): SEI não sai de aprovação da máquina; undo
+  devolve o texto; quarentena aceita `nº`/`n°`/`n.`; alínea fica no pai
+  (`4.3.4.a`); Ollama default `host.docker.internal:11434` + `qwen3:8b`;
+  sigiloso na nuvem em dev só com `LLM_ALLOW_CLOUD` e
+  `LLM_DEV_CLOUD_OVERRIDE` (default false); supervisor em `supervisor.py`
+  e não chama o LLM com `budget_truncated`. Miss-hunter continua desligado.
+  Plano em [docs/plano-correcao-auditoria-2026-09-28.md](docs/plano-correcao-auditoria-2026-09-28.md).
 - Cadeia free: gemini → groq → mistral → openrouter (+ Ollama `qwen3:8b`
-  local p/ sigiloso). `.env` operacional: `ANALYSIS_BATCH_SIZE=5`,
+  no host, p/ sigiloso). `.env` operacional: `ANALYSIS_BATCH_SIZE=5`,
   `ANALYSIS_MAX_LLM_CALLS=24`, `SUPERVISOR_REREVIEW_HIGH=true`,
   `MISS_HUNTER_ENABLED=false` (cap 10, fora do orçamento, pula com
   `budget_truncated`). Com TPM apertado (Groq 413), baixar o lote p/ 1–2.
 - Qualidade medida: Groq golden R 0,56 / P 1,0; FTS piloto r@5 0,929;
-  TR real (golden draft `e2e/golden/real/tr_pabx.json`): `290c7061` recall
-  0,67 fp 0/2, `8cdafd60` recall 0,00 fp 1/2 (FP 4.9.2 persiste no modo batch).
-  Medida real exige re-run + anotação humana.
+  TR real golden v2 (`e2e/golden/real/tr_pabx.json`: 3 TPs humanos 16/09 +
+  18 tripwires, 17 pendentes rejeitados 28/09 0A/17R contra o PDF
+  09-ti-pabx-nuvem — truncado era quebra de linha, 4.3/4.9.1/DDR não se
+  sustentam). Recall v1 0,25 (3/12) arquivado como validação do harness;
+  re-medir pendente (Postgres piloto com zero análises em 28/09).
   ([docs/ops/recall-tr-real-2026-09.md](docs/ops/recall-tr-real-2026-09.md))
-- Ciclo de anotação fechado (28/09, main): golden v1 (12 TPs + 7 tripwires,
-  máquina + 2 rodadas externas, 10A/7R, carimbo humano pendente); medido
-  `290c7061` e `8cdafd60` recall 0,25 (3/12) — harness validado, medida real
-  exige re-run + carimbo.
-- Anotação acelerada (28/09, sem commit): planilha dos 17 pendentes
-  (`e2e/golden/real/anotacao_pabx_pendentes.md`, agrupados T/N/R, veredito em
-  aberto) + eleição dos próximos (`07-obra` × `10-monitoramento`,
+- Ciclo de anotação fechado (28/09): golden v2
+  (3 TPs 16/09 não reabertos + 17 rejeitados com motivo na planilha);
+  recomendação máquina 10A/7R superada e arquivada como histórico.
+- Anotação acelerada (28/09): planilha fechada
+  (`e2e/golden/real/anotacao_pabx_pendentes.md`, 0/17 com prova no PDF) +
+  eleição dos próximos (`07-obra` × `10-monitoramento`,
   [README](e2e/golden/real/README.md)).
 - Confiança: roda sem quebrar ALTA; precisão MÉDIA-ALTA; **recall o ponto
   vermelho**; free exige babysitting. Bom piloto **assistido**, não p/
@@ -101,8 +113,9 @@ E2E_LIVE=1 E2E_BASE_URL=http://127.0.0.1:3000 npx playwright test e2e/bff-origin
 
 ## 5. Pendências (lista única)
 
-- Humano: revisar 5 achados pendentes (DDR alínea "e" + 1.1); decisão do gate
-  14d; anotar 1 TR real (régua do recall); colar SEI em minuta de teste;
+- Humano: carimbo golden feito (0/17, 28/09); decisão do gate
+  14d; re-medir recall v2 quando houver análise no Postgres (hoje zero);
+  ligar miss-hunter e comparar; colar SEI em minuta de teste;
   chaves pagas só se a Fase 3 mandar (`ANTHROPIC_API_KEY` c/ teto,
   SiliconFlow/Z.ai/Cohere/NVIDIA, permissão HF); URLs oficiais TCU (sair da
   quarentena); visto jurídico da amostra.

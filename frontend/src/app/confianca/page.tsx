@@ -42,7 +42,7 @@ export default function ConfiancaPage() {
       {stale && (
         <div
           role="alert"
-          className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200"
+          className="rounded-lg border border-amber-700/40 bg-amber-50 p-4 text-sm font-medium text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:font-normal dark:text-amber-200"
         >
           Números desatualizados (última medição há mais de 30 dias). Trate
           com cautela redobrada até nova medição.

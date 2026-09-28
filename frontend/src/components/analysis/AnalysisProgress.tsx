@@ -19,13 +19,20 @@ const STAGES = [
  * Progresso da análise por estágios claros (sem jargão de “quatro agentes”).
  */
 export default function AnalysisProgress({ analysis }: AnalysisProgressProps) {
-  const pct = Math.min(
-    100,
-    Math.round(((analysis.analyzed_items || 0) / (analysis.total_items || 1)) * 100),
-  );
+  const total = analysis.total_items ?? 0;
+  const analyzed = analysis.analyzed_items ?? 0;
+  const coverageUnknown = total <= 0;
+  const pct = coverageUnknown ? 0 : Math.min(100, Math.round((analyzed / total) * 100));
 
-  const activeIdx =
-    pct >= 100 ? 3 : pct >= 40 ? 2 : pct >= 15 ? 1 : 0;
+  const activeIdx = coverageUnknown
+    ? 0
+    : pct >= 100
+      ? 3
+      : pct >= 40
+        ? 2
+        : pct >= 15
+          ? 1
+          : 0;
 
   return (
     <div role="status" className="space-y-3 rounded-lg border border-accent-500/25 bg-accent-500/5 p-5">
@@ -33,14 +40,22 @@ export default function AnalysisProgress({ analysis }: AnalysisProgressProps) {
         <div>
           <h3 className="text-sm font-semibold text-content-primary">Análise em andamento</h3>
           <p className="text-xs text-content-muted">
-            {STAGES[activeIdx]?.label ?? 'Processando'} — aguarde para revisar os achados
+            {coverageUnknown
+              ? 'Cobertura indisponível — aguarde a contagem dos itens'
+              : `${STAGES[activeIdx]?.label ?? 'Processando'} — aguarde para revisar os achados`}
           </p>
         </div>
         <div className="text-right">
-          <span className="tnum block font-mono text-xl font-semibold text-accent-400">{pct}%</span>
-          <span className="tnum block font-mono text-xs text-content-muted">
-            {analysis.analyzed_items} de {analysis.total_items} itens
-          </span>
+          {coverageUnknown ? (
+            <span className="block text-sm text-content-muted">cobertura indisponível</span>
+          ) : (
+            <>
+              <span className="tnum block font-mono text-xl font-semibold text-accent-400">{pct}%</span>
+              <span className="tnum block font-mono text-xs text-content-muted">
+                {analyzed} de {total} itens
+              </span>
+            </>
+          )}
         </div>
       </div>
 
@@ -51,7 +66,10 @@ export default function AnalysisProgress({ analysis }: AnalysisProgressProps) {
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <div className="progress-bar-fill" style={{ width: `${Math.min(100, Math.max(4, pct))}%` }} />
+        <div
+          className="progress-bar-fill"
+          style={{ width: `${coverageUnknown ? 0 : Math.min(100, Math.max(4, pct))}%` }}
+        />
       </div>
 
       <ol className="flex flex-wrap items-center gap-2 pt-1">

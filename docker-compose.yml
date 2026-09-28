@@ -70,9 +70,10 @@ services:
       OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
       OPENCODE_MODEL: ${OPENCODE_MODEL:-mimo-v2.6-flash-free}
       OPENCODE_BASE_URL: ${OPENCODE_BASE_URL:-https://opencode.ai/inference/openai/v1}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
       LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-false}
+      LLM_DEV_CLOUD_OVERRIDE: ${LLM_DEV_CLOUD_OVERRIDE:-false}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000}
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
       API_TOKEN: ${API_TOKEN:?Defina API_TOKEN no .env}
@@ -152,11 +153,12 @@ services:
       OPENCODE_API_KEY: ${OPENCODE_API_KEY:-}
       OPENCODE_MODEL: ${OPENCODE_MODEL:-mimo-v2.6-flash-free}
       OPENCODE_BASE_URL: ${OPENCODE_BASE_URL:-https://opencode.ai/inference/openai/v1}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:32b}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen3:8b}
       API_TOKEN: ${API_TOKEN:?Defina API_TOKEN no .env}
       APP_ENV: ${APP_ENV:-development}
       LLM_ALLOW_CLOUD: ${LLM_ALLOW_CLOUD:-false}
+      LLM_DEV_CLOUD_OVERRIDE: ${LLM_DEV_CLOUD_OVERRIDE:-false}
       # Free tier: concorrência 1 reduz 429 TPM no Groq durante E2E/uso local
       ANALYSIS_CONCURRENCY: ${ANALYSIS_CONCURRENCY:-1}
       # Itens por chamada LLM: 1 = 1 call/item; 5 = bulk (~5x menos calls/tokens).
