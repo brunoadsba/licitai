@@ -40,6 +40,7 @@ from app.services.analyzer.llm_access import (
     build_orchestrator,
     calls_per_item,
 )
+from app.services.analyzer.miss_hunter import _run_miss_hunter
 
 logger = logging.getLogger(__name__)
 
@@ -205,6 +206,21 @@ async def run_analysis(
     # --- Fase 2.3: supervisor v1 — segunda chance para altos pendentes ---
     all_corrections.extend(
         await _run_supervisor_rereview(db, llm, outcome["pending_reviews"])
+    )
+
+    # --- Fase 2.4: miss-hunter — 2ª passada nos itens "ok" (opt-in) ---
+    all_corrections.extend(
+        await _run_miss_hunter(
+            db,
+            analysis,
+            document,
+            document_id,
+            llm,
+            outcome["pending_reviews"],
+            retrieval_by_item,
+            valid_refs,
+            budget_truncated=budget_truncated,
+        )
     )
 
     # --- Fase 4: pontuação + status final ---

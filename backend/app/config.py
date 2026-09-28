@@ -153,6 +153,12 @@ class Settings(BaseSettings):
     # Supervisor v1: segunda chance de review só para altos ainda pendentes
     # (custo ~1 call/lote). False = mantém pendente sem gastar chamada.
     supervisor_rereview_high: bool = True
+    # Miss-hunter v1: 2ª passada (lente de caça-misses) só nos itens que a
+    # 1ª passada deixou "ok" (zero correções). Default OFF: cada item-alvo
+    # custa ~1 call/lote fora do orçamento ANALYSIS_MAX_LLM_CALLS — ligar
+    # só com cota folgada ou fallback pago. Max items limita o custo.
+    miss_hunter_enabled: bool = False
+    miss_hunter_max_items: int = 10
 
     # --- Copiloto (Chat Consultivo) ---
     chat_enabled: bool = True

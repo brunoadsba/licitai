@@ -17,7 +17,12 @@ from app.services.analyzer.json_utils import (
     sanitize_correction,
     validate_correction,
 )
-from app.services.analyzer.prompts import ITEM_ANALYSIS_PROMPT, SYSTEM_PROMPT
+from app.services.analyzer.prompts import (
+    ITEM_ANALYSIS_PROMPT,
+    MISS_HUNTER_BATCH_NOTE,
+    MISS_HUNTER_SYSTEM_PROMPT,
+    SYSTEM_PROMPT,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -120,3 +125,77 @@ async def analyze_batch_llm(
         str(item.id): [sanitize_correction(c) for c in routed[str(item.id)]]
         for item, _ in batch
     }
+
+
+def _truncate_content(item) -> str:
+    content = item.content or ""
+    if len(content) > ITEM_CONTENT_MAX_CHARS:
+        head = content[: ITEM_CONTENT_MAX_CHARS - ITEM_SUMMARY_CHARS]
+        tail = content[-ITEM_SUMMARY_CHARS:]
+        content = f"{head}\n[...conteúdo resumido: {len(content) - ITEM_CONTENT_MAX_CHARS} chars omitidos...]\n{tail}"
+        logger.warning(
+            "Item %s comprimido de %d para ~%d chars no prompt",
+            item.item_number,
+            len(item.content or ""),
+            len(content),
+        )
+    return content
+
+
+def _hunter_section(item, legal_context: str, document_facts: str = "") -> str:
+    content = _truncate_content(item)
+    return (
+        f"=== ITEM {getattr(item, 'item_number', '?')} ===\n"
+        + ITEM_ANALYSIS_PROMPT.format(
+            item_number=getattr(item, "item_number", "?"),
+            item_title=getattr(item, "title", None) or "(sem título)",
+            page_number=getattr(item, "page_number", None) or "N/A",
+            item_content=content,
+            legal_context=legal_context,
+            document_facts=document_facts,
+        )
+    )
+
+
+def _parse_hunter_response(response) -> list[dict]:
+    corrections = parse_json_response(response)
+    if isinstance(corrections, dict):
+        corrections = [corrections]
+    if not isinstance(corrections, list):
+        return []
+    return [
+        sanitize_correction(c)
+        for c in corrections
+        if isinstance(c, dict) and validate_correction(c)
+    ]
+
+
+async def analyze_item_hunter_llm(
+    llm, item, legal_context: str, document_facts: str = ""
+) -> list[dict]:
+    user_prompt = (
+        "SEGUNDA PASSADA (miss-hunter): a primeira passada não sinalizou "
+        "nada neste item. Procure misses com o mesmo rigor de evidência.\n\n"
+        + _hunter_section(item, legal_context, document_facts)
+    )
+    response = await llm.generate(MISS_HUNTER_SYSTEM_PROMPT, user_prompt)
+    return _parse_hunter_response(response)
+
+
+async def analyze_batch_hunter_llm(
+    llm, batch: list[tuple], document_facts: str = ""
+) -> dict[str, list[dict]]:
+    numbers = batch_numbers_label(batch)
+    user_prompt = (
+        MISS_HUNTER_BATCH_NOTE
+        + "\n\n"
+        + BATCH_ATTRIBUTION_INSTRUCTION.format(n=len(batch), numbers=numbers)
+        + "\n\n"
+        + "\n\n".join(
+            _hunter_section(item, ctx, document_facts) for item, ctx in batch
+        )
+    )
+    response = await llm.generate(MISS_HUNTER_SYSTEM_PROMPT, user_prompt)
+    corrections = _parse_hunter_response(response)
+    routed = split_corrections_by_item(batch, corrections)
+    return {str(item.id): routed[str(item.id)] for item, _ in batch}

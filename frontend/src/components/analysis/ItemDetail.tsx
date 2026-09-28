@@ -179,9 +179,10 @@ function EmptyItemState({ kind }: { kind: EmptyStateKind }) {
   return (
     <div className="rounded-lg border border-line-subtle bg-surface/40 p-6 text-center">
       <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-400" strokeWidth={1.5} aria-hidden />
-      <p className="text-sm font-medium text-green-400">Nenhuma inconformidade encontrada</p>
+      <p className="text-sm font-medium text-green-400">Nenhum problema detectado nesta passada</p>
       <p className="mt-1 text-xs text-content-subtle">
-        O texto desta cláusula foi analisado e não apresentou problemas jurídicos ou estruturais.
+        A cláusula foi analisada e nenhum problema foi sinalizado — isso não garante
+        ausência de risco (recall não garantido). Em caso de dúvida, peça 2ª opinião.
       </p>
     </div>
   );
