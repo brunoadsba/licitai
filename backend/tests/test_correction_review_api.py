@@ -173,6 +173,41 @@ def test_patch_ajustada_atualiza_texto():
     assert data["review_status"] in SEI_APPLICABLE_STATUSES
 
 
+def test_patch_desfazer_ajustada_restaura_texto():
+    Session, ids = _run(_montar_cenario())
+    ajustada = _run(
+        _patch_review(
+            Session,
+            ids["correction_id"],
+            {
+                "review_status": "ajustada",
+                "suggested_text": "Texto ajustado pelo SEI",
+                "justification": "Fundamentação nova",
+                "review_note": "Ajuste editorial",
+            },
+        )
+    )
+    assert ajustada["status_code"] == 200
+    desfeito = _run(
+        _patch_review(
+            Session,
+            ids["correction_id"],
+            {
+                "review_status": "pendente",
+                "suggested_text": "Texto sugerido",
+                "justification": "Justificativa",
+                "review_note": "",
+            },
+        )
+    )
+    assert desfeito["status_code"] == 200
+    data = desfeito["json"]
+    assert data["review_status"] == "pendente"
+    assert data["suggested_text"] == "Texto sugerido"
+    assert data["justification"] == "Justificativa"
+    assert data["reviewed_at"] is None
+
+
 def test_patch_ajustada_sem_campos_falha():
     Session, ids = _run(_montar_cenario())
     result = _run(

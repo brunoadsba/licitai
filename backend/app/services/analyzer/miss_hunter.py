@@ -16,10 +16,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.services.analyzer.analysis_persistence import persist_item_outcomes
-from app.services.analyzer.analysis_phases import (
-    _run_cross_review,
-    _run_supervisor_rereview,
-)
+from app.services.analyzer.analysis_phases import _run_cross_review
+from app.services.analyzer.supervisor import _run_supervisor_rereview
 from app.services.analyzer.batching import chunk_batches, get_batch_size
 from app.services.analyzer.document_inventory import (
     build_inventory,

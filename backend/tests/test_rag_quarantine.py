@@ -142,7 +142,9 @@ async def test_valid_refs_ignoram_tcu_quarentena():
 
 def test_sanitize_legal_basis_e_parecer():
     assert sanitize_legal_basis("Súmula 247/TCU, parcelamento") is None
+    assert sanitize_legal_basis("Súmula nº 247/TCU") is None
     assert sanitize_legal_basis("Acórdão 1214/2013-TCU-Plenário") is None
+    assert sanitize_legal_basis("Acórdão nº 1214/2013") is None
     assert sanitize_legal_basis("Art. 47 da Lei 14.133/2021") is not None
     parecer = (
         "O item viola a Súmula 247 do TCU. O Art. 47 da Lei 14.133/2021 "

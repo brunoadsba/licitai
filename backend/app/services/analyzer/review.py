@@ -3,11 +3,12 @@ Revisão cruzada das correções geradas pelo LLM (Fase 2.2).
 
 Executa uma segunda passagem sobre as correções de cada item para validar
 consistência: sem inventar lei, sem reduzir competitividade, sem contradizer
-o texto original. Cada correção recebe um status de revisão que fica
-persistido na tabela `corrections`.
+o texto original. A decisão fica em `evidence.machine_review`. O
+`review_status` que libera o SEI só muda no PATCH humano, exceto
+`rejeitada` (fora do SEI e do score).
 
 Fail-closed: status inválido ou índice ausente/fora do intervalo NÃO aprova.
-Achados jurídicos altos sem review válida permanecem `pendente` e fora do score.
+Achados jurídicos altos sem aprovação humana permanecem `pendente` e fora do score.
 """
 
 import logging
@@ -215,15 +216,24 @@ def _is_high_juridical(obj) -> bool:
     )
 
 
+def _stamp_machine_review(obj, status: str, note: str | None) -> None:
+    """Decisão do revisor LLM. Não altera review_status (só o humano libera SEI)."""
+    evidence = dict(getattr(obj, "evidence", None) or {})
+    evidence["machine_review"] = status
+    if note:
+        evidence["machine_note"] = note
+    obj.evidence = evidence
+
+
 def apply_review_decisions(correction_objs: list, decisions: list[dict]) -> list[dict]:
     """
-    Aplica as decisões do revisor nos objetos Correction persistidos.
+    Aplica as decisões do revisor automático nos objetos Correction persistidos.
 
-    - Correções aprovadas/ajustadas permanecem (ajustadas são atualizadas).
-    - Correções rejeitadas ficam marcadas como tal (mantidas no banco para
-      auditoria, mas excluídas do conjunto final de correções válidas).
-    - Correções sem decisão permanecem como "pendente".
-    - Achados jurídicos altos sem review válida ficam `pendente` e fora do score.
+    - `aprovada`/`ajustada` da máquina ficam em evidence.machine_review.
+      review_status permanece `pendente` — só o PATCH humano libera o SEI.
+    - `ajustada` ainda atualiza suggested_text/justification para o humano ver.
+    - `rejeitada` grava review_status e fica fora do score e do SEI.
+    - Jurídico alto sem aprovação humana fica fora do score desta rodada.
 
     Retorna a lista de dicts das correções válidas (para pontuação/benchmark).
     """
@@ -239,24 +249,34 @@ def apply_review_decisions(correction_objs: list, decisions: list[dict]) -> list
             continue
 
         obj = correction_objs[idx]
-        obj.review_status = d["status"]
-        obj.review_note = d["note"] or None
-        obj.reviewed_at = datetime.now(timezone.utc)
+        note = d["note"] or None
+        status = d["status"]
 
-        if d["status"] == "ajustada":
+        if status == "rejeitada":
+            obj.review_status = "rejeitada"
+            obj.review_note = (
+                f"Revisor automático: {note}" if note else "Revisor automático:"
+            )
+            obj.reviewed_at = datetime.now(timezone.utc)
+            continue
+
+        if status == "ajustada":
             if d["adjusted_suggested_text"]:
                 obj.suggested_text = d["adjusted_suggested_text"]
             if d["adjusted_justification"]:
                 obj.justification = d["adjusted_justification"]
 
+        if status in ("aprovada", "ajustada"):
+            _stamp_machine_review(obj, status, note)
+
     kept: list[dict] = []
     for obj in correction_objs:
-        if obj.review_status in ("aprovada", "ajustada"):
-            kept.append(correction_to_dict(obj))
-        elif obj.review_status == "pendente":
-            if _is_high_juridical(obj):
-                # Fora do score/cópia até review válida
-                continue
+        if obj.review_status == "rejeitada":
+            continue
+        if obj.review_status == "pendente" and _is_high_juridical(obj):
+            # Fora do score até aprovação humana
+            continue
+        if obj.review_status in ("aprovada", "ajustada", "pendente"):
             kept.append(correction_to_dict(obj))
     return kept
 

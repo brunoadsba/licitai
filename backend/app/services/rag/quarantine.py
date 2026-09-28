@@ -29,9 +29,10 @@ UNVERIFIED_TCU_LAWS = frozenset(
     }
 )
 
+_NUM = r"(?:n[º°.]?\s*)?"
 _CITATION_RE = re.compile(
-    r"s[úu]mula\s*247|s[úu]mula\s*272|"
-    r"ac[óo]rd[aã]o\s*1214\s*/\s*2013|"
+    rf"s[úu]mula\s*{_NUM}247|s[úu]mula\s*{_NUM}272|"
+    rf"ac[óo]rd[aã]o\s*{_NUM}1214\s*/\s*2013|"
     r"1214\s*/\s*2013\s*[- ]\s*tcu",
     re.IGNORECASE,
 )

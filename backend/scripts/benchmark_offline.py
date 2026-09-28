@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import json
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -27,6 +28,27 @@ from app.models.analysis import Correction  # noqa: E402
 from app.services.analyzer.recall_eval import evaluate_golden  # noqa: E402
 
 OUT = Path(__file__).resolve().parent.parent.parent / "docs" / "ops" / "recall-tr-real-2026-09.md"
+
+_HONEST = (
+    "\n## Leitura honesta\n\n"
+    "Golden v2 (3 TPs humanos 16/09 + 18 tripwires; carimbo dos 17 pendentes\n"
+    "feito em 28/09, 0 aprovar / 17 rejeitar). Recall v1 0,25 (3/12) é harness\n"
+    "arquivado, não medida do v2. Re-medir exige análise no Postgres.\n"
+)
+
+
+def _upsert_report(previous: str, analysis_id: str, section: str, header: str) -> str:
+    """Substitui a seção deste analysis_id. Não acumula rodadas."""
+    if "Recall em TR real" not in previous:
+        previous = header + _HONEST
+    pattern = re.compile(
+        rf"\n## [^\n]*\(`{re.escape(analysis_id)}`\)\n.*?(?=\n## |\Z)",
+        re.DOTALL,
+    )
+    block = "\n" + section.strip() + "\n"
+    if pattern.search(previous):
+        return pattern.sub(block, previous, count=1).rstrip() + "\n"
+    return previous.rstrip() + block
 
 
 async def _load_corrections(db, analysis_id: str) -> list[dict]:
@@ -78,26 +100,25 @@ async def main() -> None:
           f"recall={result['recall']:.2f} ({result['hits']}/{result['total']}) "
           f"fp={result['fp_hits']}/{result['fp_total']} {result['fp_matched']}")
 
+    if not corrections:
+        print("Sem correções: relatório não alterado.")
+        return
+
     header = (
         "# Recall em TR real — 09-ti-pabx-nuvem (28/09/2026)\n\n"
         f"Golden: `{args.golden}` (status: {golden.get('provenance', {}).get('status', '?')})\n"
     )
     section = (
-        f"\n## {label} (`{args.analysis_id}`)\n\n"
+        f"## {label} (`{args.analysis_id}`)\n\n"
         f"- Correções avaliadas: {len(corrections)}\n"
         f"- Recall: **{result['recall']:.2f}** ({result['hits']}/{result['total']})\n"
         f"- FPs conhecidos reincidentes: **{result['fp_hits']}/{result['fp_total']}** {result['fp_matched']}\n"
     )
     previous = OUT.read_text(encoding="utf-8") if OUT.exists() else ""
-    if "Recall em TR real" not in previous:
-        previous = header + (
-            "\n## Leitura honesta\n\n"
-            "Golden v1 (12 TPs + 7 tripwires; vereditos máquina+externa, carimbo\n"
-            "humano pendente). Medir análises que GERARAM esses achados valida o\n"
-            "harness, não o recall — a medida real exige re-run (hunter/pago) +\n"
-            "carimbo humano.\n"
-        )
-    OUT.write_text(previous + section, encoding="utf-8")
+    OUT.write_text(
+        _upsert_report(previous, args.analysis_id, section, header),
+        encoding="utf-8",
+    )
     print(f"Relatório: {OUT}")
 
 

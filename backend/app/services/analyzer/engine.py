@@ -31,8 +31,8 @@ from app.services.analyzer.analysis_phases import (
     _analyze_items_concurrent,
     _retrieve_legal_context,
     _run_cross_review,
-    _run_supervisor_rereview,
 )
+from app.services.analyzer.supervisor import _run_supervisor_rereview
 from app.services.analyzer.grounding import get_valid_legal_refs
 from app.services.analyzer.item_selection import select_items_for_analysis
 from app.services.analyzer.llm_access import (
@@ -205,7 +205,9 @@ async def run_analysis(
 
     # --- Fase 2.3: supervisor v1 — segunda chance para altos pendentes ---
     all_corrections.extend(
-        await _run_supervisor_rereview(db, llm, outcome["pending_reviews"])
+        await _run_supervisor_rereview(
+            db, llm, outcome["pending_reviews"], budget_truncated=budget_truncated
+        )
     )
 
     # --- Fase 2.4: miss-hunter — 2ª passada nos itens "ok" (opt-in) ---

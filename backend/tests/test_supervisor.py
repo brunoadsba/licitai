@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 from app.config import settings
-from app.services.analyzer.analysis_phases import _run_supervisor_rereview
+from app.services.analyzer.supervisor import _run_supervisor_rereview
 from app.services.llm.provider import LLMProvider
 
 
@@ -29,6 +29,7 @@ def _obj(number="9.1", severity="alto", status="pendente"):
         review_status=status,
         review_note=None,
         reviewed_at=None,
+        evidence=None,
     )
 
 
@@ -67,16 +68,18 @@ def _db():
     return SimpleNamespace(flush=AsyncMock())
 
 
-def test_vira_alto_pendente_em_aprovada(monkeypatch):
+def test_alto_pendente_nao_vira_aprovada_humana(monkeypatch):
     monkeypatch.setattr(settings, "supervisor_rereview_high", True)
     monkeypatch.setattr(settings, "analysis_batch_size", 1)
     llm, db = ReFake(), _db()
     alto, baixo = _obj("9.1", "alto"), _obj("9.2", "baixo")
     pending = [(_item("9.1"), "ctx", [alto]), (_item("9.2"), "ctx", [baixo])]
     flipped = asyncio.run(_run_supervisor_rereview(db, llm, pending))
-    assert alto.review_status == "aprovada"
+    assert alto.review_status == "pendente"
+    assert alto.evidence["machine_review"] == "aprovada"
     assert baixo.review_status == "pendente"
-    assert len(flipped) == 1
+    # Jurídico alto sem PATCH humano fica fora do score.
+    assert flipped == []
     assert len(llm.calls) == 1
     db.flush.assert_awaited()
 
@@ -99,6 +102,17 @@ def test_falha_mantem_pendente(monkeypatch):
     out = asyncio.run(_run_supervisor_rereview(
         db, llm, [(_item("9.1"), "ctx", [alto])]))
     assert out == []
+    assert alto.review_status == "pendente"
+
+
+def test_budget_truncado_pula(monkeypatch):
+    monkeypatch.setattr(settings, "supervisor_rereview_high", True)
+    llm, db = ReFake(), _db()
+    alto = _obj("9.1", "alto")
+    out = asyncio.run(_run_supervisor_rereview(
+        db, llm, [(_item("9.1"), "ctx", [alto])], budget_truncated=True))
+    assert out == []
+    assert llm.calls == []
     assert alto.review_status == "pendente"
 
 

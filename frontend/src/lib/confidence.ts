@@ -26,17 +26,17 @@ export function formatDateBR(iso: string): string {
 export const CONFIDENCE_BLOCKS: ConfidenceBlock[] = [
   {
     label: 'Precisão (não inventa problema)',
-    value: 'Ainda não medida neste golden — carimbo humano pendente',
+    value: 'Ainda não medida no golden v2',
     source: 'docs/ops/recall-tr-real-2026-09.md (sem rota pública — ver no repo)',
     lastUpdated: CONFIDENCE_UPDATED,
     status: 'ausente',
   },
   {
     label: 'Recall em TR real (não deixa passar)',
-    value: '0,25 (3/12) — validação do harness, não medida final',
+    value: 'Não medido — Postgres do piloto com zero análises em 28/09',
     source: 'docs/ops/recall-tr-real-2026-09.md (sem rota pública — ver no repo)',
     lastUpdated: CONFIDENCE_UPDATED,
-    status: 'harness',
+    status: 'ausente',
   },
   {
     label: 'Limites conhecidos',
@@ -47,14 +47,14 @@ export const CONFIDENCE_BLOCKS: ConfidenceBlock[] = [
   },
   {
     label: 'Cobertura de testes',
-    value: '435 backend · 41 frontend — suíte verde em 28/09/2026',
+    value: '435 backend · 47 frontend — suíte verde em 28/09/2026',
     source: 'npm run test + pytest',
     lastUpdated: CONFIDENCE_UPDATED,
     status: 'medido',
   },
   {
     label: 'Histórico de medição',
-    value: 'Golden v1 (12 TPs + 7 FPs); sintético Groq R 0,56 — não usar como precisão atual',
+    value: 'Golden v2 (3 TPs + 18 tripwires; 17 pendentes rejeitados 0/17). Harness v1: recall 0,25 (3/12). Sintético Groq R 0,56 — não usar como precisão atual',
     source: 'e2e/golden/real/tr_pabx.json',
     lastUpdated: CONFIDENCE_UPDATED,
     status: 'harness',

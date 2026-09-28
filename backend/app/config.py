@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     # True só em development: permite nuvem também para sigiloso/NULL.
     # Fora de development o boot falha. Público/interno usam nuvem mesmo com False.
     llm_allow_cloud: bool = False
+    # Segundo flag. Só os dois juntos, em development, mandam sigiloso à nuvem.
+    llm_dev_cloud_override: bool = False
 
     # --- Groq ---
     groq_api_key: str = ""
@@ -50,8 +52,8 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-flash-latest"
 
     # --- Ollama ---
-    ollama_base_url: str = "http://ollama:11434"
-    ollama_model: str = "qwen3:32b"
+    ollama_base_url: str = "http://host.docker.internal:11434"
+    ollama_model: str = "qwen3:8b"
 
     # --- Mistral La Plateforme (free; OpenAI-compatível) ---
     mistral_api_key: str = ""

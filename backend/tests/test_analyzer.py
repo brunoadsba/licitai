@@ -118,6 +118,7 @@ class CorrectionFake:
         self.review_status = "pendente"
         self.review_note = None
         self.reviewed_at = None
+        self.evidence = None
 
 
 def test_review_aprova_e_rejeita():
@@ -138,9 +139,12 @@ def test_review_aprova_e_rejeita():
     mantidas = apply_review_decisions(objs, decisoes)
 
     assert len(mantidas) == 1
-    assert objs[0].review_status == "aprovada"
+    assert objs[0].review_status == "pendente"
+    assert objs[0].reviewed_at is None
+    assert objs[0].evidence["machine_review"] == "aprovada"
+    assert objs[0].evidence["machine_note"] == "ok"
     assert objs[1].review_status == "rejeitada"
-    assert objs[1].review_note == "inventa lei"
+    assert objs[1].review_note == "Revisor automático: inventa lei"
     assert objs[1].reviewed_at is not None
 
 
@@ -162,7 +166,9 @@ def test_review_ajustada_atualiza_texto_sugerido():
     mantidas = apply_review_decisions(objs, decisoes)
 
     assert len(mantidas) == 1
-    assert objs[0].review_status == "ajustada"
+    assert objs[0].review_status == "pendente"
+    assert objs[0].reviewed_at is None
+    assert objs[0].evidence["machine_review"] == "ajustada"
     assert objs[0].suggested_text == "Novo texto sugerido"
     assert objs[0].justification == "Nova fundamentação"
 
@@ -212,8 +218,8 @@ def test_review_decisao_status_invalido_nao_aprova():
     assert mantidas == []
 
 
-def test_review_data_utc_marcada_apos_decisao():
-    """reviewed_at é preenchido somente quando há decisão."""
+def test_review_aprovacao_maquina_nao_marca_reviewed_at():
+    """Aprovação da máquina não preenche reviewed_at (isso é do PATCH humano)."""
     llm = RevisorDecisoes([{"correction_index": 0, "status": "aprovada", "note": ""}])
     item = FakeItem()
 
@@ -221,9 +227,23 @@ def test_review_data_utc_marcada_apos_decisao():
     objs = [CorrectionFake()]
     apply_review_decisions(objs, decisoes)
 
-    assert objs[0].reviewed_at is not None
-    assert objs[0].reviewed_at.tzinfo is not None
-    assert abs((datetime.now(timezone.utc) - objs[0].reviewed_at).total_seconds()) < 60
+    assert objs[0].review_status == "pendente"
+    assert objs[0].reviewed_at is None
+    assert objs[0].evidence["machine_review"] == "aprovada"
+
+
+def test_machine_review_aprovada_nao_entra_no_sei():
+    """evidence.machine_review não libera cópia SEI enquanto status é pendente."""
+    from types import SimpleNamespace
+
+    from app.api.analysis_filters import _filter_corrections
+
+    correction = SimpleNamespace(
+        review_status="pendente",
+        severity="alto",
+        evidence={"machine_review": "aprovada"},
+    )
+    assert _filter_corrections([correction], for_sei=True) == []
 
 
 def asyncio_run(coro):
