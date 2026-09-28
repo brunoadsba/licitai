@@ -85,6 +85,8 @@ Modo padrão do piloto: **economic** (jurídico + Art. 6). Orçamento: `ANALYSIS
 
 Miss-hunter (2ª passada nos itens "ok", 28/09): default **desligado** no Compose. Ligar só com cota folgada ou fallback pago — cada alvo custa ~1 call/lote **fora** do orçamento acima, e a fase pula sozinha se o orçamento estourou. `MISS_HUNTER_ENABLED=true` + `MISS_HUNTER_MAX_ITEMS=10` no `.env`, restart do worker.
 
+Cota TPM apertada (Groq 413 "Limit 8000"): o lote grande estoura o teto por request. Alavanca grátis — **baixar `ANALYSIS_BATCH_SIZE` para 1–2** (requests menores cabem no TPM; paga-se com mais chamadas). Lote 5 só com folga de cota. Teste ao vivo dessa troca fica p/ o reset da cota (28/09, Groq TPM + Gemini 503 travaram o run).
+
 ## Qualidade e gate 14 dias
 
 - [piloto-qualidade.md](piloto-qualidade.md) — rotina quinzenal (Art. 6 + sessão ouro LLM em [quinzena-2026-09-14.md](quinzena-2026-09-14.md))
