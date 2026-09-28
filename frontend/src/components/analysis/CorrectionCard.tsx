@@ -62,6 +62,9 @@ export default function CorrectionCard({
     reviewStatus === 'pendente' && hasPlaceholderText(correction.suggested_text);
   const claim = correction.claim_support;
   const claimFull = claim != null && claim.total > 0 && claim.supported >= claim.total;
+  const ev = correction.evidence;
+  const grounded = ev?.grounded;
+  const legalValid = ev?.legal_valid;
 
   useEffect(() => {
     if (!analysisId || reviewStatus !== 'pendente') return;
@@ -97,6 +100,34 @@ export default function CorrectionCard({
           <Badge tone={claimFull ? 'low' : 'medium'}>
             {claim.supported}/{claim.total} afirmações ancoradas
           </Badge>
+        )}
+        {ev == null ? (
+          <Badge tone="neutral" title="Esta análise não registrou evidência porque o achado é anterior ao rastro DE→PARA">
+            evidência não registrada — por quê?
+          </Badge>
+        ) : (
+          <>
+            <Badge
+              tone={grounded == null ? 'neutral' : grounded ? 'low' : 'medium'}
+              title={grounded == null ? 'Análise sem verificação de trecho' : undefined}
+            >
+              {grounded == null
+                ? 'trecho não verificado — por quê?'
+                : grounded
+                  ? 'trecho confirmado no TR'
+                  : 'trecho não confirmado'}
+            </Badge>
+            <Badge
+              tone={legalValid == null ? 'neutral' : legalValid ? 'low' : 'medium'}
+              title={legalValid == null ? 'Análise sem validação da base no corpus' : undefined}
+            >
+              {legalValid == null
+                ? 'base não validada — por quê?'
+                : legalValid
+                  ? 'base legal válida'
+                  : 'base legal não validada'}
+            </Badge>
+          </>
         )}
       </div>
 

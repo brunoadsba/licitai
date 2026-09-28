@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { FileText } from 'lucide-react';
-import { getReport } from '@/lib/api';
+import { getAnalysis, getReport } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import AlertBanner from '@/components/ui/AlertBanner';
 import { Button } from '@/components/ui/Button';
@@ -27,6 +27,12 @@ export default function ReportPage() {
   const analysisId = params.id as string;
 
   const [report, setReport] = useState<ReportResponse | null>(null);
+  const [coverage, setCoverage] = useState<{
+    analyzed: number;
+    total: number;
+    status: string | null;
+    budgetTruncated: boolean;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +41,17 @@ export default function ReportPage() {
       try {
         const data = await getReport(analysisId);
         setReport(data);
+        try {
+          const detail = await getAnalysis(analysisId);
+          setCoverage({
+            analyzed: detail.analyzed_items,
+            total: detail.total_items,
+            status: detail.status,
+            budgetTruncated: detail.budget_truncated === true,
+          });
+        } catch {
+          setCoverage(null);
+        }
       } catch {
         setError('Erro ao carregar relatório.');
       } finally {
@@ -90,11 +107,23 @@ export default function ReportPage() {
   return (
     <div className="print-root animate-fade-in space-y-8">
       <ReportHeader documentId={report.document_id} documentName={report.document_name} />
-      <ReportScores report={report} />
+      <ReportScores
+        report={report}
+        analyzedItems={coverage?.analyzed}
+        totalItems={coverage?.total}
+        analysisStatus={coverage?.status}
+        budgetTruncated={coverage?.budgetTruncated}
+      />
       <ReportSummaryCards report={report} />
       <ReportDistributions report={report} />
 
-      {report.final_opinion && <ReportOpinion opinion={report.final_opinion} />}
+      {report.final_opinion && (
+        <ReportOpinion
+          opinion={report.final_opinion}
+          analyzedItems={coverage?.analyzed}
+          totalItems={coverage?.total}
+        />
+      )}
 
       <ReportArt6 report={report} />
 

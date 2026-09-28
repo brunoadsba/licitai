@@ -1,8 +1,10 @@
 'use client';
 
 import ScoreGauge from '@/components/report/ScoreGauge';
+import { calibrationFor } from '@/lib/calibration';
 import { RISK_LABELS } from '@/types';
 import type { ReportResponse } from '@/types';
+import Link from 'next/link';
 
 function getRiskColor(risk: string | null) {
   const colors: Record<string, string> = {
@@ -15,7 +17,19 @@ function getRiskColor(risk: string | null) {
 }
 
 /** Gauges de pontuação + frase-resumo — extraído de `app/report/[id]/page.tsx`. */
-export default function ReportScores({ report }: { report: ReportResponse }) {
+export default function ReportScores({
+  report,
+  analyzedItems,
+  totalItems,
+  analysisStatus,
+  budgetTruncated,
+}: {
+  report: ReportResponse;
+  analyzedItems?: number | null;
+  totalItems?: number | null;
+  analysisStatus?: string | null;
+  budgetTruncated?: boolean | null;
+}) {
   const overallScore = report.scores.find((s) => s.label === 'Nota Geral') ?? report.scores[0] ?? null;
   const criticalCount = report.corrections_by_severity?.critico ?? 0;
   const highCount = report.corrections_by_severity?.alto ?? 0;
@@ -33,9 +47,26 @@ export default function ReportScores({ report }: { report: ReportResponse }) {
       ? ' e nenhuma recomendação pendente'
       : ` e ${totalCorrections} ${totalCorrections === 1 ? 'recomendação no total' : 'recomendações no total'}`;
 
+  const calibration = calibrationFor(analyzedItems, totalItems);
+  const errored = analysisStatus === 'completed_with_errors' || analysisStatus === 'error';
+  const shown: 'direta' | 'faixa' | 'parcial-sem-cobertura' =
+    calibration.kind === 'direta' && (errored || budgetTruncated)
+      ? analyzedItems != null && totalItems != null && totalItems > 0
+        ? 'faixa'
+        : 'parcial-sem-cobertura'
+      : calibration.kind;
+
   return (
     <div className="rounded-lg border border-line-subtle bg-surface/40 p-6 sm:p-8">
       <h2 className="mb-6 text-lg font-semibold tracking-tight text-content-primary">Pontuação</h2>
+      {shown !== 'direta' && (
+        <p className="mb-4 rounded-md border border-amber-700/40 bg-amber-50 px-3 py-2 text-center text-xs font-medium text-amber-950 [break-inside:avoid] dark:border-amber-500/40 dark:bg-amber-500/10 dark:font-normal dark:text-amber-200">
+          {shown === 'faixa' && analyzedItems != null && totalItems != null
+            ? `Análise parcial: ${analyzedItems.toLocaleString('pt-BR')} de ${totalItems.toLocaleString('pt-BR')} itens verificados — a nota abaixo vale só para a cobertura analisada. `
+            : 'Cobertura da análise indisponível — trate a nota com cautela. '}
+          <Link href="/confianca" className="underline">Entenda os limites</Link>
+        </p>
+      )}
       <div className="flex flex-wrap items-center justify-around gap-6">
         {report.scores.map((score) => (
           <ScoreGauge key={score.label} score={score.score} label={score.label} />
@@ -49,7 +80,9 @@ export default function ReportScores({ report }: { report: ReportResponse }) {
           <span className="text-content-muted">
             {' — '}
             {report.risk_level ? RISK_LABELS[report.risk_level].toLowerCase() : 'sem classificação de risco'}
-            {severidade}
+            {shown === 'faixa' && analyzedItems != null && totalItems != null
+              ? ` · ${analyzedItems.toLocaleString('pt-BR')} de ${totalItems.toLocaleString('pt-BR')} itens${severidade}`
+              : severidade}
             {recomendacoes}
           </span>
           {report.tokens_estimated && (
