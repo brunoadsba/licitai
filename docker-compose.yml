@@ -203,6 +203,9 @@ services:
       NEXT_PUBLIC_API_URL: ""
       # Token apenas server-side (BFF). Nunca NEXT_PUBLIC_API_TOKEN.
       API_TOKEN: ${API_TOKEN:?Defina API_TOKEN no .env}
+      # Origens extras p/ o BFF (ex.: chrome-extension://<id> da extensão SEI).
+      # Vazio = só mesma origem.
+      BFF_ALLOWED_ORIGINS: ${BFF_ALLOWED_ORIGINS:-}
     ports:
       - "127.0.0.1:3000:3000"
     healthcheck:

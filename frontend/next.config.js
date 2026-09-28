@@ -40,16 +40,12 @@ const nextConfig = {
       },
     ];
   },
-  // Proxy legado (/api/v1) coexiste com BFF Route Handler em /api/proxy/*
+  // BFF Route Handler em /api/proxy/* (com token); health pública sem token.
   async rewrites() {
     return [
       {
         source: '/favicon.ico',
         destination: '/logo-codeba.png',
-      },
-      {
-        source: '/api/v1/:path*',
-        destination: `${BACKEND_URL}/api/v1/:path*`,
       },
       {
         source: '/health',
