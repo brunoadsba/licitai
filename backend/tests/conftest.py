@@ -8,9 +8,31 @@ nem de variáveis já exportadas no shell.
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 import pytest
+import sqlalchemy.ext.asyncio as _sa_async
+
+_TRACKED_ENGINES: list = []
+_real_create_async_engine = _sa_async.create_async_engine
+
+
+def _tracking_create_async_engine(*args, **kwargs):
+    engine = _real_create_async_engine(*args, **kwargs)
+    _TRACKED_ENGINES.append(engine)
+    return engine
+
+
+_sa_async.create_async_engine = _tracking_create_async_engine
+
+
+@pytest.fixture(autouse=True)
+def _dispose_tracked_engines():
+    yield
+    for engine in _TRACKED_ENGINES:
+        asyncio.run(engine.dispose())
+    _TRACKED_ENGINES.clear()
 
 # Sempre sobrescrever: `setdefault` falha se o shell já exportou DATABASE_URL.
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
