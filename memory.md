@@ -38,7 +38,8 @@ embeddings) + revisão cruzada fail-closed + supervisor determinístico
 ## 3. Estado atual (28/09/2026)
 
 - Branch: só `main` (== `origin/main`); feature branches apagadas após merge.
-- Suíte backend **435 passed** · `tsc --noEmit` limpo · `ruff check` limpo
+- Suíte backend **435 passed** · frontend **38 testes Vitest**
+  (`npm run test`, libs puras) · `tsc --noEmit` limpo · `ruff check` limpo
   (format não é gate). Schema esperado: `20260924_004`.
 - Fase 4 (28/09, `chore/higiene-memory`): worktree `.kilo` removida,
   caches limpos, `.kilo/` no `.gitignore`, `licitacao.db` mantido (default dev),
@@ -66,6 +67,10 @@ embeddings) + revisão cruzada fail-closed + supervisor determinístico
 - Jobs PABX de referência: `8cdafd60` (batch5, completed, nota 9.3),
   `f9648727` (parcial 186/257). Gate 14 dias: janela fechou 28/09 —
   decisão Go/No-Go com o Bruno.
+- Spike PNCP (28/09, `feat/fetch-pncp-trs`, sem commit): baixa TRs públicos
+  da CODEBA sem token (`services/pncp/client.py` + `scripts/fetch_pncp_trs.py`,
+  dry-run default, 6 testes mock); PDFs em `fixtures/trs-codeba/pendente/pncp/`
+  ([docs/ops/fetch-pncp-trs.md](docs/ops/fetch-pncp-trs.md)).
 
 ## 4. Como executar
 
@@ -89,8 +94,8 @@ E2E_LIVE=1 E2E_BASE_URL=http://127.0.0.1:3000 npx playwright test e2e/bff-origin
   quarentena); visto jurídico da amostra.
 - Código: teste ao vivo do batch 1–2 no reset da cota; upload-tr full
   happy-path (redirect ok, conclusão travou na cota 28/09); bumps
-  `starlette`/`multipart`/`pdfminer` em branch própria; Vitest p/ libs puras
-  (baixa prioridade); `AnthropicProvider` só se Fase 3 mandar.
+  `starlette`/`multipart`/`pdfminer` em branch própria; `AnthropicProvider`
+  só se Fase 3 mandar.
 - Operação: backup drill; `licitacao.db` da raiz é o default dev
   (`config.py:32`, gitignored) — manter.
 
