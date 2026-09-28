@@ -68,3 +68,6 @@ output/
 
 # Backups operacionais (dumps/tars)
 backups/
+
+# Kilo worktrees locais (4.6MB detached, removido 28/09)
+.kilo/
