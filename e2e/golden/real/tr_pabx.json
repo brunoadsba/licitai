@@ -1,0 +1,18 @@
+{
+  "id": "tr_pabx_real",
+  "descricao": "DRAFT 28/09/2026 — 09-ti-pabx-nuvem. Anotação parcial a partir dos vereditos humanos já no banco (revisão Bruno 16/09): 3 TPs (aprovada/ajustada) + 7 FPs conhecidos (rejeitada). Sem texto do TR, só descritores — seguro p/ Git. FALTAM os 17 pendentes (inclui DDR alínea 'e', o alto que mais importa). Golden completo exige anotação humana dedicada.",
+  "provenance": {
+    "analyses": ["8cdafd60-3720-401d-b090-efc83c154af5", "290c7061-c24d-4131-bf66-9f9a7b7ecbfc", "c35af754-f5dc-4d28-bcd3-fd27afb48895"],
+    "reviewed_by": "Bruno (UI, 16/09/2026)",
+    "status": "draft"
+  },
+  "expected_findings": [
+    {"item_number": "3.1.1", "category": "estrutural", "severity": "baixo", "keyword": "truncado", "note": "título truncado, não corresponde ao conteúdo (ajustada)"},
+    {"item_number": "3.1.2", "category": "estrutural", "severity": "baixo", "keyword": "incompleto", "note": "título incompleto termina em 'e' (aprovada)"},
+    {"item_number": "3.1.4", "category": "estrutural", "severity": "baixo", "keyword": "abruptamente", "note": "título termina em 'da' (aprovada)"}
+  ],
+  "known_fps": [
+    {"keyword": "Um ou mais agentes falharam", "note": "6x ruído operacional (cobertura) — gate OPS já barra por desenho; tripwire de regressão"},
+    {"item_number": "4.9.2", "keyword": "obrigação genérica de observância", "note": "FP jurídico rejeitado: obrigação genérica LGPD sem defeito local"}
+  ]
+}
