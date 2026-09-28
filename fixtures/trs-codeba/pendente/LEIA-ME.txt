@@ -1,1 +1,3 @@
 Meta de 10+ objetos atingida (12). Use esta pasta só para candidatos ainda não classificados.
+
+`pncp/`: TRs/PBs públicos baixados do PNCP (`scripts/fetch_pncp_trs.py`, ver `docs/ops/fetch-pncp-trs.md`). PDFs gitignored; triagem humana move úteis p/ `objetos/`.
