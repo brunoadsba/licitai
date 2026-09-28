@@ -38,9 +38,15 @@ embeddings) + revisão cruzada fail-closed + supervisor determinístico
 ## 3. Estado atual (28/09/2026)
 
 - Branch: só `main` (== `origin/main`); feature branches apagadas após merge.
-- Suíte backend **435 passed** · frontend **38 testes Vitest**
+- Suíte backend **435 passed** · frontend **47 testes Vitest**
   (`npm run test`, libs puras) · `tsc --noEmit` limpo · `ruff check` limpo
   (format não é gate). Schema esperado: `20260924_004`.
+- UX-Confiança (28/09, `feat/ux-confianca`, sem commit): página `/confianca`
+  (números com fonte + staleness), nota calibrada por cobertura (<95% = faixa)
+  em `ReportScores`, retomada da fila por id, chips de evidência, teclado
+  (a/r/j/n/?) + undo inline, microcopy sem absolutos. QA externo (Grok,
+  REPROVADO→16 correções aplicadas: amber claro, undo, foco, chips, números).
+  E2E novos verdes (confianca, report-band, guided-keys).
 - Fase 4 (28/09, `chore/higiene-memory`): worktree `.kilo` removida,
   caches limpos, `.kilo/` no `.gitignore`, `licitacao.db` mantido (default dev),
   memory consolidado (690→~100 linhas, histórico em
