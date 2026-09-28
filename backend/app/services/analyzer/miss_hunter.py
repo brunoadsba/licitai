@@ -152,7 +152,12 @@ async def _run_miss_hunter(
     finally:
         merged = dict(analysis.run_snapshot or {})
         for k in _SNAPSHOT_KEYS:
-            merged[k] = saved_snapshot[k] + list(merged.get(k) or [])
+            seen: set = set()
+            merged[k] = [
+                x
+                for x in (saved_snapshot[k] + list(merged.get(k) or []))
+                if not (x in seen or seen.add(x))
+            ]
         analysis.run_snapshot = merged
         analysis.analyzed_items = saved_analyzed
         await db.flush()

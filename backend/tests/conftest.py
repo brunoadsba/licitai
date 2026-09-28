@@ -26,6 +26,10 @@ for _key in ("GROQ_API_KEY", "GEMINI_API_KEY", "MISTRAL_API_KEY",
 # Lote 1 = fluxo unitário: .env local com ANALYSIS_BATCH_SIZE>1 (bulk) não
 # pode mudar o comportamento coberto pela suíte (testes de lote usam monkeypatch).
 os.environ["ANALYSIS_BATCH_SIZE"] = "1"
+# Hunter desligado = fluxo padrão: .env local com MISS_HUNTER_ENABLED=true não
+# pode injetar 2ª passada nos testes de engine/persistência.
+os.environ["MISS_HUNTER_ENABLED"] = "false"
+os.environ["MISS_HUNTER_MAX_ITEMS"] = "10"
 os.environ.setdefault("APP_ENV", "development")
 os.environ.setdefault("CHAT_FORCE_FAKE_PROVIDER", "true")
 

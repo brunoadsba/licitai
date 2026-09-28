@@ -83,6 +83,8 @@ Evite aliases `*-latest` em produção sem smoke. Defaults atuais no Compose:
 
 Modo padrão do piloto: **economic** (jurídico + Art. 6). Orçamento: `ANALYSIS_MAX_LLM_CALLS` (Compose/piloto free tier default **24** ≈ 12 itens no economic; `0` = ilimitado — evita estourar TPM em TRs com 100+ itens).
 
+Miss-hunter (2ª passada nos itens "ok", 28/09): default **desligado** no Compose. Ligar só com cota folgada ou fallback pago — cada alvo custa ~1 call/lote **fora** do orçamento acima, e a fase pula sozinha se o orçamento estourou. `MISS_HUNTER_ENABLED=true` + `MISS_HUNTER_MAX_ITEMS=10` no `.env`, restart do worker.
+
 ## Qualidade e gate 14 dias
 
 - [piloto-qualidade.md](piloto-qualidade.md) — rotina quinzenal (Art. 6 + sessão ouro LLM em [quinzena-2026-09-14.md](quinzena-2026-09-14.md))
