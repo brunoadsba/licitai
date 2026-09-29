@@ -13,16 +13,26 @@ interface SuggestionChipsProps {
   onSelect: (text: string) => void;
   disabled?: boolean;
   className?: string;
+  /** Não repete a pergunta que o usuário acabou de fazer. */
+  exclude?: string | null;
+}
+
+export function suggestionsToShow(exclude?: string | null): readonly string[] {
+  const asked = (exclude || '').trim().toLowerCase();
+  const rest = CHAT_SUGGESTIONS.filter((text) => text.toLowerCase() !== asked);
+  return rest.length > 0 ? rest : CHAT_SUGGESTIONS;
 }
 
 export default function SuggestionChips({
   onSelect,
   disabled,
   className,
+  exclude,
 }: SuggestionChipsProps) {
+  const options = suggestionsToShow(exclude);
   return (
     <div className={cn('flex flex-wrap gap-2', className)} role="group" aria-label="Sugestões de pergunta">
-      {CHAT_SUGGESTIONS.map((text) => (
+      {options.map((text) => (
         <button
           key={text}
           type="button"
@@ -52,6 +62,7 @@ export function shouldShowSuggestions(content: string, grounded: boolean, hasSou
     lower.includes('posso ajudar') ||
     lower.includes('reformule') ||
     lower.includes('sugestões') ||
-    lower.includes('não encontrei fontes')
+    lower.includes('não encontrei fontes') ||
+    lower.includes('como confiamos')
   );
 }

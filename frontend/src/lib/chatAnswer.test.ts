@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { shouldShowSuggestions, suggestionsToShow } from '@/components/chat/SuggestionChips';
 import { looksLikeId, parseAnswerBlocks, sanitizeChatAnswer } from './chatAnswer';
 
 describe('sanitizeChatAnswer', () => {
@@ -43,5 +44,19 @@ describe('looksLikeId', () => {
     expect(looksLikeId('Art. 6º da Lei')).toBe(false);
     expect(looksLikeId(null)).toBe(false);
     expect(looksLikeId(undefined)).toBe(false);
+  });
+});
+
+describe('sugestões do copiloto', () => {
+  it('não repete a pergunta que acabou de ser feita', () => {
+    const chips = suggestionsToShow('Há risco jurídico no objeto da contratação?');
+    expect(chips).not.toContain('Há risco jurídico no objeto da contratação?');
+    expect(chips.length).toBeGreaterThan(0);
+  });
+
+  it('mostra sugestão depois da resposta sobre limites', () => {
+    expect(
+      shouldShowSuggestions('Os limites estão na página Como confiamos.', false, false),
+    ).toBe(true);
   });
 });

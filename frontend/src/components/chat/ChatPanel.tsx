@@ -77,6 +77,7 @@ export default function ChatPanel({
   const chatError = error && !loading ? getErrorMessage(error, 'chat') : null;
   const isSheet = variant === 'sheet';
   const lastAssistant = [...messages].reverse().find((m) => m.role === 'assistant');
+  const lastUser = [...messages].reverse().find((m) => m.role === 'user');
   const showChipsAfterReply =
     !!lastAssistant &&
     shouldShowSuggestions(
@@ -169,7 +170,11 @@ export default function ChatPanel({
                 />
               ))}
               {showChipsAfterReply && !sending && (
-                <SuggestionChips onSelect={handleChip} disabled={sending} />
+                <SuggestionChips
+                  onSelect={handleChip}
+                  disabled={sending}
+                  exclude={lastUser?.content}
+                />
               )}
             </>
           )}

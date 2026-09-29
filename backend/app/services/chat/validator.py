@@ -17,6 +17,7 @@ from app.schemas.chat import ChatCitation
 from app.services.chat.answer_sanitize import sanitize_answer
 from app.services.chat.warnings_pt import (
     REFUSAL_MESSAGE,
+    is_soft_ungrounded,
     normalize_reason,
     refusal_content_pt,
     warning_message_pt,
@@ -195,11 +196,11 @@ def validate_llm_answer(
     grounded = bool(dados.get("grounded", False)) and bool(citations)
     confidence = _normalizar_confidence(dados.get("confidence"))
 
-    # Saudação / redirecionamento: LLM marca grounded=false sem citações
+    # Saudação ou convite curto. Afirmação sobre o TR sem citação recusa.
     allow_ungrounded = (
         dados.get("grounded") is False
         and not citations
-        and len(answer.strip()) <= 600
+        and is_soft_ungrounded(answer)
     )
 
     if require_grounding and not citations and not allow_ungrounded:
