@@ -161,7 +161,17 @@ async def _correction_sources(
             source_id=f"correction:{c.id}",
             reference=f"Correção · {c.category} · {c.severity}",
             title=c.problem,
-            snippet=_snippet(c.suggested_text or c.justification),
+            snippet=_snippet(
+                " ".join(
+                    parte
+                    for parte in (
+                        c.risk,
+                        f"Fundamento: {c.legal_basis}" if c.legal_basis else "",
+                        c.suggested_text or c.justification,
+                    )
+                    if parte
+                )
+            ),
         )
         for c in corrections
         if not _is_operational_correction(c)
@@ -200,18 +210,6 @@ async def _document_item_sources(
     ]
 
 
-def _dedupe(fontes: list[ChatCitation]) -> list[ChatCitation]:
-    vistos: set[str] = set()
-    resultado: list[ChatCitation] = []
-    for f in fontes:
-        chave = f.source_id or f"{f.type}:{f.reference}"
-        if chave in vistos:
-            continue
-        vistos.add(chave)
-        resultado.append(f)
-    return resultado
-
-
 def source_ids_from(fontes: list[ChatCitation]) -> set[str]:
     """Conjunto imutável de IDs fornecidos nesta chamada."""
     return {f.source_id for f in fontes if f.source_id}
@@ -247,25 +245,42 @@ async def build_sources(
         allow_llm_rerank=allow_llm_rerank,
         classification=classif,
     )
-    fontes.extend(legais)
 
     analysis_id = context.get("analysis_id") or context.get("analysisId")
     document_id = context.get("document_id") or context.get("documentId")
     item_number = context.get("item_number")
 
+    analysis: list[ChatCitation] = []
+    corrections: list[ChatCitation] = []
     if analysis_id:
-        fontes.extend(await _analysis_sources(db, str(analysis_id)))
-        fontes.extend(
-            await _correction_sources(
-                db, str(analysis_id), settings.chat_max_sources_stored
-            )
-        )
+        analysis = await _analysis_sources(db, str(analysis_id))
+        corrections = await _correction_sources(db, str(analysis_id), limit=40)
 
+    items: list[ChatCitation] = []
     if document_id:
-        fontes.extend(
-            await _document_item_sources(
-                db, str(document_id), str(item_number) if item_number else None
-            )
-        )
+        from app.services.chat.document_hits import matching_document_items
 
-    return _dedupe(fontes)[: settings.chat_max_sources_stored], retrieval_run_id
+        items = await matching_document_items(
+            db,
+            str(document_id),
+            query,
+            str(item_number) if item_number else None,
+        )
+        if item_number and not any(
+            f.source_id and f.source_id.endswith(f":item:{item_number}") for f in items
+        ):
+            items.extend(
+                await _document_item_sources(db, str(document_id), str(item_number))
+            )
+
+    from app.services.chat.relevance import compose_sources
+
+    fontes = compose_sources(
+        query,
+        legais,
+        analysis,
+        corrections,
+        items,
+        settings.chat_max_sources_stored,
+    )
+    return fontes, retrieval_run_id

@@ -16,7 +16,8 @@ especializados (jurídico, técnico, redação, estrutural) + orquestrador
 (`asyncio.gather`, dedup, `agent_origin`) + RAG híbrido (FTS Postgres AND/OR +
 embeddings) + revisão cruzada fail-closed + supervisor determinístico
 (evidence_gate OPS→NIT→G1→G3→G2→G4) + miss-hunter opt-in (2ª passada nos itens
-"ok"). Jobs duráveis no Postgres + worker asyncio (`python -m app.worker`).
+"ok") + copiloto consultivo (dossiê do TR quando o modelo recusa). Jobs
+duráveis no Postgres + worker asyncio (`python -m app.worker`).
 
 ## 2. Regras invioláveis
 
@@ -37,14 +38,22 @@ embeddings) + revisão cruzada fail-closed + supervisor determinístico
   (323), `analysis_persistence.py` (315),
   `useAnalysisPage.ts` (312), `api/documents.py` (311).
 
-## 3. Estado atual (28/09/2026)
+## 3. Estado atual (29/09/2026)
 
-- Branch: `main` (== `origin/main`) após o merge de `fix/auditoria-sei-humano`.
-  Spike `feat/fetch-pncp-trs` segue sem merge.
-- Suíte: última completa **435** backend · **47** Vitest; fatia da auditoria
-  (analyzer, revisão, quarentena, parser, privacidade, supervisor, engine,
-  miss-hunter) verde em 28/09 · `tsc --noEmit` limpo · `ruff check` limpo
-  (format não é gate). Schema esperado: `20260924_004`.
+- Branch: `main` após merge de `feat/chat-dossie-copiloto`. Spike
+  `feat/fetch-pncp-trs` segue sem merge (commit `240b1bc` no remoto).
+- Suíte: última completa **447** backend · **49** Vitest (29/09) ·
+  `tsc --noEmit` limpo. Schema esperado: `20260924_004`.
+- Copiloto dossiê (29/09): `compose_sources` reserva item/correção/parecer;
+  recusa, falha de LLM ou resposta só de lei cai em `aplicar_dossie`;
+  pergunta de confiabilidade responde `PRODUCT_ANSWER` sem modelo;
+  histórico de 6 turnos no prompt; chips não repetem a pergunta. Testes em
+  `backend/tests/test_chat_intel.py`.
+- Gate 14d (29/09): **Go**. Sem retorno dos colegas, o Bruno busca TRs no
+  SEI nesta semana. [docs/ops/gate-piloto-14d.md](docs/ops/gate-piloto-14d.md).
+- Jev (TypeSafe) avaliado 29/09: **não integrar**. API cloud quebra sigilo
+  fail-closed; RAG já filtra corpus pequeno; risco/severidade já são
+  determinísticos; calibração ruim em rating de qualidade.
 - UX-Confiança (28/09, mergeado): página `/confianca`
   (números com fonte + staleness), nota calibrada por cobertura (<95% = faixa)
   em `ReportScores`, retomada da fila por id, chips de evidência, teclado
@@ -91,11 +100,11 @@ embeddings) + revisão cruzada fail-closed + supervisor determinístico
   vermelho**; free exige babysitting. Bom piloto **assistido**, não p/
   confiança cega.
 - Jobs PABX de referência: `8cdafd60` (batch5, completed, nota 9.3),
-  `f9648727` (parcial 186/257). Gate 14 dias: janela fechou 28/09 —
-  decisão Go/No-Go com o Bruno.
-- Spike PNCP (28/09, `feat/fetch-pncp-trs`, sem commit): baixa TRs públicos
-  da CODEBA sem token (`services/pncp/client.py` + `scripts/fetch_pncp_trs.py`,
-  dry-run default, 6 testes mock); PDFs em `fixtures/trs-codeba/pendente/pncp/`
+  `f9648727` (parcial 186/257).
+- Spike PNCP (28/09, `feat/fetch-pncp-trs`, commit `240b1bc`, sem merge):
+  baixa TRs públicos da CODEBA sem token (`services/pncp/client.py` +
+  `scripts/fetch_pncp_trs.py`, dry-run default, 6 testes mock); PDFs em
+  `fixtures/trs-codeba/pendente/pncp/`
   ([docs/ops/fetch-pncp-trs.md](docs/ops/fetch-pncp-trs.md)).
 
 ## 4. Como executar
@@ -113,10 +122,10 @@ E2E_LIVE=1 E2E_BASE_URL=http://127.0.0.1:3000 npx playwright test e2e/bff-origin
 
 ## 5. Pendências (lista única)
 
-- Humano: carimbo golden feito (0/17, 28/09); decisão do gate
-  14d; re-medir recall v2 quando houver análise no Postgres (hoje zero);
-  ligar miss-hunter e comparar; colar SEI em minuta de teste;
-  chaves pagas só se a Fase 3 mandar (`ANTHROPIC_API_KEY` c/ teto,
+- Humano: carimbo golden feito (0/17, 28/09); **Go do gate 14d** — buscar
+  TRs no SEI nesta semana; re-medir recall v2 quando houver análise no
+  Postgres (hoje zero); ligar miss-hunter e comparar; colar SEI em minuta
+  de teste; chaves pagas só se a Fase 3 mandar (`ANTHROPIC_API_KEY` c/ teto,
   SiliconFlow/Z.ai/Cohere/NVIDIA, permissão HF); URLs oficiais TCU (sair da
   quarentena); visto jurídico da amostra.
 - Código: teste ao vivo do batch 1–2 no reset da cota; upload-tr full

@@ -83,6 +83,22 @@ _GREETING_RE = re.compile(
 )
 
 
+_SOFT_RE = re.compile(
+    r"(ol[aá]|posso ajudar|reformule a pergunta|escolha uma sugest)",
+    re.IGNORECASE,
+)
+
+
+def is_soft_ungrounded(answer: str | None) -> bool:
+    """Saudação ou convite, sem afirmação sobre o TR."""
+    if not answer:
+        return False
+    text = answer.strip()
+    if not text or len(text) > 600:
+        return False
+    return bool(_SOFT_RE.search(text))
+
+
 def is_greeting(text: str | None) -> bool:
     """Detecta cumprimento curto (ex.: oi, olá, bom dia)."""
     if not text:

@@ -3,11 +3,14 @@
 import logging
 import time
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.chat import ChatConversation, ChatMessage
+from app.services.chat.fallback import aplicar_dossie
 from app.services.chat.llm_adapter import ChatLLMProvider
+from app.services.chat.product_brief import PRODUCT_ANSWER, is_product_question
 from app.services.chat.prompts import build_messages
 from app.services.chat.sources import (
     build_sources,
@@ -141,6 +144,19 @@ async def send_message(
             latency_ms=0,
         )
 
+    # Número de confiabilidade não passa pelo modelo — evita precisão inventada.
+    if is_product_question(content):
+        return await _persistir_mensagem(
+            db,
+            conversation,
+            "assistant",
+            PRODUCT_ANSWER,
+            grounded=False,
+            provider="local",
+            model="product-brief",
+            latency_ms=0,
+        )
+
     try:
         montadas = await build_sources(
             db,
@@ -181,8 +197,12 @@ async def send_message(
     inicio = time.monotonic()
     try:
         provider = provider_llm
+        historico = await _turnos_recentes(db, conversation_id)
         system_prompt, user_prompt = build_messages(
-            content, conversation.context_json or {}, fontes
+            content,
+            conversation.context_json or {},
+            fontes,
+            history=historico,
         )
         logger.info(
             "chat.llm.requested provider=%s model=%s",
@@ -201,6 +221,7 @@ async def send_message(
             valid_source_ids=source_ids_from(fontes),
         )
         resposta.citations = hydrate_citations(resposta.citations, fontes)
+        resposta, used_dossier = aplicar_dossie(content, fontes, resposta)
     except Exception:
         logger.exception(
             "chat.llm.failed provider=%s",
@@ -212,6 +233,7 @@ async def send_message(
             reason="falha-llm",
         )
         latency_ms = int((time.monotonic() - inicio) * 1000)
+        resposta, used_dossier = aplicar_dossie(content, fontes, resposta)
 
     if resposta.refused:
         logger.info(
@@ -228,9 +250,33 @@ async def send_message(
         sources=[c.model_dump() for c in resposta.citations],
         grounded=resposta.grounded,
         confidence=resposta.confidence,
-        provider=getattr(provider, "provider_name", "desconhecido"),
-        model=getattr(provider, "model_name", None),
+        provider=(
+            "local"
+            if used_dossier
+            else getattr(provider, "provider_name", "desconhecido")
+        ),
+        model=(
+            "dossier"
+            if used_dossier
+            else getattr(provider, "model_name", None)
+        ),
         latency_ms=latency_ms,
         warning=warning_message_pt(resposta.reason) if resposta.refused else None,
         retrieval_run_id=retrieval_run_id,
     )
+
+
+async def _turnos_recentes(
+    db: AsyncSession, conversation_id: int
+) -> list[tuple[str, str]]:
+    """Até seis falas anteriores, sem a pergunta que acabou de ser gravada."""
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.conversation_id == conversation_id)
+        .order_by(ChatMessage.id.desc())
+        .limit(7)
+    )
+    rows = list(reversed(result.scalars().all()))
+    if rows and rows[-1].role == "user":
+        rows = rows[:-1]
+    return [(m.role, m.content) for m in rows][-6:]

@@ -8,16 +8,17 @@ Piloto CODEBA, single-user. O elaborador envia o TR, revisa só o que importa (a
 **Ops do piloto:** [docs/ops/piloto.md](docs/ops/piloto.md)  
 **Memória do projeto:** [memory.md](memory.md)
 
-## Estado (24/09/2026)
+## Estado (29/09/2026)
 
 Código das fases **0A–8** está em `main`. Schema esperado: `20260924_004`.
+Gate 14d: **Go** — busca manual de TRs no SEI nesta semana.
 
 | Feito | Pendente (humano) | Fora de escopo |
 |-------|-------------------|----------------|
 | Sigilo fail-closed, quarentena TCU, token operacional | Visto jurídico (eval + amostra 14.133/13.303) | CI GitHub, K8s, fine-tune |
 | Ingestão idempotente, modelo jurídico versionado | URLs oficiais TCU (sair da quarentena) | Multi-tenant / OIDC |
-| FTS Postgres, grounding, custo, auditoria | Gate 14 dias, colar SEI real, rotação de secrets | LangGraph |
-| Pacote SEI / HTML / DOCX | Ollama se for usar TR `sigiloso` | |
+| FTS Postgres, grounding, custo, auditoria | Buscar TRs no SEI (Go 29/09), colar SEI real, rotação de secrets | LangGraph |
+| Pacote SEI / HTML / DOCX, copiloto com dossiê do TR | Ollama se for usar TR `sigiloso` | |
 
 Recall@5 no corpus piloto (599 chunks): **0.929** (FTS). Semente local: 1.0. `pgvector` preenchido a partir do JSON; sem HNSW.
 

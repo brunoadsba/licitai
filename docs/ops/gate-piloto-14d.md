@@ -1,7 +1,6 @@
 # Gate piloto 14 dias + DOCX condicional
 
-**Status:** **janela aberta** — início **2026-09-14** (sessão 0 = TR ouro `09-ti-pabx-nuvem`).  
-Fim previsto: **2026-09-28**. Código das Fases A–F já entregue.
+**Decisão (29/09/2026): Go — sem retorno dos colegas, o Bruno fará busca manual no SEI por TRs para rodar no sistema durante a semana.**
 
 Não é feature de código até o gate falhar no desfecho HTML.
 
